@@ -18,8 +18,8 @@ def readcsv(file='./dataCmd.csv'):
     return dataFin
 
 #exctract the data from marine copernicus
-def getdataFromMarineCopernicus(dataInfo, dateBeginning, dateEnd, outputDirectory, outputFile, deepthmin=10, deepthmax=15 ):
-    if dataInfo[18] == 'NULL':
+def getdataFromMarineCopernicus(dataInfo, dateBeginning, dateEnd, outputDirectory, outputFile, deepthmin=10, deepthmax=15):
+    if (dataInfo[18] == '') or (dataInfo[18] == 'NULL'):
         os.system('python -m motuclient --motu ' + dataInfo[3] +
                   ' --service-id ' + dataInfo[4] + ' --product-id ' + dataInfo[5] +
                   ' --longitude-min ' + dataInfo[6] + ' --longitude-max ' + dataInfo[
@@ -28,18 +28,16 @@ def getdataFromMarineCopernicus(dataInfo, dateBeginning, dateEnd, outputDirector
                   ' --date-max ' + dateEnd + ' --variable ' + dataInfo[15] +
                   ' --out-dir ' + outputDirectory + ' --out-name ' + outputFile + ' --user mjaouen --pwd Azerty123456 ')
     else:
-        if (deepthmin<float(dataInfo[18]) or deepthmax>float(dataInfo[19])):
-            raise ValueError('invalid deepth value')
-        else:
-            os.system('python -m motuclient --motu ' + dataInfo[3] +
-                      ' --service-id ' + dataInfo[4] + ' --product-id ' + dataInfo[5] +
-                      ' --longitude-min ' + dataFin[imgNb][6] + ' --longitude-max ' + dataInfo[
-                          7] + ' --latitude-min ' +
-                      dataInfo[8] + ' --latitude-max ' + dataInfo[9] + ' --date-min ' + dateBeginning +
-                      ' --date-max ' + dateEnd + ' --depth-min ' + str(deepthmin) + '  --depth-max ' +
-                      str(deepthmax) + '  --variable ' +
-                      dataInfo[15] +
-                      ' --out-dir ' + outputDirectory + ' --out-name ' + outputFile + ' --user mjaouen --pwd Azerty123456 ')
+
+        os.system('python -m motuclient --motu ' + dataInfo[3] +
+                  ' --service-id ' + dataInfo[4] + ' --product-id ' + dataInfo[5] +
+                  ' --longitude-min ' + dataInfo[6] + ' --longitude-max ' + dataInfo[
+                      7] + ' --latitude-min ' +
+                  dataInfo[8] + ' --latitude-max ' + dataInfo[9] + ' --date-min ' + dateBeginning +
+                  ' --date-max ' + dateEnd + ' --depth-min ' + str(deepthmin) + '  --depth-max ' +
+                  str(deepthmax) + '  --variable ' +
+                  dataInfo[15] +
+                  ' --out-dir ' + outputDirectory + ' --out-name ' + outputFile + ' --user mjaouen --pwd Azerty123456 ')
 
 #give the file complete name depending of the filetype
 def giveFile(filename,filetype):
@@ -100,63 +98,63 @@ def givedatesForClimatCoper(begDate,endDate):
         days = [str(days) for days in range(1,32)]
     return years, months, days
 
-wantedData='windu'
+
+def getData(wantedData, zone, dataFin, deepthmin, deepthmax, dateBeginning, dateEnd):
+    begDate = splitDate(dateBeginning)
+    endDate = splitDate(dateEnd)
+    # we select the lines that contains the data on the right zone
+    wantedDataLine = np.where((dataFin[:, 1] == wantedData) & (dataFin[:, 2] == zone))
+    servicetypelist = dataFin[wantedDataLine, 14]
+    for j in range(len(wantedDataLine[0])):
+        servicetype = servicetypelist[0][j]
+        imgNb = wantedDataLine[0][j]
+        filename = wantedData + zone + dataFin[imgNb][0] + str(j)
+        outputFile = giveFile(filename, dataFin[imgNb, 20])
+        if servicetype == 'marineCopernicus':
+            outputDirectory = './'
+            getdataFromMarineCopernicus(dataFin[imgNb], dateBeginning, dateEnd, outputDirectory, outputFile, deepthmin,
+                                        deepthmax)
+
+        if servicetype == 'WCS':
+            # define the connection
+            url = dataFin[imgNb, 16]
+
+            # define variables
+            # requestbbox = (lonOuest, latSud, lonEst, latNord)
+            requestbbox = (-4.7, 48.55, -4.50, 48.65)
+            # requestbbox = (2.0, 51.5, 5.0, 54.0)
+            layer = dataFin[imgNb, 15]
+            # get the data
+            getdataWCS(url, layer, requestbbox, outputFile, dataFin[imgNb, 4], format=dataFin[imgNb, 20])
+
+        if servicetype == 'cdsapi':
+            c = cdsapi.Client()
+            variable = dataFin[imgNb, 6]
+            fileformat = dataFin[imgNb, 20]
+            prodtype = dataFin[imgNb, 3]
+            prodname = dataFin[imgNb, 4]
+            time = dataFin[imgNb, 9]
+            years, months, days = givedatesForClimatCoper(begDate, endDate)
+            c.retrieve(
+                prodname,
+                {
+                    'product_type': prodtype,
+                    'format': fileformat,
+                    'variable': variable,
+                    'year': years,
+                    'month': months,
+                    'day': days,
+                    'time': time,
+                },
+                outputFile)
+
+wantedData=['Temperature','Nitrate','Ammonium','Phosphate','Salinity','northward_Water_current','eastward_Water_current']
 dateBeginning = '"2020-11-15 00:00:00"'
 dateEnd = '"2020-11-22 00:00:00"'
-begDate = splitDate(dateBeginning)
-endDate = splitDate(dateEnd)
-
-deepthmin=10
-deepthmax=15
+zone='IBI'
+deepthmin=0
+deepthmax=20
 
 dataFin=readcsv()
-
-wantedDataLine=np.where(dataFin[:,1]==wantedData)
-servicetypelist=dataFin[wantedDataLine,14]
-print(wantedDataLine[0])
-for j in range(len(wantedDataLine[0])):
-    servicetype=servicetypelist[0][j]
-    imgNb=wantedDataLine[0][j]
-    print(imgNb)
-    print(j)
-    filename='pic'+str(j)
-    outputFile = giveFile(filename, dataFin[imgNb, 20])
-    if servicetype=='marineCopernicus':
-        outputDirectory = './'
-        # print(dataFin[imgNb])
-        getdataFromMarineCopernicus(dataFin[imgNb], dateBeginning, dateEnd, outputDirectory, outputFile, deepthmin, deepthmax)
-
-
-    if servicetype=='WCS':
-        # define the connection
-        url = dataFin[imgNb,16]
-
-        # define variables
-        #requestbbox = (lonOuest, latSud, lonEst, latNord)
-        requestbbox = (-4.7, 48.55, -4.50, 48.65)
-        #requestbbox = (2.0, 51.5, 5.0, 54.0)
-        layer = dataFin[imgNb,15]
-        # get the data
-        getdataWCS(url, layer, requestbbox, outputFile, dataFin[imgNb,4], format=dataFin[imgNb,20])
-
-
-    if servicetype=='cdsapi':
-        c = cdsapi.Client()
-        variable=dataFin[imgNb,6]
-        fileformat=dataFin[imgNb,20]
-        prodtype=dataFin[imgNb,3]
-        prodname=dataFin[imgNb,4]
-        time = dataFin[imgNb,9]
-        years, months, days=givedatesForClimatCoper(begDate, endDate)
-        c.retrieve(
-            prodname,
-            {
-                'product_type': prodtype,
-                'format': fileformat,
-                'variable': variable,
-                'year': years,
-                'month': months,
-                'day': days,
-                'time': '12:00',
-            },
-            outputFile)
+for dat in wantedData:
+    getData(dat, zone, dataFin, deepthmin, deepthmax, dateBeginning, dateEnd)
