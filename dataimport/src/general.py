@@ -6,6 +6,7 @@ import cdsapi
 import os
 import numpy as np
 import pandas as pd
+import datetime
 
 #read the csv where we listed the location of the different data
 def readcsv(file='./dataCmd.csv'):
@@ -134,7 +135,7 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, dateBeginning, date
     for j in range(len(wantedDataLine[0])):
         servicetype = servicetypelist[0][j]
         imgNb = wantedDataLine[0][j]
-        filename = wantedData + zone + dataFin[imgNb][0] + str(j)
+        filename = wantedData + zone + dataFin[imgNb][0] + dateBeginning[1:11]
         outputFile = giveFile(filename, dataFin[imgNb, 20])
         if servicetype == 'marineCopernicus':
             getdataFromMarineCopernicus(dataFin[imgNb], dateBeginning, dateEnd, outputDirectory, outputFile, deepthmin,
@@ -176,14 +177,34 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, dateBeginning, date
         elif servicetype == 'ftp':
             getdataFromFtp(dataFin[imgNb])
 
-wantedData=['par','Temperature','Nitrate','Ammonium','Phosphate','Salinity','northward_Water_current','eastward_Water_current']
+def giveDateslist(dateBeginning,dateEnd):
+    begList = [dateBeginning]
+    endList = []
+    gDate = datetime.datetime(int(dateBeginning[1:5]), int(dateBeginning[6:8]), int(dateBeginning[9:11]))
+    date = gDate + datetime.timedelta(days = 1)
+    datestr = date.strftime('"%Y-%m-%d %H:%M:%S"')
+    while datestr != dateEnd:
+        begList += [datestr]
+        endList += [datestr]
+        date = date + datetime.timedelta(days=1)
+        datestr = date.strftime('"%Y-%m-%d %H:%M:%S"')
+    endList+=[dateEnd]
+    return begList, endList
+
+
+wantedData=['Temperature','Nitrate','Ammonium','Phosphate','Salinity','northward_Water_current','eastward_Water_current']
 dateBeginning = '"2020-11-15 00:00:00"'
 dateEnd = '"2020-11-22 00:00:00"'
 zone='IBI'
 deepthmin=0
 deepthmax=20
-outputDirectory = 'I:/work-he/apps/safi/data/IBI'
+outputDirectory = 'I:/work-he/apps/safi/data/IBI/'
 
 dataFin=readcsv()
-for dat in wantedData:
-    getData(dat, zone, dataFin, deepthmin, deepthmax, dateBeginning, dateEnd,outputDirectory)
+datesList=giveDateslist(dateBeginning,dateEnd)
+for i in range(len(datesList[0])):
+    dateBeg=datesList[0][i]
+    dateE=datesList[1][i]
+    for dat in wantedData:
+        DataOutputDirectory=outputDirectory+dat+'/'
+        getData(dat, zone, dataFin, deepthmin, deepthmax, dateBeg, dateE,DataOutputDirectory)
