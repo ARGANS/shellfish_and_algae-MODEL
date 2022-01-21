@@ -1,0 +1,32 @@
+---
+title: "Macroalgae model notes (draft ATBD)"
+output:
+  word_document: default
+  html_notebook: default
+---
+
+# Background
+
+# Scope and design philosophy
+
+The model is required by the funder to predict the potential yield of macroalgae from European waters on a 1x1km grid. The funder wishes for the assessment of 3 different species of macroalage and requires (external to this model) to ensure that the downstream effects of nutrient utilisation are accounted for in terms of productivity of downstream seaweed farms. 
+
+This model is designed to run quickly and independently from any geospatial dynamics or interactions which will be handled at the next level up in the software stack being built to meet the requirements of the project. 
+
+The model is designed to be flexible enough to be run as a single macroalgal farm 'sub-unit' e.g. 1x1m horizontal extent in a nested multi-scale model of a farm in order to investigate within-farm nutrient and productivity dynamics as may be required. However it is envisaged that the model will be run once for each 1x1 km grid square, with a simple farm density scaling parameter to represent the reality that seaweed farms cannot occupy the entirety of a 1x1km grid square, but may be more productive spread out over an area rather than intensively farmed in one compact unit. Beyond this, as the funder wishes for 'potential' yield the model will not consider practical aspects of limits to seaweed production (distance from coast, maximum possible harvesting frequency, line density, conflicts with other uses of the sea etc.) as these are out of scope. Similarly the effect of grazing, bacterial or viral pressure on macroalgal productivity or the potential impacts of storms or harmful algal blooms are not considered with the scope of this model (although some of these may be identified as risk factors for aquaculture activities within the geospatial framework that this model will operate).
+
+The model is driven by nutrient inputs, light and temperature and is designed to be flexible enough to be able to represent any species of macroalgae by means of parameter set modification
+
+# Model description
+
+The 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
