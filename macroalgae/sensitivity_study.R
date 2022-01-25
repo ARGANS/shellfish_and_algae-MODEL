@@ -3,12 +3,14 @@ require(ggplot2)
 source('run_MA.R')
 source('hadley_model_test.R')
 
-sensibility_study <- function(param_name, values, default_parms, default_input_data,
-                              model_func=MA_model) {
+sensitivity_study <- function(param_name, values, default_parms, default_input_data,
+                              model_func, y0) {
   # param: string with the name of the parameter that will vary
   # values: vector of values that param should take
   # default_parms: named list of parameters for the model
-  # input_data: data_frame of inputs to the model, it also defines the run duration
+  # input_data: data_frame of inputs to the model, it also defines the simulation duration
+  # model_func: the function of the model on which the sens study is run
+  
   
   if (param_name %in% names(default_parms)) {
     input_data = default_input_data
@@ -32,8 +34,6 @@ sensibility_study <- function(param_name, values, default_parms, default_input_d
       boundary_forcings(input_data)
     }
     
-    y0 = c(NH4=NH4_in(1), NO3=NO3_in(1), N_s=0.01, N_f=0.01, D=0.1)
-    
     simulated = ode(times=input_data$time, func=model_func, y=y0, parms=parms)
     
     param_simulated = data.frame(param_val, simulated)
@@ -46,14 +46,13 @@ sensibility_study <- function(param_name, values, default_parms, default_input_d
 }
 
 
-test0 = sensibility_study("F_in", c(0.25, 1), default_parms, dummy_input)
-
-
-
 parms_hadley = c(parms_porphyra, parms_farm)
+boundary_forcings(input_hadley)
+y0 = c(NH4=NH4_ref(1), NO3=NO3_ref(1), N_s=0.01, N_f=1, D=0.1)
 
 # run the sensibility study
-sens_hadley = sensibility_study("F_in", c(0.05*3, 1*3), parms_hadley, input_hadley, model=Hadley_model_as_published)
+sens_hadley = sensitivity_study("F_in", c(0.05*3, 1*3), parms_hadley, input_hadley, 
+                                model=Hadley_model_as_published, y0=y0)
 
 # Compute total N as in figure 5 of the paper
 sens_hadley$total_N = (sens_hadley$N_s + sens_hadley$N_f) * parms_hadley['h_MA']
