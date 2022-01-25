@@ -10,6 +10,8 @@ library('deSolve')
 #library('simecol')
 #library('ggplot2')
 
+source("macroalgae_model.R")
+
 #### create harvesting data frame ######
 EST <- 30 #establishment time /d
 HAR <- 14 #harvesting frequency after establishment / d
@@ -51,32 +53,43 @@ PAR_mean <- 600
 PAR_magn <- 400
 
 PAR <- PAR_mean + (PAR_magn*sin(2*pi*(times)/365))
-PAR <- approxfun(x = times,y = PAR, method='linear', rule=2)
+#PAR <- approxfun(x = times,y = PAR, method='linear', rule=2)
 
 ### temperature  # celcius
 SST_mean <- 15
 SST_magn <- 3
 
 SST <- SST_mean + (SST_magn*sin(2*pi*(times)/365))
-SST <- approxfun(x = times,y = SST, method='linear', rule=2)
+#SST <- approxfun(x = times,y = SST, method='linear', rule=2)
 
 ### NH4 # mg N m-3
 NH4_mean <- 25
 NH4_magn <- 10
 
 NH4_ref <- NH4_mean + (NH4_magn*sin(2*pi*(times+180)/365))
-NH4_ref <- approxfun(x = times,y = NH4_ref, method='linear', rule=2)
+#NH4_ref <- approxfun(x = times,y = NH4_ref, method='linear', rule=2)
 
 ### NO3 # mg N m-3
 NO3_mean <- 35
 NO3_magn <- 10
 
 NO3_ref <- NO3_mean + (NO3_magn*sin(2*pi*(times+180)/365))
-NO3_ref <- approxfun(x = times,y = NO3_ref, method='linear', rule=2)
+#NO3_ref <- approxfun(x = times,y = NO3_ref, method='linear', rule=2)
 
 ### Detritus # mg N m-3
 D_ref  <- 0.1  #simply set to constant for now
 
+
+input_hadley <- data.frame(
+  time   = times,
+  PAR    = PAR,
+  SST    = SST,
+  NH4_ref = NH4_ref,
+  NO3_ref = NO3_ref,
+  D_ref = D_ref
+)
+
+boundary_forcings(input_hadley)
 
 
 parms_ulva <- c(
@@ -163,7 +176,7 @@ Hadley_model <- function(t, y, parms,...) {
 
 
     dN_f        <- mu_g_EQT*N_s-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
-    dD          <- lambda_R*(D_ref-D) + d_m*N_f - r_L*D                      # change in detritus with time
+    dD          <- lambda_R*(D_ref(t)-D) + d_m*N_f - r_L*D                      # change in detritus with time
     list(c(dNH4, dNO3,dN_s,dN_f,dD),
          lambda_R  = lambda_R,
          V_MA      = V_MA,
@@ -187,7 +200,7 @@ Hadley_model <- function(t, y, parms,...) {
 Hadley_model_as_published <- function(t, y, parms) {
 
   with(as.list(c(y, parms)), {
-    length_scaler<-max(hma/z,1)
+    length_scaler<-max(h_MA/z,1)
     lambda_R    <- F_in/(A_farm*z)                                             # refresh rate of farm
     V_MA        <- h_MA * A_farm                                             # volume of macroalgae
     Q           <- Q_min*(1+(N_s/N_f))                                       # Internal nutrient quota of macroalgae
@@ -210,7 +223,7 @@ Hadley_model_as_published <- function(t, y, parms) {
 
 
     dN_f        <- mu_g_EQT*N_s-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
-    dD          <- lambda_R*(D_ref-D) + d_m*N_f - r_L*D                      # change in detritus with time
+    dD          <- lambda_R*(D_ref(t)-D) + d_m*N_f - r_L*D                      # change in detritus with time
     list(c(dNH4, dNO3,dN_s,dN_f,dD),
          lambda_R  = lambda_R,
          V_MA      = V_MA,
