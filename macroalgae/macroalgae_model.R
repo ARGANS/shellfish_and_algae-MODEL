@@ -42,15 +42,9 @@ boundary_forcings<-function(input_data){
     assign(param,approxfun(x=input_data$time,y=input_data[,param], method='linear',rule=2),envir=.GlobalEnv)
   }
 
-  maf('PAR')
-  maf('SST')
-  maf('NO3_in')
-  maf('NH4_in')
-  maf('K_d')
-  maf('F_in')
-  maf('h_z_SML')
-  maf('t_z')
-  maf('D_in')
+  for (name in names(input_data)) {
+    maf(name)
+  }
 
   return(invisible(0))
 

@@ -1,10 +1,10 @@
-
-require(reshape2)
-require(RColorBrewer)
+require(ggplot2)
 
 source('run_MA.R')
+source('hadley_model_test.R')
 
-sensibility_study <- function(param_name, values, default_parms, default_input_data) {
+sensibility_study <- function(param_name, values, default_parms, default_input_data,
+                              model_func=MA_model) {
   # param: string with the name of the parameter that will vary
   # values: vector of values that param should take
   # default_parms: named list of parameters for the model
@@ -20,8 +20,6 @@ sensibility_study <- function(param_name, values, default_parms, default_input_d
     return(1)
   }
   
-  y0 = c(NH4=NH4_in(1), NO3=NO3_in(1), N_s=0.01, N_f=0.01, D=0.1)
-  
   param_dependency = data.frame(NULL)
   for (param_val in values) {
     
@@ -34,7 +32,9 @@ sensibility_study <- function(param_name, values, default_parms, default_input_d
       boundary_forcings(input_data)
     }
     
-    simulated = ode(times=input_data$time, func=MA_model, y=y0, parms=parms)
+    y0 = c(NH4=NH4_in(1), NO3=NO3_in(1), N_s=0.01, N_f=0.01, D=0.1)
+    
+    simulated = ode(times=input_data$time, func=model_func, y=y0, parms=parms)
     
     param_simulated = data.frame(param_val, simulated)
     names(param_simulated)[1] = param_name
@@ -46,17 +46,25 @@ sensibility_study <- function(param_name, values, default_parms, default_input_d
 }
 
 
-ab = sensibility_study("F_in", c(0.25, 1), default_parms, dummy_input)
-#ab = sensibility_study("mu", c(0, 0.33), default_parms, dummy_input)
+test0 = sensibility_study("F_in", c(0.25, 1), default_parms, dummy_input)
 
-plot_sens_time = ggplot(data=ab, mapping=aes(x=time, y=NH4, color=as.factor(F_in))) +
+
+
+parms_hadley = c(parms_porphyra, parms_farm)
+
+# run the sensibility study
+sens_hadley = sensibility_study("F_in", c(0.05*3, 1*3), parms_hadley, input_hadley, model=Hadley_model_as_published)
+
+# Compute total N as in figure 5 of the paper
+sens_hadley$total_N = (sens_hadley$N_s + sens_hadley$N_f) * parms_hadley['h_MA']
+
+plot_sens_time = ggplot(data=sens_hadley, mapping=aes(x=time, y=total_N, color=as.factor(F_in))) +
   geom_point() +
   scale_color_discrete() +
   theme_bw()
 
-plot_sens_time
-
-
+# plot the first year
+plot_sens_time %+% subset(sens_hadley, time<=365)
 
 
 
