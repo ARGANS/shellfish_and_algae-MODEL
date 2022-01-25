@@ -16,7 +16,7 @@ HAR <- 14 #harvesting frequency after establishment / d
 HF <- 0.25 #harvest this fraction
 
 
-hadley_harvest_function<-function(EST=EST,HAR=HAR,HF=HF,name,run_length) {
+hadley_timed_harvest_function<-function(EST=EST,HAR=HAR,HF=HF,name,run_length) {
   num<-(run_length - EST)/HAR
   harvesttimes<-c(0,seq(from=EST,by=HAR,length.out=num))
   len<-length(harvesttimes)
@@ -29,22 +29,23 @@ hadley_harvest_function<-function(EST=EST,HAR=HAR,HF=HF,name,run_length) {
   )
 
   event
-
-
 }
 
 
-#harvest_regime<-rbind(
-#  hadley_harvest_function(EST,HAR,HF,name='N_s'),
-#  hadley_harvest_function(EST,HAR,HF,name='N_f')
-#
+
+
+
+
+#timed_harvest_regime<-rbind(
+#  hadley_timed_harvest_function(EST,HAR,HF,name='N_s'),
+#  hadley_timed_harvest_function(EST,HAR,HF,name='N_f')
 #)
 
 #### model boundary forcings ###########################################
 
 times <- 1:3650
 
-### solar insolation  #umol photons m-2 s-1
+### solar insolation  #umol phot0ons m-2 s-1
 
 PAR_mean <- 600
 PAR_magn <- 400
@@ -121,13 +122,13 @@ parms_farm<-c(
   A_farm  = 1,       # farm area                     / m2
   z       = 3,       # cultivation depth             / m
   F_in    = 0.75,     # flow rate into farm           / m3 d-1
-  N_farm  = 5000# additional ammonium input to farm e.g. from salmon mg/N/m-3
+  N_farm  = 100# additional ammonium input to farm e.g. from salmon mg/N/m-3
 )
 
 ######################################################
 ##   THE MODEL EQUATIONS ###########
 ######################################################
-Hadley_model <- function(t, y, parms) {
+Hadley_model <- function(t, y, parms,...) {
 
   with(as.list(c(y, parms)), {
     length_scaler<-1
@@ -161,7 +162,7 @@ Hadley_model <- function(t, y, parms) {
     dN_s        <- (f_NH4+f_NO3)*B*length_scaler-mu_g_EQT*N_s-(d_m*N_s)                          # change in internal nitrogen store - eq 5 in Hadley
 
 
-         dN_f        <- mu_g_EQT*N_s-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
+    dN_f        <- mu_g_EQT*N_s-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
     dD          <- lambda_R*(D_ref-D) + d_m*N_f - r_L*D                      # change in detritus with time
     list(c(dNH4, dNO3,dN_s,dN_f,dD),
          lambda_R  = lambda_R,
@@ -296,5 +297,26 @@ light_limitation_zollmann<-function(N_f=30000,
 }
 
 
+## =============================================================================
+# harvest when light limitation is approached
+## =============================================================================
 
+rootfunc  <- function(t,y,parms){ 
+  
+  return(y['N_f']-harvest_threshold)  #when g_e reaches harvest threshold, return 0
+}
+  
+eventfunc <- function(t, y, parms,...){
+  c(y[1:2],y[3]*0.25,y[4]*0.25,y[5])
+  
+  #y['N_f']y['N_f']*0.25#(1-harvest_fraction) 
+  #y['N_s']<-y['N_s']*0.25#(1-harvest_fraction)
+  
+}
 
+parms_harvest<-c(
+  harvest_threshold=0.2,
+  harvest_fraction=0.75
+)
+
+lim_harvest <- lsoda(times = times, func = Hadley_model, y = y0, parms = c(parms_porphyra,parms_farm,parms_harvest),events=list(func=eventfunc, root=TRUE),rootfun=rootfunc)
