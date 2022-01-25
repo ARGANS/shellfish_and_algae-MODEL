@@ -1,9 +1,15 @@
 ---
 title: "Macroalgae model notes (draft ATBD)"
 output:
-  word_document: default
+  pdf_document: default
   html_notebook: default
+  word_document: default
 ---
+```{r, include=FALSE}
+source("../hadley_model_test.R", local = knitr::knit_global())
+op = function(x, d=0) sprintf(paste0("%1.",d,"f"), x) 
+```
+
 
 # Background
 
@@ -19,14 +25,85 @@ The model is driven by nutrient inputs, light and temperature and is designed to
 
 # Model description
 
-The 
+#The model is based on the macroalgal model presented for three species of macroalgae by Hadley et al., (2015) following Aldridge and Trimmer (2009) and Solidoro et al., (1997). Hadley et al., (2015) provide full details of their model which should enable  a like-for like reproduction of their results for comparison / checking. 
 
+
+## Hadley et al., 2015 Model
+
+Hadley et al model was implemented in R, according to the equations laid out in their paper, using the DeSolve package. When implemented as described in their paper, it is not possible to reproduce their results. In particular, light limitation due to self-shading in the model is too strong, with light strongly limiting macroalgal growth at a standing stock of 0.8g of fixed nitrogen (proxy for biomass in the model - approximately 60g DW) per cubic metre of water. Given a modelled height of 0.2m, this corresponds to around 12 g DW / m^2^ according to the Hadley pareterisation (Fig 1). 
+
+
+The term g_E in Hadley et al is a scaling factor on maximum specific growth rate which, along with analagous nutrient and temperature functions, inhibit growth. A value of g_e = 1 means no light inhibition, a value of 0.1, for example means 90% inhibition of growth due to low light availability. The term integrates the light attenuation coefficient of water (0.1 m^-1^) as well as the attentuation due to macroalgal self-shading, the latter being the dominant term in g_E. 
 ```{r}
-plot(cars)
+
+
+Nf<-1:1000 #fixed N in mg / m3
+# other paramseters as per default parameter settings for Hadley model with Porphyra
+
+plot(Nf,light_limitation(Nf),xlab='fixed N in mg per cubic metre',ylab='g_E (unitless)')
+
+#### Figure 1. Relationship between biomass (represented by fixed N) and g_E light limitation term
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+Figure 1 suggests that at 12 g DW / m^2^ 90% of light transmission is restricted on average across the 0.2 m depth containing macroalgae. It can be inferred from the plot of equilibrium runs of the Hadley et al., model (Fig 2, their Figure 4), that light is not limiting in their runs even at biomass density of in excess of 1.5kg m-2. (13 mg n to 1 g DW as per Prophyra in Hadley et al).
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+![](images/Hadley_Fig4.png)
+Figure 2: Hadley et al 2015 Fig. 4 (see caption above)
+
+When we run the model we find that even with fish farm point source input of N_farm = 0 the system reaches strong light limitation and a fixed nitrogen biomass of only a few grams per square metre. 
+
+It is not clear whether the error lies with our implementation or the equations laid out in their paper but after a day of investigation it was not possible to reconcile the results of our implementation of the model with those presented in the paper, despite numerous hours trying. 
+
+An analagous light limitation scheme from Zollmannn et al 2021 (their equations 5 and 6) has been implemented to replace the code that cannot be successfully reproduced (Figure 3). This has been adapted to allow a vertical extent of clear water (i.e. no seaweed) above the farm.
+
+```{r}
+
+
+Nf<-1:100000 #fixed N in mg / m3
+# other paramseters as per default parameter settings for Hadley model with Porphyra
+
+plot(Nf,light_limitation_zollmann(Nf),xlab='fixed N in mg per cubic metre',ylab='g_E (unitless)')
+
+#### Figure 2. Relationship between biomass (represented by fixed N)
+#### and g_E light limitation term with scheme from Zollman et al (2021)
+```
+
+
+This is clearly a much less strong light limitation and produces results of an appropriate order of magnitude when compared to the Hadley et al., 2015 equilibrium runs (Fig. 4). 
+
+```{r}
+parms_farm['N_farm']=50
+Low<- ode(times = times, func = Hadley_model, y = y0, parms = c(parms_porphyra,parms_farm))
+
+parms_farm['N_farm']=100
+Med<- ode(times = times, func = Hadley_model, y = y0, parms = c(parms_porphyra,parms_farm))
+
+parms_farm['N_farm']=5000
+High<- ode(times = times, func = Hadley_model, y = y0, parms = c(parms_porphyra,parms_farm))
+
+# multiply by 0.2m (height of farm to convert 
+# to per m-2 for comparison with Hadley fig 4)
+{plot(times,High[,'N_f']*0.2,xlab='time (days)',ylab='N_f (mg N m-2)',type='l')
+lines(times,Med[,'N_f']*0.2, lty=2)
+lines(times,Low[,'N_f']*0.2, lty=3)}
+
+#### Figure 2. Relationship between biomass (represented by fixed N)
+#### and g_E light limitation term with scheme from Zollman et al (2021)
+
+
+```
+
+```{r echo=FALSE}
+print('mean equilibrium biomass')
+print(paste('N_farm = 50:',op(mean(tail(Low[,'N_f']*0.2,356)))))
+print(paste('N_farm = 100:',op(mean(tail(Med[,'N_f']*0.2,356)))))
+print(paste('N_farm = 5000:',op(mean(tail(High[,'N_f']*0.2,356)))))
+
+print('estimates from Haldey et al fig 4 (panel C- Porphyra)')
+print(paste('N_farm = 50:', 11000))
+print(paste('N_farm = 100:', 21000))
+print(paste('N_farm = 5000:', 340000))
+
+
+```
