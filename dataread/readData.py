@@ -21,16 +21,22 @@ def readcsv(file='./dataCmd.csv'):
     dataFin = np.array(dataFin)
     return dataFin
 
+#give the indices coresponding to lonval, and latval in the list of coordinates
 def givecoor(path,lonval,latval,dataName):
     for r, d, f in os.walk(path):
+        #we take a data file
         fn = path + f[0]
         ds = nc.Dataset(fn)
+        #we look where does the data came from
         if dataName == 'par':
+            #we get the longitude and latitude list
             lonList = ds['lon'][:]
             latList = ds['lat'][:]
         else:
+            # we get the longitude and latitude list
             lonList = ds['longitude'][:]
             latList = ds['latitude'][:]
+        #we browse the data until we find a coordiate bigger than the wanted coordiante
         i=0
         loni = lonList[i]
         while i+1<len(lonList) and lonval>loni:
@@ -43,13 +49,18 @@ def givecoor(path,lonval,latval,dataName):
             lati = latList[j]
     return i, j
 
+#sort the list of data from the older to the newer
 def sortDateList(listValue,ldate):
-    sortLval = []
-    sortldate = []
+    sortLval = [] #we define the sorted data list
+    sortldate = [] #we define the sorted date list
+    #we read the list we have to sort
     for k in range(len(ldate)):
         i = 0
+        # while we didn't red all the sorted list
         while i<len(sortLval):
+            # if the list element is graeter than the element we want to place in the list
             if ldate[k]<sortldate[i]:
+                # we place this element before the element who is greater than it
                 sortldate = sortldate[:i]+[ldate[k]]+sortldate[i:]
                 sortLval = sortLval[:i] + [listValue[k]] + sortLval[i:]
                 i=len(sortLval)+1
@@ -59,6 +70,7 @@ def sortDateList(listValue,ldate):
             sortLval += [listValue[k]]
     return np.array(sortLval), np.array(sortldate)
 
+#smooth the data, with a box_pts size convolutional matrix
 def smooth(y, box_pts):
     box = np.ones(box_pts)/box_pts
     y_smooth = np.convolve(y, box, mode='same')
@@ -70,8 +82,12 @@ lon = -9.916667
 depth = 1
 dataName = 'Temperature'
 zone = 'IBI'
+
+#we construct the path to the data
 path=path+dataName+"/"
 print(path)
+
+#we search after the name of the data we want in the dataset
 dataFin=readcsv()
 wantedDataLine = np.where((dataFin[:, 1] == dataName) & (dataFin[:, 2] == zone))
 imgNb = wantedDataLine[0][0]
@@ -80,33 +96,35 @@ longitude, latitude = givecoor(path,lon,lat,dataName)
 
 listValue = []
 ldate = []
+#we read each file in the folder
 for r, d, f in os.walk(path):
     for i in range(len(f)):
         print(f[i])
         fn=path+f[i]
+        #we read the file
         ds = nc.Dataset(fn,'r', format='NETCDF4')
+        # we look where does the data came from
         if dataName == 'par':
             date = fn[-46:-38]
-            ldate += [datetime.datetime(int(date[0:4]), int(date[4:6]), int(date[6:8]))]
-            listValue += [ds[data][latitude, longitude]]
+            ldate += [datetime.datetime(int(date[0:4]), int(date[4:6]), int(date[6:8]))] #we get the date
+            listValue += [ds[data][latitude, longitude]] #we get the data
         else:
             date = fn[-13:-3]
-            ldate += [datetime.datetime(int(date[0:4]), int(date[5:7]), int(date[8:10]))]
-            listValue += [ds[data][0, depth, latitude, longitude]]
+            ldate += [datetime.datetime(int(date[0:4]), int(date[5:7]), int(date[8:10]))] #we get the date
+            listValue += [ds[data][0, depth, latitude, longitude]] #we get the data
 
 
 listValue,ldate = sortDateList(listValue,ldate)
 
 listValue = np.array(listValue)
 
+#we attribute the mean of its neighbors the points without data
 for i in range(1,len(listValue)):
     if listValue[i]==np.nan and listValue[i-1]!=np.nan and listValue[i+1]!=np.nan:
         listValue = 0.5*(listValue[i-1] + listValue[i+1])
 
 ldateNoNan = ldate[np.logical_not(np.isnan(listValue))]
 listnoNAN=listValue[np.logical_not(np.isnan(listValue))]
-
-print(listnoNAN)
 
 
 
