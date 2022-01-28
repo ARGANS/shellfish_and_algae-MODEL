@@ -36,9 +36,9 @@ def givecoor(path,lonval,latval,dataName):
             # we get the longitude and latitude list
             lonList = ds['longitude'][:]
             latList = ds['latitude'][:]
-        #we browse the data until we find a coordiate bigger than the wanted coordiante
         i=0
         loni = lonList[i]
+        # we browse the data until we find a coordiate bigger than the wanted coordiante
         while i+1<len(lonList) and lonval>loni:
             i+=1
             loni = lonList[i]
