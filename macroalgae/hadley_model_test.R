@@ -10,7 +10,40 @@ library('deSolve')
 #library('simecol')
 #library('ggplot2')
 
-source("macroalgae_model.R")
+
+boundary_forcings<-function(input_data){
+  # This function takes input environmental data for an individual grid square
+  # as a data frame of daily average values and generates the necessary functions
+  # to return interpolated values at any time point within the range
+  # (i.e. at whatever temporal resolution is required  by the ODE solver).
+  # The following columns are expected in the data frame. If they are absent a
+  # warning is generated and some default data substituted
+  # time (in days, e.g. 1:365),
+  # PAR (PAR incident at the sea surface in umol photons m-2 s-2),
+  # SST (Sea surface temperature in celcius),
+  # NO3 (nitrate concentration - SML average - in mg N m-3),
+  # NH4 (ammonium concentration - SML average - in mg N m-3),
+  # K_d (turbidity dependent light attenuation coefficient - in m-1 - derived from turbidity or SPM, satellite or modelled)
+  # F_in (net horizontal flow rate into farm cross section A_xz (m/d))
+  # h_z_SML (depth of SML in m)
+  # t_z (vertical turnover of SML in d-1)
+
+  maf<-make_approx_fun<-function(param){
+    # given a column name construct an approxfun for that parameter with time
+    assign(param,approxfun(x=input_data$time,y=input_data[,param], method='linear',rule=2),envir=.GlobalEnv)
+  }
+
+  for (name in names(input_data)) {
+    maf(name)
+  }
+
+  return(invisible(0))
+
+
+}
+
+
+
 
 #### create harvesting data frame ######
 EST <- 30 #establishment time /d
@@ -47,46 +80,55 @@ hadley_timed_harvest_function<-function(EST=EST,HAR=HAR,HF=HF,name,run_length) {
 
 times <- 1:3650
 
+make_seasonal_cycle<-function(times,mean, magnitude,offset){
+  # make a sine wave seasonal cycle of a parameter given mean values,
+  # magnitude (amplitude*0.5) and offset in days to time of mean value
+  # as per Hadley et al 2015
+  mean+(magnitude*sin(2*pi*(times+offset)/365))
+}
+
+
+
 ### solar insolation  #umol phot0ons m-2 s-1
 
-PAR_mean <- 600
-PAR_magn <- 400
+#PAR_mean <- 600
+#PAR_magn <- 400
 
-PAR <- PAR_mean + (PAR_magn*sin(2*pi*(times)/365))
+#PAR <- PAR_mean + (PAR_magn*sin(2*pi*(times)/365))
 #PAR <- approxfun(x = times,y = PAR, method='linear', rule=2)
 
 ### temperature  # celcius
-SST_mean <- 15
-SST_magn <- 3
+#SST_mean <- 15
+#SST_magn <- 3
 
-SST <- SST_mean + (SST_magn*sin(2*pi*(times)/365))
+#SST <- SST_mean + (SST_magn*sin(2*pi*(times)/365))
 #SST <- approxfun(x = times,y = SST, method='linear', rule=2)
 
 ### NH4 # mg N m-3
-NH4_mean <- 25
-NH4_magn <- 10
-
-NH4_ref <- NH4_mean + (NH4_magn*sin(2*pi*(times+180)/365))
+#NH4_mean <- 25
+#NH4_magn <- 10
+#
+#NH4_ref <- NH4_mean + (NH4_magn*sin(2*pi*(times+180)/365))
 #NH4_ref <- approxfun(x = times,y = NH4_ref, method='linear', rule=2)
 
 ### NO3 # mg N m-3
-NO3_mean <- 35
-NO3_magn <- 10
+#NO3_mean <- 35
+#NO3_magn <- 10
 
-NO3_ref <- NO3_mean + (NO3_magn*sin(2*pi*(times+180)/365))
+#NO3_ref <- NO3_mean + (NO3_magn*sin(2*pi*(times+180)/365))
 #NO3_ref <- approxfun(x = times,y = NO3_ref, method='linear', rule=2)
 
 ### Detritus # mg N m-3
-D_ref  <- 0.1  #simply set to constant for now
+#D_ref  <- 0.1  #simply set to constant for now
 
 
 input_hadley <- data.frame(
   time   = times,
-  PAR    = PAR,
-  SST    = SST,
-  NH4_ref = NH4_ref,
-  NO3_ref = NO3_ref,
-  D_ref = D_ref
+  PAR    = make_seasonal_cycle(times,600,400,0),
+  SST    = make_seasonal_cycle(times,15,3,0),
+  NH4_ref = make_seasonal_cycle(times,25,20,180),
+  NO3_ref = make_seasonal_cycle(times,35,10,180),
+  D_ref = 0.1
 )
 
 boundary_forcings(input_hadley)
@@ -102,7 +144,9 @@ parms_ulva <- c(
   Q_min   = 13,      # min.    "        "            / mg(N) g-1 (dw)
   K_c     = 7,       # Half growth constant          / mg(N) g-1 (dw)
   T_O     = 12,      # optimum growth temperature    / oC
-  T_r     = 1,       # range of optimum temperature  / oC
+  T_min     = 1,       # min temperature for growth  / oC
+  T_max    = 25,     # max temperature for growth     / oC
+  T_r       = 1,
   I_s     = 200,     # saturation irradiance         / umol photons m-2 s-1
   a_cs    = 0.00033, # nitrogen-specific shading     / m2 mg-1 (N)
   d_m     = 0.003,   # mortality rate                / 1/d
@@ -121,7 +165,9 @@ parms_porphyra <- c(
   Q_min   = 14,      # min.    "        "            / mg(N) g-1 (dw)
   K_c     = 7,       # Half growth constant          / mg(N) g-1 (dw)
   T_O     = 12,      # optimum growth temperature    / oC
-  T_r     = 1,       # range of optimum temperature  / oC
+  T_min     = 1,       # min temperature for growth  / oC
+  T_max    = 25,     # max temperature for growth     / oC
+  T_r     = 1,
   I_s     = 277,     # saturation irradiance         / umol photons m-2 s-1
   a_cs    = 0.00036, # nitrogen-specific shading     / m2 mg-1 (N)
   d_m     = 0.003,   # mortality rate                / 1/d
@@ -135,9 +181,10 @@ parms_farm<-c(
   A_farm  = 1,       # farm area                     / m2
   z       = 3,       # cultivation depth             / m
   F_in    = 0.75,     # flow rate into farm           / m3 d-1
-  N_farm  = 100# additional ammonium input to farm e.g. from salmon mg/N/m-3
+  N_farm  = 0# additional ammonium input to farm e.g. from salmon mg/N/m-3
 )
 
+print('setup done')
 ######################################################
 ##   THE MODEL EQUATIONS ###########
 ######################################################
@@ -157,7 +204,7 @@ Hadley_model <- function(t, y, parms,...) {
     #K           <- K_MA + K_d                                                # total light attenuation due to water and algae
     #E_z         <- PAR(t)*exp(-K*z)                                          # Irradiance at top of macroalgal canopy
     g_Q         <- (Q-Q_min)/(Q-K_c)                                         # Growth limitation due to internal nutrient reserves
-    g_T         <- 1/(1+exp(-(SST(t)-T_O)/T_r))                              # Growth limitation due to temperature
+    #g_T         <- 1/(1+exp(-(SST(t)-T_O)/T_r))                              # Growth limitation due to temperature
     #g_E         <- (PAR(t)/(K*h_MA))*(exp(-(E_z*exp(-K*h_MA))/I_s)-exp(-(E_z/I_s)))# Growth limitation due to light
 
    # new light limitation - from Zollman et al 2021
@@ -165,7 +212,15 @@ Hadley_model <- function(t, y, parms,...) {
     I_av <-(I_top/(K_d*z+N_f*a_cs))*(1-exp(-(K_d*z+N_f*a_cs)))          # calclulate the average irradiance throughout theheight of the farm
     g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
 
-     mu_g_EQT    <- mu*g_E*g_Q*g_T                                            # Growth function for macroalgae
+  # new temperature scheme introduced to give inhibition of growth at temperatureas above optimum - from martin and marques 2002
+
+    if(SST(t)>T_O)
+      {T_x<-T_max}
+    else
+      {T_x<-T_min}
+    g_T<-exp(-2.3*((SST(t)-T_O)/(T_min-T_O))^2)
+
+    mu_g_EQT    <- mu*g_E*g_Q*g_T                                            # Growth function for macroalgae
     f_NH4       <- ((V_NH4*NH4)/(K_NH4+NH4))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NH4
     f_NO3       <- ((V_NO3*NO3)/(K_NO3+NO3))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NO3.
 
@@ -241,12 +296,12 @@ Hadley_model_as_published <- function(t, y, parms) {
     )
   })
 }
-
-y0   <- c(NH4=NH4_ref(1),NO3=NO3_ref(1),N_s=0.01,N_f=1,D=0.1)
-start_time<-Sys.time()
+print('model done')
+y0   <- c(NH4=NH4_ref(1),NO3=NO3_ref(1),N_s=0.1,N_f=0.1,D=0.1)
+#start_time<-Sys.time()
 #Out_Harvets <- ode(times = times, func = Hadley_model, y = y0, parms = parms, event=list(data=harvest_regime))
-Out <- ode(times = times, func = Hadley_model, y = y0, parms = c(parms_porphyra,parms_farm))
- end_time<-Sys.time()
+#Out <- ode(times = times, func = Hadley_model, y = y0, parms = c(parms_porphyra,parms_farm))
+# end_time<-Sys.time()
 
 #print(end_time-start_time)
 
@@ -301,12 +356,12 @@ light_limitation_zollmann<-function(N_f=30000,
                                      K_d=parms_farm['K_d'],
                                      z=parms_farm['z'],
                                      PAR.=PAR(91)){
-  
+
   I_top<-PAR.*exp(-K_d*(z-h_MA))
   I_av <-(I_top/(K_d*h_MA+N_f*a_cs))*(1-exp(-(K_d*h_MA+N_f*a_cs)))
   g_E <- I_av/((I_s+I_av))
   g_E
-  
+
 }
 
 
@@ -314,17 +369,23 @@ light_limitation_zollmann<-function(N_f=30000,
 # harvest when light limitation is approached
 ## =============================================================================
 
-rootfunc  <- function(t,y,parms){ 
-  
-  return(y['N_f']-harvest_threshold)  #when g_e reaches harvest threshold, return 0
+rootfunc  <- function(t,y,parms,...){
+  with(as.list(c(y, parms)), {
+    I_top<-PAR(t)*exp(-K_d*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
+    I_av <-(I_top/(K_d*z+N_f*a_cs))*(1-exp(-(K_d*z+N_f*a_cs)))          # calclulate the average irradiance throughout theheight of the farm
+    g_E <- I_av/(((I_s)+I_av))
+
+   return(g_E-harvest_threshold)  #when g_e reaches harvest threshold, return 0
+  })
 }
-  
+
 eventfunc <- function(t, y, parms,...){
-  c(y[1:2],y[3]*0.25,y[4]*0.25,y[5])
-  
-  #y['N_f']y['N_f']*0.25#(1-harvest_fraction) 
+
+  c(y[1:2],y[3]*(1-parms['harvest_fraction']),y[4]*(1-parms['harvest_fraction']),y[5])
+
+  #y['N_f']y['N_f']*0.25#(1-harvest_fraction)
   #y['N_s']<-y['N_s']*0.25#(1-harvest_fraction)
-  
+
 }
 
 parms_harvest<-c(
@@ -332,4 +393,4 @@ parms_harvest<-c(
   harvest_fraction=0.75
 )
 
-lim_harvest <- lsoda(times = times, func = Hadley_model, y = y0, parms = c(parms_porphyra,parms_farm,parms_harvest),events=list(func=eventfunc, root=TRUE),rootfun=rootfunc)
+#lim_harvest <- ode(times = times, func = Hadley_model,  y = y0, parms = c(parms_porphyra,parms_farm,parms_harvest), events=list(func=eventfunc, root=TRUE),rootfun=rootfunc)
