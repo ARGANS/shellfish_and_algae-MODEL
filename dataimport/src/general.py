@@ -51,7 +51,7 @@ def giveFile(filename,filetype):
     else:
         return filename+'.'+filetype
 
-def getdataFromFtp(dataFin):
+def getdataFromFtp(dataFin, outputDirectory):
     HOSTNAME = dataFin[16]
     USERNAME = dataFin[4]
     PASSWORD = dataFin[5]
@@ -65,12 +65,11 @@ def getdataFromFtp(dataFin):
     filelist = ftp_server.nlst()
 
     ftp_server.dir()
-    path = 'I:/work-he/apps/safi/data/IBI/par/'
     # os.mkdir(path)
     #we read all the file in the ftp directory
     for filename in filelist:
         print(filename)
-        fileDirect = path + filename
+        fileDirect = outputDirectory + filename
         #we download the file
         with open(fileDirect, "wb") as file:
             ftp_server.retrbinary(f"RETR {filename}", file.write)
@@ -94,13 +93,9 @@ def getdataWCS(url,layer,requestbbox,file, version,format='GeoTIFF'):
 
 #for a date this function gives the year the month and the day numbers
 def splitDate(date):
-    datelist=date.split("-")
-    year=datelist[0].split('"')[1]
-    month=datelist[1]
-    day=datelist[2].split(" ")[0]
-    return [year,month,day]
+    return [date.year, date.month, date.day]
 
-def givedatesForClimatCoper(begDate,endDate):
+def givedatesForClimatCoper(begDate, endDate):
     years = [ str(yr) for yr in range(int(begDate[0]),int(endDate[0])+1)]
     #if we stay in the same year
     if int(begDate[0])==int(endDate[0]):
@@ -126,7 +121,7 @@ def givedatesForClimatCoper(begDate,endDate):
     return years, months, days
 
 
-def getData(wantedData, zone, dataFin, deepthmin, deepthmax, dateBeginning, dateEnd,outputDirectory):
+def getData(wantedData, zone, dataFin, deepthmin, deepthmax, dateBeginning, dateEnd, outputDirectory):
     begDate = splitDate(dateBeginning)
     endDate = splitDate(dateEnd)
     # we select the lines that contains the data on the right zone
@@ -135,11 +130,12 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, dateBeginning, date
     for j in range(len(wantedDataLine[0])):
         servicetype = servicetypelist[0][j]
         imgNb = wantedDataLine[0][j]
-        filename = wantedData + zone + dataFin[imgNb][0] + dateBeginning[1:11]
+        filename = wantedData + zone + dataFin[imgNb][0] + dateBeginning.strftime("%Y-%m-%d")
         outputFile = giveFile(filename, dataFin[imgNb, 20])
         if servicetype == 'marineCopernicus':
-            getdataFromMarineCopernicus(dataFin[imgNb], dateBeginning, dateEnd, outputDirectory, outputFile, deepthmin,
-                                        deepthmax)
+            getdataFromMarineCopernicus(dataFin[imgNb], dateBeginning.strftime('"%Y-%m-%d %H:%M:%S"'),
+                                        dateEnd.strftime('"%Y-%m-%d %H:%M:%S"'), outputDirectory,
+                                        outputFile, deepthmin, deepthmax)
 
         elif servicetype == 'WCS':
             # define the connection
@@ -175,36 +171,38 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, dateBeginning, date
                 outputFile)
 
         elif servicetype == 'ftp':
-            getdataFromFtp(dataFin[imgNb])
+            getdataFromFtp(dataFin[imgNb], outputDirectory)
 
-def giveDateslist(dateBeginning,dateEnd):
-    begList = [dateBeginning]
-    endList = []
-    gDate = datetime.datetime(int(dateBeginning[1:5]), int(dateBeginning[6:8]), int(dateBeginning[9:11]))
-    date = gDate + datetime.timedelta(days = 1)
-    datestr = date.strftime('"%Y-%m-%d %H:%M:%S"')
-    while datestr != dateEnd:
-        begList += [datestr]
-        endList += [datestr]
-        date = date + datetime.timedelta(days=1)
-        datestr = date.strftime('"%Y-%m-%d %H:%M:%S"')
-    endList+=[dateEnd]
+def giveDateslist(dateBeginning, dateEnd):
+    datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
+    datetimeEnd = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
+
+    ndays = (datetimeEnd - datetimeBeginning).days
+
+    begList = [(datetimeBeginning + datetime.timedelta(days=i)) for i in range(ndays)]
+    endList = [(datetimeBeginning + datetime.timedelta(days=i)) for i in range(1, ndays+1)]
+
     return begList, endList
 
 
-wantedData=['Temperature','Nitrate','Ammonium','Phosphate','Salinity','northward_Water_current','eastward_Water_current']
-dateBeginning = '"2020-11-15 00:00:00"'
-dateEnd = '"2020-11-22 00:00:00"'
+wantedData = ['Temperature','Nitrate','Ammonium','Phosphate','Salinity','northward_Water_current','eastward_Water_current', 'par']
+dateBeginning = '2020-01-18 00:00:00'
+dateEnd = '2021-01-18 00:00:00'
 zone='IBI'
-deepthmin=0
-deepthmax=20
+deepthmin = 0
+deepthmax = 20
 outputDirectory = 'I:/work-he/apps/safi/data/IBI/'
+#outputDirectory = 'P:/Aquaculture/test/'
 
-dataFin=readcsv()
-datesList=giveDateslist(dateBeginning,dateEnd)
+dataFin = readcsv("P:\Aquaculture\shellfish_and_algae-MODEL\dataimport\src\dataCmd.csv")
+
+datesList = giveDateslist(dateBeginning, dateEnd)
+#getData('par', zone, dataFin, deepthmin, deepthmax, datetime.datetime(2020, 11, 15), datetime.datetime(2020, 11, 16), outputDirectory)
 for i in range(len(datesList[0])):
-    dateBeg=datesList[0][i]
-    dateE=datesList[1][i]
-    for dat in wantedData:
-        DataOutputDirectory=outputDirectory+dat+'/'
-        getData(dat, zone, dataFin, deepthmin, deepthmax, dateBeg, dateE,DataOutputDirectory)
+    dateBeg = datesList[0][i]
+    dateEnd = datesList[1][i]
+    DataOutputDirectory = outputDirectory+'ocean_mixed_layer_thickness'+'/'
+    getData('ocean_mixed_layer_thickness', zone, dataFin, deepthmin, deepthmax, dateBeg, dateEnd, DataOutputDirectory)
+#    for dat in wantedData:
+#        DataOutputDirectory=outputDirectory+dat+'/'
+#        getData(dat, zone, dataFin, deepthmin, deepthmax, dateBeg, dateEnd, DataOutputDirectory)
