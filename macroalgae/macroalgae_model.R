@@ -86,8 +86,8 @@ MA_model <- function(t, y, parms) {
       # light limits to growth - adapted from Zollman et al 2021
       
       
-      I_top<-PAR(t)*exp(-K_d*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
-      I_av <-(I_top/(K_d*z+N_f*a_cs))*(1-exp(-(K_d*z+N_f*a_cs)))          # calclulate the average irradiance throughout the height of the farm
+      I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
+      I_av <-(I_top/(K_d(t)*z+N_f*a_cs))*(1-exp(-(K_d(t)*z+N_f*a_cs)))          # calclulate the average irradiance throughout the height of the farm
       g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
 
       mu_g_EQT    <- mu*g_E*g_Q*g_T                                            # Growth function for macroalgae
@@ -102,9 +102,6 @@ MA_model <- function(t, y, parms) {
          lambda_R  = lambda_R,
          Q         = Q,
          B         = B,
-         K_MA      = K_MA,
-         K         = K,
-         E_z       = E_z,
          g_Q       = g_Q,
          g_T       = g_T,
          g_E       = g_E,
