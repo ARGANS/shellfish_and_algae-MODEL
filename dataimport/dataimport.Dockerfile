@@ -17,7 +17,8 @@ RUN apt-get update && apt-get install -y build-essential binutils libproj-dev gd
     pip install GDAL==$(gdal-config --version)
 RUN python -m pip --no-cache-dir install -r requirements.txt
 
-RUN mkdir -p /media/share
+RUN mkdir -p /media/share && \
+    mkdir -p /media/share/data/IBI/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature}
 
 
 # RUN chmod +x ./main.sh
