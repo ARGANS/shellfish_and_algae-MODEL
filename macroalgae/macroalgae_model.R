@@ -18,7 +18,7 @@ library('bvpSolve')
 library('deTestSet')
 library('ReacTran')
 library('simecol')
-library('ggplot2')
+library('tidyverse')
 
 boundary_forcings<-function(input_data){
   # This function takes input environmental data for an individual grid square
@@ -36,7 +36,7 @@ boundary_forcings<-function(input_data){
   # F_in (net horizontal flow rate into farm cross section A_xz (m/d))
   # h_z_SML (depth of SML in m)
   # t_z (vertical turnover of SML in d-1)
-  # azimuth
+  # theta (anlge of solar incidence degrees)
 
   maf<-make_approx_fun<-function(param){
     # given a column name construct an approxfun for that parameter with time
@@ -52,6 +52,14 @@ boundary_forcings<-function(input_data){
 
 }
 
+
+setup_solar_angle<-function(latitude, start_day=0, ndays){
+  # Calculates max solar incidence angle theta for each day of year given latitude. 
+  # Output is ready to be fed into boundary_forcings to generate approxfun
+  # when start_day=0 output starts on 1 Jan
+  declin<-23.45*cos(((360/365)*(1:ndays+10+start_day))*pi/180)
+  90-(latitude+declin)
+}
 
 ######################################################
 ##   THE MODEL EQUATIONS ###########
@@ -93,6 +101,7 @@ MA_model <- function(t, y, parms) {
       mu_g_EQT    <- mu*g_E*g_Q*g_T                                            # Growth function for macroalgae
       f_NH4       <- ((V_NH4*NH4)/(K_NH4+NH4))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NH4
       f_NO3       <- ((V_NO3*NO3)/(K_NO3+NO3))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NO3.
+      
       dNH4        <- lambda_R*(NH4_in(t)-NH4)-(f_NH4*B)+(r_L*D)-(r_N*NH4)+(d_m*N_s)     # change in NH4 with time  - eq 3 in Hadley et al (note max(h_MA/z,1) term is omitted because we assume the surface box is well mixed - need to think further about this - should we be looking across entire mixed layer - or include this in the lambda term?)
       dNO3        <- lambda_R*(NO3_in(t)-NO3)-(f_NO3*B)+(r_N*NH4)             # change in NO3 with time  - eq 4 in Hadley et al (note max(h_MA/z,1) term is omitted because we assume the surface box is well mixed - need to think further about this - should we be looking across entire mixed layer - or include this in the lambda term?)
       dN_s        <- (f_NH4+f_NO3)*B-mu_g_EQT*N_s-(d_m*N_s)                          # change in internal nitrogen store - eq 5 in Hadley
