@@ -92,8 +92,6 @@ MA_model <- function(t, y, parms) {
       g_T<-exp(-2.3*((SST(t)-T_O)/(T_min-T_O))^2)
       
       # light limits to growth - adapted from Zollman et al 2021
-      
-      
       I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
       I_av <-(I_top/(K_d(t)*z+N_f*a_cs))*(1-exp(-(K_d(t)*z+N_f*a_cs)))          # calclulate the average irradiance throughout the height of the farm
       g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
@@ -104,8 +102,8 @@ MA_model <- function(t, y, parms) {
       
       dNH4        <- lambda_R*(NH4_in(t)-NH4)-(f_NH4*B)+(r_L*D)-(r_N*NH4)+(d_m*N_s)     # change in NH4 with time  - eq 3 in Hadley et al (note max(h_MA/z,1) term is omitted because we assume the surface box is well mixed - need to think further about this - should we be looking across entire mixed layer - or include this in the lambda term?)
       dNO3        <- lambda_R*(NO3_in(t)-NO3)-(f_NO3*B)+(r_N*NH4)             # change in NO3 with time  - eq 4 in Hadley et al (note max(h_MA/z,1) term is omitted because we assume the surface box is well mixed - need to think further about this - should we be looking across entire mixed layer - or include this in the lambda term?)
-      dN_s        <- (f_NH4+f_NO3)*B-mu_g_EQT*N_s-(d_m*N_s)                          # change in internal nitrogen store - eq 5 in Hadley
-      dN_f        <- mu_g_EQT*N_s-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
+      dN_s        <- (f_NH4+f_NO3)*B-min(mu_g_EQT*N_s,PO4_in(t)*N_to_P)-(d_m*N_s)                          # change in internal nitrogen store - eq 5 in Hadley
+      dN_f        <- min(mu_g_EQT*N_s,PO4_in(t)*N_to_P)-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
       dD          <- lambda_R*(D_in(t)-D + d_m*N_f - r_L*D)                  # change in detritus with time
       list(c(dNH4, dNO3,dN_s,dN_f,dD),
          lambda_R  = lambda_R,

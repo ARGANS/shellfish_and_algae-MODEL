@@ -38,6 +38,9 @@ source('macroalgae_model.R')
     NO3_mean <- 60
     NO3_magn <- 50
     
+    PO4_mean<-2
+    PO4_magn<-1.9
+    
     latitude<- 54
 
     run_length <- time <- 1:3650
@@ -49,6 +52,7 @@ default_input<- data.frame(
   SST    = SST_mean + (SST_magn*sin(2*pi*(time+180)/365)),
   NH4_in = NH4_mean + (NH4_magn*sin(2*pi*(time+91)/365)),
   NO3_in = NO3_mean + (NO3_magn*sin(2*pi*(time+91)/365)),
+  PO4_in = PO4_mean + (PO4_magn*sin(2*pi*(time+91)/365)),
   K_d    = 0.1,
   F_in   = 0,
   h_z_SML= 30,
@@ -67,6 +71,7 @@ default_parms_ulva <- c(
   K_NO3   = 70,     #   "      "          "    NO3  / mg(N)m-3
   Q_max   = 42,      # max. internal nitrogen        / mg(N) g-1 (dw)
   Q_min   = 13,      # min.    "        "            / mg(N) g-1 (dw)
+  N_to_P  = 12,      #N:P ratio of seaweed biomass
   K_c     = 7,       # Half growth constant          / mg(N) g-1 (dw)
   T_O     = 12,      # optimum growth temperature    / oC
   T_min     = 1,       # min temperature for growth  / oC
@@ -88,6 +93,7 @@ default_parms_porphyra <- c(
   K_NO3   = 300,     #   "      "          "    NO3  / mg(N)m-3
   Q_max   = 70,      # max. internal nitrogen        / mg(N) g-1 (dw)
   Q_min   = 14,      # min.    "        "            / mg(N) g-1 (dw)
+  N_to_P  = 12,      #N:P ratio of seaweed biomass
   K_c     = 7,       # Half growth constant          / mg(N) g-1 (dw)
   T_O     = 12,      # optimum growth temperature    / oC
   T_min     = 1,       # min temperature for growth  / oC
@@ -112,7 +118,7 @@ default_parms_farm<-c(
 )
 
 default_parms_run<-c(
-  refresh_rate = 0, #if value is 1, farm is fully refreshed with new water each day. Otherwise calculate from horizontal and vertical flow
+  refresh_rate = 1, #if value is 1, farm is fully refreshed with new water each day. Otherwise calculate from horizontal and vertical flow
   harvest_method=0 #options: 0:no varvesting, 1.fixed frequency, 2. light-driven
 )
 
