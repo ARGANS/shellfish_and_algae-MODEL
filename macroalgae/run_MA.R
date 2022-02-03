@@ -7,7 +7,7 @@
 #load the model
 source('macroalgae_model.R')
 
-# construct dumy input data
+# construct dummy input data
     ### solar insolation  #umol photons m-2 s-1
     PAR_mean <- 600
     PAR_magn <- 400
@@ -64,9 +64,10 @@ default_parms <- c(
   r_N     = 0.1,     # nitrification rate            / 1/d
   #K_d     = 0.1,     # light attenuation coefficient / 1/m
   # not currently used y_farm   = 1,      # length of farm unit perpendicular to flow /m
-  x_farm   = 1,       # width of farm in flow direction    / m2
-  z       = 3       # cultivation depth             / m
+  x_farm   = 1,       # width of farm in flow direction    / m
+  z       = 3,       # cultivation depth             / m
   #F_in    = 3     # flow rate into farm           / m3 d-1
+  refresh_rate = 1 #if value is 1, farm is fully refreshed with new water each day. Otherwise calculate from horizontal and vertical flow
 )
 
 
