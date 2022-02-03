@@ -22,25 +22,48 @@ def readcsv(file='./dataCmd.csv'):
 
 #exctract the data from marine copernicus
 def getdataFromMarineCopernicus(dataInfo, dateBeginning, dateEnd, outputDirectory, outputFile, deepthmin=10, deepthmax=15):
+    """
+    Since version 1.8.0:
+        motuclient -h  
+    Before version 1.8.0:
+        python -m motu-client -h  
+    """
     if (dataInfo[18] == '') or (dataInfo[18] == 'NULL'):
-        os.system('python -m motuclient --motu ' + dataInfo[3] +
-                  ' --service-id ' + dataInfo[4] + ' --product-id ' + dataInfo[5] +
-                  ' --longitude-min ' + dataInfo[6] + ' --longitude-max ' + dataInfo[
-                      7] + ' --latitude-min ' + dataInfo[8] + ' --latitude-max ' + dataInfo[
-                      9] + ' --date-min ' + dateBeginning +
-                  ' --date-max ' + dateEnd + ' --variable ' + dataInfo[15] +
-                  ' --out-dir ' + outputDirectory + ' --out-name ' + outputFile + ' --user mjaouen --pwd Azerty123456 ')
+        os.system(f'motuclient'
+            f' --motu {dataInfo[3]}'
+            f' --service-id {dataInfo[4]}'
+            f' --product-id {dataInfo[5]}'
+            f' --longitude-min {dataInfo[6]}'
+            f' --longitude-max {dataInfo[7]}'
+            f' --latitude-min {dataInfo[8]}'
+            f' --latitude-max {dataInfo[9]}'
+            f' --date-min {dateBeginning}'
+            f' --date-max {dateEnd}'
+            f' --variable {dataInfo[15]}'
+            f' --out-dir {outputDirectory}'
+            f' --out-name {outputFile}'
+            ' --user mjaouen --pwd Azerty123456'
+        )
     else:
-
-        os.system('python -m motuclient --motu ' + dataInfo[3] +
-                  ' --service-id ' + dataInfo[4] + ' --product-id ' + dataInfo[5] +
-                  ' --longitude-min ' + dataInfo[6] + ' --longitude-max ' + dataInfo[
-                      7] + ' --latitude-min ' +
-                  dataInfo[8] + ' --latitude-max ' + dataInfo[9] + ' --date-min ' + dateBeginning +
-                  ' --date-max ' + dateEnd + ' --depth-min ' + str(deepthmin) + '  --depth-max ' +
-                  str(deepthmax) + '  --variable ' +
-                  dataInfo[15] +
-                  ' --out-dir ' + outputDirectory + ' --out-name ' + outputFile + ' --user mjaouen --pwd Azerty123456 ')
+        deepthmin = str(deepthmin)
+        deepthmax = str(deepthmax)
+        os.system(f'motuclient'
+            f' --motu {dataInfo[3]}'
+            f' --service-id {dataInfo[4]}'
+            f' --product-id {dataInfo[5]}'
+            f' --longitude-min {dataInfo[6]}'
+            f' --longitude-max {dataInfo[7]}'
+            f' --latitude-min {dataInfo[8]}'
+            f' --latitude-max {dataInfo[9]}'
+            f' --date-min {dateBeginning}'
+            f' --date-max {dateEnd}'
+            f' --depth-min {deepthmin}'
+            f' --depth-max {deepthmax}'
+            f' --variable {dataInfo[15]}'
+            f' --out-dir {outputDirectory}'
+            f' --out-name {outputFile}'
+            ' --user mjaouen --pwd Azerty123456'
+        )
 
 #give the file complete name depending of the filetype
 def giveFile(filename,filetype):
@@ -183,26 +206,3 @@ def giveDateslist(dateBeginning, dateEnd):
     endList = [(datetimeBeginning + datetime.timedelta(days=i)) for i in range(1, ndays+1)]
 
     return begList, endList
-
-
-wantedData = ['Temperature','Nitrate','Ammonium','Phosphate','Salinity','northward_Water_current','eastward_Water_current', 'par']
-dateBeginning = '2020-01-18 00:00:00'
-dateEnd = '2021-01-18 00:00:00'
-zone='IBI'
-deepthmin = 0
-deepthmax = 20
-outputDirectory = 'I:/work-he/apps/safi/data/IBI/'
-#outputDirectory = 'P:/Aquaculture/test/'
-
-dataFin = readcsv("P:\Aquaculture\shellfish_and_algae-MODEL\dataimport\src\dataCmd.csv")
-
-datesList = giveDateslist(dateBeginning, dateEnd)
-#getData('par', zone, dataFin, deepthmin, deepthmax, datetime.datetime(2020, 11, 15), datetime.datetime(2020, 11, 16), outputDirectory)
-for i in range(len(datesList[0])):
-    dateBeg = datesList[0][i]
-    dateEnd = datesList[1][i]
-    DataOutputDirectory = outputDirectory+'ocean_mixed_layer_thickness'+'/'
-    getData('ocean_mixed_layer_thickness', zone, dataFin, deepthmin, deepthmax, dateBeg, dateEnd, DataOutputDirectory)
-#    for dat in wantedData:
-#        DataOutputDirectory=outputDirectory+dat+'/'
-#        getData(dat, zone, dataFin, deepthmin, deepthmax, dateBeg, dateEnd, DataOutputDirectory)
