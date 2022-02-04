@@ -71,10 +71,6 @@ hadley_timed_harvest_function<-function(EST=EST,HAR=HAR,HF=HF,name,run_length) {
 
 
 
-#timed_harvest_regime<-rbind(
-#  hadley_timed_harvest_function(EST,HAR,HF,name='N_s'),
-#  hadley_timed_harvest_function(EST,HAR,HF,name='N_f')
-#)
 
 #### model boundary forcings ###########################################
 
@@ -381,7 +377,7 @@ rootfunc  <- function(t,y,parms,...){
 
 eventfunc <- function(t, y, parms,...){
 
-  c(y[1:2],y[3]*(1-parms['harvest_fraction']),y[4]*(1-parms['harvest_fraction']),y[5])
+  c(y[1],y[2],y[3]*(1-parms['harvest_fraction']),y[4]*(1-parms['harvest_fraction']),y[5])
 
   #y['N_f']y['N_f']*0.25#(1-harvest_fraction)
   #y['N_s']<-y['N_s']*0.25#(1-harvest_fraction)
