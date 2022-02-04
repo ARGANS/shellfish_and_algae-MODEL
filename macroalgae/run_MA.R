@@ -38,6 +38,9 @@ source('macroalgae_model.R')
     NO3_mean <- 60
     NO3_magn <- 50
     
+    PO4_mean<-50
+    PO4_magn<-3
+    
     latitude<- 54
 
     run_length <- time <- 1:3650
@@ -49,6 +52,7 @@ default_input<- data.frame(
   SST    = SST_mean + (SST_magn*sin(2*pi*(time+180)/365)),
   NH4_in = NH4_mean + (NH4_magn*sin(2*pi*(time+91)/365)),
   NO3_in = NO3_mean + (NO3_magn*sin(2*pi*(time+91)/365)),
+  PO4_in = PO4_mean + (PO4_magn*sin(2*pi*(time+91)/365)),
   K_d    = 0.1,
   F_in   = 0,
   h_z_SML= 30,
@@ -67,6 +71,7 @@ default_parms_ulva <- c(
   K_NO3   = 70,     #   "      "          "    NO3  / mg(N)m-3
   Q_max   = 42,      # max. internal nitrogen        / mg(N) g-1 (dw)
   Q_min   = 13,      # min.    "        "            / mg(N) g-1 (dw)
+  N_to_P  = 12,      #N:P ratio of seaweed biomass
   K_c     = 7,       # Half growth constant          / mg(N) g-1 (dw)
   T_O     = 12,      # optimum growth temperature    / oC
   T_min     = 1,       # min temperature for growth  / oC
@@ -88,6 +93,7 @@ default_parms_porphyra <- c(
   K_NO3   = 300,     #   "      "          "    NO3  / mg(N)m-3
   Q_max   = 70,      # max. internal nitrogen        / mg(N) g-1 (dw)
   Q_min   = 14,      # min.    "        "            / mg(N) g-1 (dw)
+  N_to_P  = 12,      #N:P ratio of seaweed biomass
   K_c     = 7,       # Half growth constant          / mg(N) g-1 (dw)
   T_O     = 12,      # optimum growth temperature    / oC
   T_min     = 1,       # min temperature for growth  / oC
@@ -104,27 +110,28 @@ default_parms_porphyra <- c(
 
 default_parms_farm<-c(
   x_farm   = 1,       # width of farm in flow direction    / m
-  z       = 3,       # cultivation depth             / m
+  z       = 1,       # cultivation depth             / m
   #N_farm  = 0# additional ammonium input to farm e.g. from salmon mg/N/m-3
+  harvest_first = 60, #days from start of run to first harvest
   harvest_freq = 14, #days (only used if harvest_method==1)
-  harvest_gE = 0.2, #value of light-dependent growth factor at which harvest happens (only used if harvest_method==2)
+  harvest_threshold = 0.2, #value of light-dependent growth factor (g_E) at which harvest happens (only used if harvest_method==2)
   harvest_fraction = 0.75 #fraction of total biomass to harvest (only used if narvest_method != 0)
 )
 
 default_parms_run<-c(
-  refresh_rate = 0, #if value is 1, farm is fully refreshed with new water each day. Otherwise calculate from horizontal and vertical flow
-  harvest_method=0 #options: 0:no varvesting, 1.fixed frequency, 2. light-driven
+  refresh_rate = 1, #if value is 1, farm is fully refreshed with new water each day. Otherwise calculate from horizontal and vertical flow
+  harvest_method=1 #options: 0:no varvesting, 1.fixed frequency, 2. light-driven
 )
 
 
 
 
 
-default_run <- function(parms=c(default_parms_run,default_parms_farm,default_parms_ulva),input_dat=default_input){
+default_run <- function(parms=c(default_parms_run,default_parms_farm,default_parms_ulva),input_data=default_input){
   boundary_forcings(input_data)
-  
+  y0   <- c(NH4=NH4_in(1),NO3=NO3_in(1),N_s=100,N_f=100,D=0.1,Yield=0)
 
-  y0   <- c(NH4=NH4_in(1),NO3=NO3_in(1),N_s=100,N_f=100,D=0.1)
+  
   Out <- ode(times = input_data$time, func = MA_model, y = y0, parms = parms)
   
   
@@ -136,9 +143,36 @@ run_model<-function(default_parms,default_input,parms,input,y0){
   input_data<-replace(default_input,names(input),input) # use default input where no value provided
   boundary_forcings(input_data) #create boundary forcings
   parms<-replace(default_parms,names(parms),parms) #parameters use defaults where no parmater provided in run config
-  Out<-ode(times = input_data$time, 
-           func=MA_model,
-           y=y0,
-           parms=parms)
-  Out
+  if(parms['harvest_method']==0){
+    #no harvesting
+    Out<-ode(times = input_data$time, 
+             func=MA_model,
+             y=y0,
+             parms=parms)
+    Out
+  } else if(parms['harvest_method']==1){
+    
+    #harvest at set frequency
+    
+   
+    Out_timed_harvest <- ode(times = input_data$time, 
+                             func = MA_model, 
+                             y = y0, 
+                             parms = parms, 
+                             event=list(func=harvest_eventfunc, root=TRUE),
+                             rootfun=harvest_timed_rootfunc)
+    Out_timed_harvest
+    
+  } else if(parms['harvest_method']==2){
+    
+    Out_limit_harvest <- ode(times = input_data$time, 
+                             func = MA_model,  
+                             y = y0, 
+                             parms = parms,
+                             events=list(func=harvest_eventfunc, root=TRUE),
+                             rootfun=harvest_limit_rootfunc)
+    Out_limit_harvest
+  }
+  
+  
 }
