@@ -8,8 +8,8 @@ import math
 
 
 def iNearest(value, sortedArray):
-    # finds the index i in sortedArraiy such that sortedArray[i] is closest
-    # to value
+    # finds the index i in sortedArray such that sortedArray[i] is closest
+    # to value. sortedArray should be 1D.
 
     n = len(sortedArray)
 
@@ -30,7 +30,10 @@ def iNearest(value, sortedArray):
 
 def extractVarSubset(ncDataset, variable, **kwargs):
     # Extract a subset of ncDataset[variable] along any number of dimensions
-    # to be specified in **kwargs. The argument/value pairs can be:
+    # to be specified in **kwargs. Returns the subset and a tuple containing
+    # the names of the dimensions remaining in the subset.
+    #
+    # The argument/value pairs can be:
     #   - argument: either the name of a dimension of variable or one such
     #               name followed by the '_index' suffix.
     #   - value: either a single value or a pair of values in a tuple
@@ -51,8 +54,10 @@ def extractVarSubset(ncDataset, variable, **kwargs):
     #     longitude dimension is between 3 and 14, including the former and
     #     excluding the latter, with a step of 2.
     #
-    # Note: any dimension name that i passed that is not a dimension of variable
-    #       will be silently ignored.
+    # Note: any dimension name that is passed that is not a dimension of 
+    #       variable will be silently ignored.
+    # Note: If both 'dimension=...' and 'dimension_index=...' are used then
+    #       the 'dimension_index=...' call will be ignored.
     # Note: tuple slices can contain None at one end or the other to extract
     #       all data to/from a given value/index. When subsetting by indices,
     #       negative indices can be used to count from the end, a negative step
@@ -83,7 +88,66 @@ def extractVarSubset(ncDataset, variable, **kwargs):
             else:
                 sliceList[iDim] = sliceVal
 
-    return ncDataset[variable][sliceList]
+    # Find the dims that will remain after slicing (all except the dims where
+    # the slice is an int).
+    dimRemains = [type(a) is slice for a in sliceList]
+    remainingDims = tuple(dim.name for i,dim in enumerate(dimensions) if dimRemains[i])
+
+    return ncDataset[variable][sliceList], remainingDims, sliceList
+
+
+def weightsForAverage(sortedDim, leftLimit, rightLimit):
+    # Computes the weights to be used for computed the weighed average between
+    # leftLimit and rightLimit of a variable that takes its values at the
+    # points in sortedDim. sortedDim must be in ascending order, leftLim and
+    # rightLim must be values outside or at the extremes of sortedDim.
+
+    n = len(sortedDim)
+
+    fullDim = np.insert(sortedDim, 0, leftLimit)
+    fullDim = np.append(fullDim, rightLimit)
+
+    weights = ( fullDim[2:] - fullDim[:-2] ) / 2
+    weights[0] = (sortedDim[0] + sortedDim[1]) / 2 - leftLimit
+    weights[-1] = rightLimit - (sortedDim[-2] + sortedDim[-1]) / 2
+
+    # normalize the result
+    return weights / np.sum(weights)
+
+
+def extractWithAverage(ncDataset, variable, averagingDims, weighed=True, **kwargs):
+    # Extract a subset of ncDataset[variable] along any number of dimensions
+    # to be specified in **kwargs, then average the dataset along the dimensions
+    # specified in averagingDims (tuple of strings).
+    # See extractVarSubset() for reference on the format of **kwargs.
+    #
+    # If weighed==True then the average is weighed. For dimension 'dim',
+    # variable['dim'] is assumed to be a step function with bins centered around
+    # the values that 'dim' takes. Only the values that 'dim' takes that are
+    # within the bounds specified in **kwargs are considered.
+
+    dataArray, dataDims, dataSlices = extractVarSubset(ncDataset, variable, **kwargs)
+
+    #dimensions = ncDataset[variable].get_dims()
+    nDims = len(dataDims)
+
+    # indices of the axes in dataArray over which to average.
+    averagingAxes = tuple(i for i,dim in enumerate(dataDims) if dim in averagingDims)
+
+    weights = np.ones(dataArray.shape)
+    if weighed:
+        for iAxis in averagingAxes:
+            dimVector = ncDataset[dataDims[iAxis]][dataSlices[iAxis]]
+            dimWeights = weightsForAverage(dimVector, min(dimVector), max(dimVector))
+            dimWeights = np.expand_dims(dimWeights, [i for i in range(nDims) if i!=iAxis])
+
+            weights = dimWeights * weights
+
+    averagedArray = np.average(dataArray, averagingAxes, weights=weights)
+
+    return averagedArray
+
+
 
 if __name__ == "__main__":
     lat = 51.587433
@@ -103,9 +167,13 @@ if __name__ == "__main__":
 
     t0 = time.time()
     #for depth in range(20):
-    timeSeries = extractVarSubset(ds, 'nh4', latitude=lat, longitude=lon, depth_index=(0,5,2))
-    print(time.time()-t0)
-    print(timeSeries.shape)
+    #timeSeries, dims = extractVarSubset(ds, 'nh4', latitude=lat, longitude=lon, depth_index=(0,5,2))
+    #print(time.time()-t0)
+    #print(timeSeries.shape)
+    #print(dims)
 
+    #print(weightsForAverage(np.array([1,2,4,5,8.2]), 0.5, 10))
+    test = extractWithAverage(ds, 'nh4', ('depth','time'), latitude=lat, longitude=lon, depth_index=(0,5))
+    print(test)
 
     ds.close()
