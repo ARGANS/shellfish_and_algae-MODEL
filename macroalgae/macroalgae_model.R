@@ -125,7 +125,7 @@ MA_model <- function(t, y, parms) {
       else {
         lambda_RF    <- min(1,(F_in(t)/x_farm)) # horizontal flow refresh rate
         lambda_Rz    <-(h_z_SML(t)*t_z(t)/h_MA) #vertical turnover refresh rate (in proportion of farm not refreshed by horizontal flow)
-        lambda_R    <- min(1,lambda_RF+lambda_Rz) # refresh rate of farm considering both horizontal flow and vertical turnover within SML
+        lambda_R    <- min(1,lambda_RF+(1-lambda_RF)*Rz) # refresh rate of farm considering both horizontal flow and vertical turnover within SML
       }
        # nutrient controls on growth, relation to biomass
       Q           <- Q_min*(1+(N_s/N_f))                                       # Internal nutrient quota of macroalgae
@@ -136,7 +136,7 @@ MA_model <- function(t, y, parms) {
         {T_x<-T_max}
       else
         {T_x<-T_min}
-      g_T<-exp(-2.3*((SST(t)-T_O)/(T_min-T_O))^2)
+      g_T<-exp(-2.3*((SST(t)-T_O)/(T_x-T_O))^2)
       
       # light limits to growth - adapted from Zollman et al 2021
       I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
