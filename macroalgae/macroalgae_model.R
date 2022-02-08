@@ -138,11 +138,23 @@ MA_model <- function(t, y, parms) {
         {T_x<-T_min}
       g_T<-exp(-2.3*((SST(t)-T_O)/(T_x-T_O))^2)
       
-      # light limits to growth - adapted from Zollman et al 2021
-      I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
-      I_av <-(I_top/(K_d(t)*z+N_f*a_cs))*(1-exp(-(K_d(t)*z+N_f*a_cs)))          # calclulate the average irradiance throughout the height of the farm
-      g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
-
+      if(light_scheme==1){
+      #light limits to growth including self-shading - adapted from Zollman et al 2021
+        I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
+        I_av <-(I_top/(K_d(t)*h_MA+N_f*a_cs))*(1-exp(-(K_d(t)*h_MA+N_f*a_cs)))          # calclulate the average irradiance throughout the height of the farm
+        g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
+      } else if (light_scheme==2){
+      # simple vertical light no shading
+        I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
+        I_av <-(I_top/(K_d(t)*h_MA))*(1-exp(-(K_d(t)*h_MA)))          # calclulate the average irradiance throughout the height of the farm
+        g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
+      } else if (light_scheme==3){
+        I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sin(theta*pi/180))                                    # calculate incident irradiance at the top of the farm
+        I_av <-(I_top/(K_d(t)*h_MA/sin(theta*pi/180)))*(1-exp(-(K_d(t)*h_MA/sin(theta*pi/180))))          # calclulate the average irradiance throughout the height of the farm
+        g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
+      }
+       
+      
       mu_g_EQT    <- mu*g_E*g_Q*g_T                                            # Growth function for macroalgae
       f_NH4       <- ((V_NH4*NH4)/(K_NH4+NH4))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NH4
       f_NO3       <- ((V_NO3*NO3)/(K_NO3+NO3))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NO3.

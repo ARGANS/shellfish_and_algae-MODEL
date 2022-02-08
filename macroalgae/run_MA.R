@@ -120,8 +120,9 @@ default_parms_farm<-c(
 
 default_parms_run<-c(
   refresh_rate = 1, #if value is 1, farm is fully refreshed with new water each day. Otherwise calculate from horizontal and vertical flow
-  harvest_method=1 #options: 0:no varvesting, 1.fixed frequency, 2. light-driven
-)
+  harvest_method=1, #options: 0:no harvesting, 1.fixed frequency, 2. light-driven
+  light_scheme=1 #options 1: Zollman self-shading scheme, 2: simple vertical light no self shading, 3: solar angle light no self shading
+  )
 
 
 
