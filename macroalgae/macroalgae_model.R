@@ -53,6 +53,8 @@ boundary_forcings<-function(input_data){
 }
 
 
+
+
 setup_solar_angle<-function(latitude, start_day=0, ndays){
   # Calculates max solar incidence angle theta for each day of year given latitude. 
   # Output is ready to be fed into boundary_forcings to generate approxfun
@@ -124,8 +126,8 @@ MA_model <- function(t, y, parms) {
       {lambda_R=1}
       else {
         lambda_RF    <- min(1,(F_in(t)/x_farm)) # horizontal flow refresh rate
-        lambda_Rz    <-(h_z_SML(t)*t_z(t)/h_MA) #vertical turnover refresh rate (in proportion of farm not refreshed by horizontal flow)
-        lambda_R    <- min(1,lambda_RF+(1-lambda_RF)*Rz) # refresh rate of farm considering both horizontal flow and vertical turnover within SML
+        lambda_Rz    <-(t_z(t)/h_MA) #vertical turnover refresh rate (in proportion of farm not refreshed by horizontal flow)
+        lambda_R    <- min(1,lambda_RF+(1-lambda_RF)*lambda_Rz) # refresh rate of farm considering both horizontal flow and vertical turnover within SML
       }
        # nutrient controls on growth, relation to biomass
       Q           <- Q_min*(1+(N_s/N_f))                                       # Internal nutrient quota of macroalgae
@@ -145,19 +147,23 @@ MA_model <- function(t, y, parms) {
         g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
       } else if (light_scheme==2){
       # simple vertical light no shading
-        I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
-        I_av <-(I_top/(K_d(t)*h_MA))*(1-exp(-(K_d(t)*h_MA)))          # calclulate the average irradiance throughout the height of the farm
-        g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
+          I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
+          I_av <-(I_top/(K_d(t)*h_MA))*(1-exp(-(K_d(t)*h_MA)))          # calclulate the average irradiance throughout the height of the farm
+          g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
       } else if (light_scheme==3){
-        I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sin(theta*pi/180))                                    # calculate incident irradiance at the top of the farm
-        I_av <-(I_top/(K_d(t)*h_MA/sin(theta*pi/180)))*(1-exp(-(K_d(t)*h_MA/sin(theta*pi/180))))          # calclulate the average irradiance throughout the height of the farm
-        g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
-      }
-       
+        #solar angle accounted for no shading
+          I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sin(theta(t)*pi/180))                                    # calculate incident irradiance at the top of the farm
+          I_av <-(I_top/(K_d(t)*h_MA/sin(theta(t)*pi/180)))*(1-exp(-(K_d(t)*h_MA/sin(theta(t)*pi/180))))          # calclulate the average irradiance throughout the height of the farm
+          g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
+      } 
+      
       
       mu_g_EQT    <- mu*g_E*g_Q*g_T                                            # Growth function for macroalgae
       f_NH4       <- ((V_NH4*NH4)/(K_NH4+NH4))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NH4
       f_NO3       <- ((V_NO3*NO3)/(K_NO3+NO3))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NO3.
+      
+      NO3_removed <- (f_NO3*B)-(r_N*NH4)
+      NH4_removed <- (f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s)
       
       dNH4        <- lambda_R*(NH4_in(t)-NH4)-(f_NH4*B)+(r_L*D)-(r_N*NH4)+(d_m*N_s)     # change in NH4 with time  - eq 3 in Hadley et al (note max(h_MA/z,1) term is omitted because we assume the surface box is well mixed - need to think further about this - should we be looking across entire mixed layer - or include this in the lambda term?)
       dNO3        <- lambda_R*(NO3_in(t)-NO3)-(f_NO3*B)+(r_N*NH4)             # change in NO3 with time  - eq 4 in Hadley et al (note max(h_MA/z,1) term is omitted because we assume the surface box is well mixed - need to think further about this - should we be looking across entire mixed layer - or include this in the lambda term?)
@@ -166,6 +172,8 @@ MA_model <- function(t, y, parms) {
       dD          <- lambda_R*(D_in(t)-D + d_m*N_f - r_L*D)                  # change in detritus with time
       dYield      <- 0
       list(c(dNH4, dNO3,dN_s,dN_f,dD,dYield),
+         NO3_removed = NO3_removed,
+         NH4_removed = NH4_removed,
          lambda_R  = lambda_R,
          Q         = Q,
          B         = B,
