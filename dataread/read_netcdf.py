@@ -93,7 +93,7 @@ def extractVarSubset(ncDataset, variable, **kwargs):
     dimRemains = [type(a) is slice for a in sliceList]
     remainingDims = tuple(dim.name for i,dim in enumerate(dimensions) if dimRemains[i])
 
-    return ncDataset[variable][sliceList], remainingDims, sliceList
+    return ncDataset[variable][sliceList], remainingDims
 
 
 def weightsForAverage(sortedDim, leftLimit, rightLimit):
@@ -126,54 +126,113 @@ def extractWithAverage(ncDataset, variable, averagingDims, weighed=True, **kwarg
     # the values that 'dim' takes. Only the values that 'dim' takes that are
     # within the bounds specified in **kwargs are considered.
 
-    dataArray, dataDims, dataSlices = extractVarSubset(ncDataset, variable, **kwargs)
-
-    #dimensions = ncDataset[variable].get_dims()
-    nDims = len(dataDims)
-
-    # indices of the axes in dataArray over which to average.
-    averagingAxes = tuple(i for i,dim in enumerate(dataDims) if dim in averagingDims)
+    dataArray, dataDims = extractVarSubset(ncDataset, variable, **kwargs)
 
     weights = np.ones(dataArray.shape)
     if weighed:
-        for iAxis in averagingAxes:
-            dimVector = ncDataset[dataDims[iAxis]][dataSlices[iAxis]]
+        for nameAxis in averagingDims:
+
+            dimVector, _, _ = extractVarSubset(ncDataset, nameAxis, **kwargs)
+
             dimWeights = weightsForAverage(dimVector, min(dimVector), max(dimVector))
-            dimWeights = np.expand_dims(dimWeights, [i for i in range(nDims) if i!=iAxis])
+
+            # Expand on all dataDims, with dimWeights aligned to the correct dim
+            expandAxes = [i for i in range(len(dataDims)) if dataDims[i]!=nameAxis]
+            dimWeights = np.expand_dims(dimWeights, expandAxes)
 
             weights = dimWeights * weights
+
+    # indices of the axes in dataArray over which to average.
+    averagingAxes = tuple(i for i,dim in enumerate(dataDims) if dim in averagingDims)
 
     averagedArray = np.average(dataArray, averagingAxes, weights=weights)
 
     return averagedArray
 
 
+def dateToNum(date, mode):
+    # Returns the numeric value associated to date in netCDF files
+    if mode == "Copernicus":
+        diff = date - datetime.datetime(1950, 1, 1)
+        num = diff.days * 24 + diff.seconds/3600
+
+    return num
+
+def numToDate(num, mode):
+    # Returns the date associated to num that is found in netCDF files
+    if mode == "Copernicus":
+        date = datetime.datetime(1950, 1, 1) + datetime.timedelta(seconds = num*3600)
+
+    return date
+
 
 if __name__ == "__main__":
     lat = 51.587433
     lon = -9.897116
-    depth = 5
-    parameter = 'nh4'
+    zone = 'IBI'
+
+    startDate = datetime.datetime(2020, 1, 25, 12)
+    endDate = datetime.datetime(2021, 1, 1, 12)
 
     mainpath = 'I:/work-he/apps/safi/data/IBI/'
-    dataName = 'Temperature'
-    zone = 'IBI'
 
     dataRef = pd.read_csv('I:/work-he/apps/safi/data/IBI/dataCmd.csv', delimiter=';')
 
     fn = mainpath + "merged_files/merged_Ammonium_IBI.nc"
 
-    ds = nc.Dataset(fn)
+    dsParam = nc.Dataset(fn)
+    dsMLD = nc.Dataset(mainpath + "merged_files/merged_ocean_mixed_layer_thickness_IBI.nc")
 
-    t0 = time.time()
-    #for depth in range(20):
-    #timeSeries, dims = extractVarSubset(ds, 'nh4', latitude=lat, longitude=lon, depth_index=(0,5,2))
-    #print(time.time()-t0)
-    #print(timeSeries.shape)
-    #print(dims)
+    startTime = dateToNum(startDate, "Copernicus")
+    endTime = dateToNum(endDate, "Copernicus")
 
-    #print(weightsForAverage(np.array([1,2,4,5,8.2]), 0.5, 10))
-    test = extractWithAverage(ds, 'nh4', ('depth','time'), latitude=lat, longitude=lon, depth_index=(0,5))
-    print(test)
+    extractArgs = {'latitude': lat,
+                   'longitude': lon,
+                   'time': (startTime, endTime)
+                   }
 
-    ds.close()
+    mld, mldDims = extractVarSubset(dsMLD, 'mlotst', **extractArgs)
+    mldTime, _ = extractVarSubset(dsMLD, 'time', **extractArgs)
+
+    param, paramDims = extractVarSubset(dsParam, 'nh4', **extractArgs)
+    paramTime, _ = extractVarSubset(dsParam, 'time', **extractArgs)
+    paramDepth, _ = extractVarSubset(dsParam, 'depth', **extractArgs)
+
+    # TODO: ensure paramDims is (time, depth)
+    # TODO: ensure time axes match
+
+    # Build weights to average over time dependent MLD
+    weights = np.zeros(param.shape)
+    for iTime in range(param.shape[0]):
+        inMLD = (paramDepth <= mld[iTime])
+        weights[iTime, inMLD] = weightsForAverage(paramDepth[inMLD], 0, mld[iTime])
+
+
+    dsParam.close()
+    dsMLD.close()
+
+    dataDict = {}
+    dataDict['date'] = [numToDate(a, "Copernicus") for a in paramTime]
+
+    #paramNames = ['Ammonium','Nitrate','Temperature','northward_Water_current','eastward_Water_current', 'ocean_mixed_layer_thickness']
+    datNames = ['Ammonium','Nitrate']
+    for dat in datNames:
+
+        fileName = mainpath + f"merged_files/merged_{dat}_{zone}.nc"
+        paramName = dataRef.loc[(dataRef['Parameter']==dat) & (dataRef['Place']==zone)].reset_index()['variable'][0]
+
+        dsParam = nc.Dataset(fileName)
+
+        param, paramDims = extractVarSubset(dsParam, paramName, **extractArgs)
+
+        paramAveraged = np.average(param, 1, weights=weights)
+
+        dataDict[paramName] = paramAveraged
+
+        dsParam.close()
+
+    df = pd.DataFrame(dataDict)
+
+    print(df)
+    df.to_csv(mainpath+'Bantry_data/bantry_MLDaveraged_2020.csv',
+                index=False, sep=';')
