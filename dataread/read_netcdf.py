@@ -115,7 +115,7 @@ def weightsForAverage(sortedDim, leftLimit, rightLimit):
     return weights / np.sum(weights)
 
 
-def extractWithAverage(ncDataset, variable, averagingDims, weighed=True, **kwargs):
+def extractWithAverage(ncDataset, variable, averagingDims, weighted=True, **kwargs):
     # Extract a subset of ncDataset[variable] along any number of dimensions
     # to be specified in **kwargs, then average the dataset along the dimensions
     # specified in averagingDims (tuple of strings).
@@ -129,7 +129,7 @@ def extractWithAverage(ncDataset, variable, averagingDims, weighed=True, **kwarg
     dataArray, dataDims = extractVarSubset(ncDataset, variable, **kwargs)
 
     weights = np.ones(dataArray.shape)
-    if weighed:
+    if weighted:
         for nameAxis in averagingDims:
 
             dimVector, _, _ = extractVarSubset(ncDataset, nameAxis, **kwargs)
@@ -149,8 +149,20 @@ def extractWithAverage(ncDataset, variable, averagingDims, weighed=True, **kwarg
 
     return averagedArray
 
+def averageOverMLD(array2D, mld, depthAxis):
+    # array2D must be in (time, depth)
+    # mld must be in (time)
+    # depthAxis must be in (depth) (time dependent depth not handled right now)
 
-def dateToNum(date, mode):
+    # Build weights to average over time dependent MLD
+    weights = np.zeros(array2D.shape)
+    for iTime in range(array2D.shape[0]):
+        inMLD = (depthAxis <= mld[iTime])
+        weights[iTime, inMLD] = weightsForAverage(depthAxis[inMLD], 0, mld[iTime])
+
+    return np.average(array2D, 1, weights=weights)
+
+def dateToNum(date, mode='Copernicus'):
     # Returns the numeric value associated to date in netCDF files
     if mode == "Copernicus":
         diff = date - datetime.datetime(1950, 1, 1)
@@ -158,7 +170,7 @@ def dateToNum(date, mode):
 
     return num
 
-def numToDate(num, mode):
+def numToDate(num, mode='Copernicus'):
     # Returns the date associated to num that is found in netCDF files
     if mode == "Copernicus":
         date = datetime.datetime(1950, 1, 1) + datetime.timedelta(seconds = num*3600)
@@ -178,61 +190,67 @@ if __name__ == "__main__":
 
     dataRef = pd.read_csv('I:/work-he/apps/safi/data/IBI/dataCmd.csv', delimiter=';')
 
-    fn = mainpath + "merged_files/merged_Ammonium_IBI.nc"
-
-    dsParam = nc.Dataset(fn)
-    dsMLD = nc.Dataset(mainpath + "merged_files/merged_ocean_mixed_layer_thickness_IBI.nc")
-
     startTime = dateToNum(startDate, "Copernicus")
     endTime = dateToNum(endDate, "Copernicus")
 
     extractArgs = {'latitude': lat,
                    'longitude': lon,
+                   'lat': lat,
+                   'lon': lon,
                    'time': (startTime, endTime)
                    }
 
-    mld, mldDims = extractVarSubset(dsMLD, 'mlotst', **extractArgs)
+    dsMLD = nc.Dataset(mainpath + "merged_files/merged_ocean_mixed_layer_thickness_IBI.nc")
+    mld, _ = extractVarSubset(dsMLD, 'mlotst', **extractArgs)
     mldTime, _ = extractVarSubset(dsMLD, 'time', **extractArgs)
-
-    param, paramDims = extractVarSubset(dsParam, 'nh4', **extractArgs)
-    paramTime, _ = extractVarSubset(dsParam, 'time', **extractArgs)
-    paramDepth, _ = extractVarSubset(dsParam, 'depth', **extractArgs)
-
-    # TODO: ensure paramDims is (time, depth)
-    # TODO: ensure time axes match
-
-    # Build weights to average over time dependent MLD
-    weights = np.zeros(param.shape)
-    for iTime in range(param.shape[0]):
-        inMLD = (paramDepth <= mld[iTime])
-        weights[iTime, inMLD] = weightsForAverage(paramDepth[inMLD], 0, mld[iTime])
-
-
-    dsParam.close()
     dsMLD.close()
 
-    dataDict = {}
-    dataDict['date'] = [numToDate(a, "Copernicus") for a in paramTime]
+    data = pd.DataFrame()
 
-    #paramNames = ['Ammonium','Nitrate','Temperature','northward_Water_current','eastward_Water_current', 'ocean_mixed_layer_thickness']
-    datNames = ['Ammonium','Nitrate']
+    #dataDict['date'] = [numToDate(a, "Copernicus") for a in mldTime]
+    nDays = (endDate - startDate).days
+    data['date'] = [startDate + datetime.timedelta(days=days) for days in range(nDays)]
+
+    addData = pd.DataFrame({'date': [numToDate(a) for a in mldTime],
+                            'ocean_mixed_layer_thickness': mld})
+    data = pd.merge_ordered(data, addData, how='left')
+
+    datNames = ['Ammonium','Nitrate','Temperature','northward_Water_current','eastward_Water_current', 'par']
+    #datNames = ['Temperature', 'par']
     for dat in datNames:
-
+        print(dat)
         fileName = mainpath + f"merged_files/merged_{dat}_{zone}.nc"
+        # find the name of the variable in the netCDF file
         paramName = dataRef.loc[(dataRef['Parameter']==dat) & (dataRef['Place']==zone)].reset_index()['variable'][0]
 
         dsParam = nc.Dataset(fileName)
 
         param, paramDims = extractVarSubset(dsParam, paramName, **extractArgs)
+        paramTime, _ = extractVarSubset(dsParam, 'time', **extractArgs)
 
-        paramAveraged = np.average(param, 1, weights=weights)
+        addData = pd.DataFrame({'date': [numToDate(a) for a in paramTime]})
+        if 'depth' in paramDims: # Param is 3D
+            # TODO: ensure paramDims is (time, depth)
 
-        dataDict[paramName] = paramAveraged
+            # Get the MLD at the times in paramTime
+            paramMLD = pd.merge_ordered(data, addData, how='right')['ocean_mixed_layer_thickness']
+
+            # Get the depth axis of param (may be done only if we only use CMEMS data)
+            paramDepth, _ = extractVarSubset(dsParam, 'depth', **extractArgs)
+
+            # Compute the weighted average
+            addParam = averageOverMLD(param, paramMLD, paramDepth)
+
+        else: # Param is 2D or only one depth remains
+            addParam = param
 
         dsParam.close()
 
-    df = pd.DataFrame(dataDict)
+        addData[dat] = addParam
+        addData[dat][addParam.mask] = ""
 
-    print(df)
-    df.to_csv(mainpath+'Bantry_data/bantry_MLDaveraged_2020.csv',
+        data = pd.merge_ordered(data, addData, how='left')
+
+    print(data)
+    data.to_csv(mainpath+'Bantry_data/bantry_MLDaveraged_2020.csv',
                 index=False, sep=';')
