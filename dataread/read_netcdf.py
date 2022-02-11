@@ -178,79 +178,216 @@ def numToDate(num, mode='Copernicus'):
     return date
 
 
+
+class ParamData:
+    # Class to wrap all functions related the access to the data in one netCDF
+    # file.
+    # The objective is that all files can be accessed in the same manner from
+    # higher level functions.
+
+    def __init__(self, file_name, variable_name, latitude_name='latitude',
+                 longitude_name='longitude', time_name='time', depth_name='depth',
+                 date2num=dateToNum, num2date=numToDate):
+
+        self.ds = nc.Dataset(file_name)
+        self._variableName = variable_name
+        self._dimNames = {
+            'latitude': latitude_name,
+            'longitude': longitude_name,
+            'time': time_name,
+            'depth': depth_name
+        }
+
+        self.date2num = date2num
+        self.num2date = num2date
+
+
+    def getVariable(self, variable=None, **kwargs):
+        # **kwargs may contain latitude, longitude, time, and depth arguments.
+        # The value of the arguments can be anything that is accepted by
+        # extractVarSubset()
+        # The time argument should be specified with datetime.datetime()
+        # object(s).
+        # variable can be None to extract the interest variable from self.ds or
+        # any variable name. If variable is one of latitude/longitude/time/depth
+        # then the name is transparently altered to fit ds.
+
+        if variable is None:
+            variableName = self._variableName
+        elif variable in self._dimNames:
+            variableName = self._dimNames[variable]
+
+        # Change the time input(s) for datetime() to numeric values
+        if 'time' in kwargs:
+            if type(kwargs['time']) is tuple:
+                kwargs['time'] = tuple(self.date2num(date) for date in kwargs['time'])
+            else:
+                kwargs['time'] = self.date2num(kwargs['time'])
+
+        newKwargs = {self._dimNames[dim]: kwargs[dim] for dim in kwargs.keys()}
+
+        output, _ = extractVarSubset(self.ds, variableName, **newKwargs)
+
+        # Change the output from numeric values to datetime() if we output time
+        if variable == 'time':
+            output = np.ma.masked_array([self.num2date(a) for a in output])
+
+        # TODO: ensure that the remaining dimensions are always output in the
+        # same order, notably (time, depth)
+
+        return output
+
+
+    def __del__(self):
+        self.ds.close()
+
+
+
+class AllData:
+
+    def __init__(self, fileNameList, parameterNameList, variableNameList, latitudeNameList, 
+                 longitudeNameList, timeNameList, depthNameList):
+
+        self.parameterData = {}
+        for fileName, parameterName, variableName, latitudeName, longitudeName, timeName, \
+            depthName in zip(fileNameList, parameterNameList, variableNameList, latitudeNameList, \
+            longitudeNameList, timeNameList, depthNameList):
+
+            self.parameterData[parameterName] = ParamData(file_name=fileName,
+                    variable_name=variableName, latitude_name=latitudeName,
+                    longitude_name=longitudeName, time_name=timeName,
+                    depth_name=depthName)
+
+
+    def getTimeSeries(self, latitude, longitude, dateRange, depth, parameters=None):
+        # Gets the time series of parameters at the given coordinates and
+        # within the dateRange.
+
+        if parameters is None:
+            parameters = self.parameterData.keys()
+
+        df = pd.DataFrame()
+
+        nDays = (dateRange[1] - dateRange[0]).days
+        df['date'] = [dateRange[0] + datetime.timedelta(days=days) for days in range(nDays)]
+
+        for param in parameters:
+            data = self.parameterData[param].getVariable(latitude=latitude, longitude=longitude,
+                                                time=dateRange, depth=depth)
+            timeAxis = self.parameterData[param].getVariable(variable='time', latitude=latitude, 
+                                                longitude=longitude, time=dateRange, depth=depth)
+
+            addData = pd.DataFrame({'date': timeAxis, param:data})
+            # change masked values to None
+            addData.loc[np.ma.getmaskarray(data), [param]] = None
+
+            df = pd.merge_ordered(df, addData, how='left')
+
+        return(df)
+
+
+    def getTimeSeriesInMLD(self, latitude, longitude, dateRange, parameters=None,
+                           mldName='ocean_mixed_layer_thickness'):
+        # Gets the time series of parameters at the given coordinates and
+        # within the dateRange. Then averages the values that are within the
+        # MLD, weighing in consideration of the depth axis.
+
+        if parameters is None:
+            parameters = list(self.parameterData.keys())
+
+        df = pd.DataFrame()
+
+        nDays = (dateRange[1] - dateRange[0]).days
+        df['date'] = [(dateRange[0] + datetime.timedelta(days=days)) for days in range(nDays)]
+
+        # Ensure that the MLD gets imported first
+        paramNames = parameters.copy()
+        if mldName in paramNames:
+            paramNames.insert(0, paramNames.pop(paramNames.index(mldName)))
+        else:
+            paramNames.insert(0, mldName)
+
+        for param in paramNames:
+            #print(param)
+            data = self.parameterData[param].getVariable(latitude=latitude, longitude=longitude,
+                                                time=dateRange)
+            timeAxis = self.parameterData[param].getVariable(variable='time', latitude=latitude,
+                                                longitude=longitude, time=dateRange)
+
+            addData = pd.DataFrame({'date': timeAxis})
+            #print(addData.duplicated(['date']).sum())
+
+            if data.ndim == 2: # data has depth
+                # Get the MLD at the times in paramTime
+                paramMLD = pd.merge_ordered(df, addData, on='date', how='right')[mldName]
+                notnaMLD = np.array(paramMLD.notna())
+
+                # Get the depth axis of param
+                depthAxis = self.parameterData[param].getVariable(variable='depth',
+                                            latitude=latitude, longitude=longitude, time=dateRange)
+
+                # Compute the weighted average
+                addParam = np.ma.masked_array([None] * len(timeAxis))
+                addParam[notnaMLD] = averageOverMLD(data[notnaMLD,:], np.array(paramMLD[notnaMLD]), depthAxis)
+
+            else: # data has no depth
+                addParam = data
+ 
+            addData[param] = addParam
+            # change masked values to None
+            addData.loc[np.ma.getmaskarray(addParam), [param]] = None
+
+            df = pd.merge_ordered(df, addData, on='date', how='left')
+
+        return df
+
+
+    def __del__(self):
+        for _, parData in enumerate(self.parameterData):
+            del parData
+
+
+
 if __name__ == "__main__":
     lat = 51.587433
     lon = -9.897116
     zone = 'IBI'
 
-    startDate = datetime.datetime(2020, 1, 25, 12)
+    startDate = datetime.datetime(2020, 1, 1, 12)
     endDate = datetime.datetime(2021, 1, 1, 12)
 
     mainpath = 'I:/work-he/apps/safi/data/IBI/'
 
     dataRef = pd.read_csv('I:/work-he/apps/safi/data/IBI/dataCmd.csv', delimiter=';')
 
-    startTime = dateToNum(startDate, "Copernicus")
-    endTime = dateToNum(endDate, "Copernicus")
+    # The 'Names' informations should probably be in dataRef, which would make it easier to
+    # define and read.
+    paramNames = ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current', 'ocean_mixed_layer_thickness', 'par']
+    fileNames = [mainpath + f"merged_files/merged_{param}_{zone}.nc" for param in paramNames]
+    variableNames = [dataRef.loc[(dataRef['Parameter']==param) & (dataRef['Place']==zone)].reset_index()['variable'][0] for param in paramNames]
 
-    extractArgs = {'latitude': lat,
-                   'longitude': lon,
-                   'lat': lat,
-                   'lon': lon,
-                   'time': (startTime, endTime)
-                   }
+    nParams = len(paramNames)
+    latitudeNames = ['latitude'] * nParams
+    longitudeNames = ['longitude'] * nParams
+    timeNames = ['time'] * nParams
+    depthNames = ['depth'] * nParams
+    # For par
+    latitudeNames[-1] = 'lat'
+    longitudeNames[-1] = 'lon'
 
-    dsMLD = nc.Dataset(mainpath + "merged_files/merged_ocean_mixed_layer_thickness_IBI.nc")
-    mld, _ = extractVarSubset(dsMLD, 'mlotst', **extractArgs)
-    mldTime, _ = extractVarSubset(dsMLD, 'time', **extractArgs)
-    dsMLD.close()
+    algaeData = AllData(fileNameList=fileNames,
+                        parameterNameList=paramNames,
+                        variableNameList=variableNames,
+                        latitudeNameList=latitudeNames,
+                        longitudeNameList=longitudeNames,
+                        timeNameList=timeNames,
+                        depthNameList=depthNames
+    )
 
-    data = pd.DataFrame()
+    #df = algaeData.getTimeSeriesInMLD(lat, lon, (startDate, endDate), parameters=['Ammonium', 'par'])
+    df = algaeData.getTimeSeriesInMLD(lat, lon, (startDate, endDate), parameters=['Ammonium', 'Nitrate', 'Temperature', 'ocean_mixed_layer_thickness', 'par'])
+    print(df)
+    df.to_csv(mainpath+'Bantry_data/bantry_test2.csv',
+              index=False, sep=';')
 
-    #dataDict['date'] = [numToDate(a, "Copernicus") for a in mldTime]
-    nDays = (endDate - startDate).days
-    data['date'] = [startDate + datetime.timedelta(days=days) for days in range(nDays)]
-
-    addData = pd.DataFrame({'date': [numToDate(a) for a in mldTime],
-                            'ocean_mixed_layer_thickness': mld})
-    data = pd.merge_ordered(data, addData, how='left')
-
-    datNames = ['Ammonium','Nitrate','Temperature','northward_Water_current','eastward_Water_current', 'par']
-    #datNames = ['Temperature', 'par']
-    for dat in datNames:
-        print(dat)
-        fileName = mainpath + f"merged_files/merged_{dat}_{zone}.nc"
-        # find the name of the variable in the netCDF file
-        paramName = dataRef.loc[(dataRef['Parameter']==dat) & (dataRef['Place']==zone)].reset_index()['variable'][0]
-
-        dsParam = nc.Dataset(fileName)
-
-        param, paramDims = extractVarSubset(dsParam, paramName, **extractArgs)
-        paramTime, _ = extractVarSubset(dsParam, 'time', **extractArgs)
-
-        addData = pd.DataFrame({'date': [numToDate(a) for a in paramTime]})
-        if 'depth' in paramDims: # Param is 3D
-            # TODO: ensure paramDims is (time, depth)
-
-            # Get the MLD at the times in paramTime
-            paramMLD = pd.merge_ordered(data, addData, how='right')['ocean_mixed_layer_thickness']
-
-            # Get the depth axis of param (may be done only if we only use CMEMS data)
-            paramDepth, _ = extractVarSubset(dsParam, 'depth', **extractArgs)
-
-            # Compute the weighted average
-            addParam = averageOverMLD(param, paramMLD, paramDepth)
-
-        else: # Param is 2D or only one depth remains
-            addParam = param
-
-        dsParam.close()
-
-        addData[dat] = addParam
-        addData[dat][addParam.mask] = ""
-
-        data = pd.merge_ordered(data, addData, how='left')
-
-    print(data)
-    data.to_csv(mainpath+'Bantry_data/bantry_MLDaveraged_2020.csv',
-                index=False, sep=';')
+    del algaeData
