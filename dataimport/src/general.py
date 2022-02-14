@@ -76,15 +76,15 @@ def giveFile(filename,filetype):
 
 def getdataFromFtp(dataFin, outputDirectory):
     HOSTNAME = dataFin[16]
-    USERNAME = dataFin[4]
-    PASSWORD = dataFin[5]
+    USERNAME = dataFin[3]
+    PASSWORD = dataFin[4]
 
     # Connect FTP Server
     ftp_server = ftplib.FTP(HOSTNAME, USERNAME, PASSWORD)
 
     # force UTF-8 encoding
     ftp_server.encoding = "utf-8"
-    ftp_server.cwd('/'+dataFin[6])
+    ftp_server.cwd('/'+dataFin[5])
     filelist = ftp_server.nlst()
 
     ftp_server.dir()
@@ -174,11 +174,11 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, dateBeginning, date
 
         elif servicetype == 'cdsapi':
             c = cdsapi.Client()
-            variable = dataFin[imgNb, 6]
+            variable = dataFin[imgNb, 5]
             fileformat = dataFin[imgNb, 20]
-            prodtype = dataFin[imgNb, 3]
+            prodtype = dataFin[imgNb, 0]
             prodname = dataFin[imgNb, 4]
-            time = dataFin[imgNb, 9]
+            time = dataFin[imgNb, 21]
             years, months, days = givedatesForClimatCoper(begDate, endDate)
             c.retrieve(
                 prodname,
