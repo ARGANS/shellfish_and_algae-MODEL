@@ -53,7 +53,7 @@ default_input<- data.frame(
   NO3_in = NO3_mean + (NO3_magn*sin(2*pi*(time+91)/365)),
   PO4_in = PO4_mean + (PO4_magn*sin(2*pi*(time+91)/365)),
   K_d    = 0.1,
-  F_in   = 450,
+  F_in   = 100,
   h_z_SML= 30,
   t_z    = 0,
   D_in      = 0.1,
@@ -117,10 +117,10 @@ default_parms_farm<-c(
 #  y_farm = 1000,       # width of farm perpendicular to flow direction    
 #  density = 0.45,      # fraction of farm area occupied by algae
   x_farm = 450,            #farm length in flow direction  
-  z       = 3,       # cultivation depth             / m
+  z       = 1,       # cultivation depth             / m
   #N_farm  = 0# additional ammonium input to farm e.g. from salmon mg/N/m-3
   harvest_first = 60, #days from start of run to first harvest
-  harvest_freq = 14, #days (only used if harvest_method==1)
+  harvest_freq = 30, #days (only used if harvest_method==1)
   harvest_threshold = 0.2, #value of light-dependent growth factor (g_E) at which harvest happens (only used if harvest_method==2)
   harvest_fraction = 0.75 #fraction of total biomass to harvest (only used if harvest_method != 0)
 )
@@ -128,8 +128,8 @@ default_parms_farm<-c(
 # Default run parms -----------------------------------
 
 default_parms_run<-c(
-  refresh_rate = 1, #if value is 1, farm is fully refreshed with new water each day. Otherwise calculate from horizontal and vertical flow
-  harvest_method=1, #options: 0:no harvesting, 1.fixed frequency, 2. light-driven
+  refresh_rate = 0, #if value is 1, farm is fully refreshed with new water each day. Otherwise calculate from horizontal and vertical flow
+  harvest_method=0, #options: 0:no harvesting, 1.fixed frequency, 2. light-driven
   light_scheme=3 #options 1: Zollman self-shading scheme, 2: simple vertical light no self shading, 3: solar angle light no self shading
   )
 
@@ -139,7 +139,7 @@ default_parms_run<-c(
 
 default_run <- function(parms=c(default_parms_run,default_parms_farm,default_parms_ulva),input_data=default_input){
   boundary_forcings(input_data)
-  y0   <- c(NH4=NH4_in(1),NO3=NO3_in(1),N_s=1,N_f=1,D=0.1,Yield=0)
+  y0   <- c(NH4=NH4_in(1),NO3=NO3_in(1),N_s=1,N_f=1,D=0,Yield=0)
 
   
   Out <- ode(times = input_data$time, func = MA_model, y = y0, parms = parms)
@@ -154,8 +154,17 @@ default_run <- function(parms=c(default_parms_run,default_parms_farm,default_par
 
 # Main function: run_model-------------------------------------------
 
-run_model<-function(default_parms,default_input,parms,input,y0){
-  input_data<-replace(default_input,names(input),input) # use default input where no value provided
+run_model<-function(default_parms,default_input,parms=NULL,input=NULL,y0){
+  if(is.data.frame(input)){
+    df<-default_input[1:nrow(input),]
+    df[,colnames(input)]<-input
+    input_data<-df
+
+  }
+  else{
+    input_data<-defualt_input
+  }
+  # use default input where no values provided
   boundary_forcings(input_data) #create boundary forcings
   parms<-replace(default_parms,names(parms),parms) #parameters use defaults where no parmater provided in run config
   if(parms['harvest_method']==0){
@@ -164,7 +173,7 @@ run_model<-function(default_parms,default_input,parms,input,y0){
              func=MA_model,
              y=y0,
              parms=parms)
-    Out
+    
   } else if(parms['harvest_method']==1){
     
     #harvest at set frequency
@@ -176,7 +185,7 @@ run_model<-function(default_parms,default_input,parms,input,y0){
                              parms = parms, 
                              event=list(func=harvest_eventfunc, root=TRUE),
                              rootfun=harvest_timed_rootfunc)
-    Out_timed_harvest
+    Out<-Out_timed_harvest
     
   } else if(parms['harvest_method']==2){
     
@@ -186,8 +195,8 @@ run_model<-function(default_parms,default_input,parms,input,y0){
                              parms = parms,
                              events=list(func=harvest_eventfunc, root=TRUE),
                              rootfun=harvest_limit_rootfunc)
-    Out_limit_harvest
+    Out<-Out_limit_harvest
   }
-  
+  cbind(input_data,Out)
   
 }
