@@ -10,7 +10,7 @@ source('run_MA.R')
 convert_umolN_to_mgm3<-function(data_in){
   rmm_N<-14 #gmol
   mmol_m3<-data_in #(1mmol m^(-3) = 1umol l-1)
-  mg_m3<-data_in*rmm_N
+  mg_m3<-data_in*14
   mg_m3
 }
 
@@ -19,54 +19,10 @@ convert_photonflux<-function(data_in){
   data_in*1e6/(3600*24)
 }
 
-
-
 bantry$Ammonium<-convert_umolN_to_mgm3(bantry$Ammonium)
 bantry$Nitrate<-convert_umolN_to_mgm3(bantry$Nitrate)
 bantry$F_in<-sqrt(bantry$northward_Water_current^2 + bantry$eastward_Water_current^2)*3600*24 #take 'hypotenuse of N and E flow and convert from m/s to m/day
 bantry$par<-convert_photonflux(bantry$par) 
-
-
-##### idealised PAR for substitution
-bantryGCPAR<-data.frame(time=1:365)
-latitude_bantry<-51.9
-longitude_bantry<-9.8
-
-
-####### wrapper function to run Greg Carder model for PAR and get the result we need out
-library(atmos)
-
-run_GC.f<-function(jday,lat,long,hr){
-   GCOutput<-GreggCarder.f(jday = jday,rlon = long,rlat=lat,hr = hr)
-
-  
-  ###### convert GC model output to total par in umol m-2 s-1
-  Convert_GC_ED<-function(GCOutput){
-    ED<-GCOutput$Ed
-    LAM<-GCOutput[['lam']]
-    #these terms from GregCarder.f
-    h <-6.6256e-34
-    c <- 299800000
-    hc<-1/(h*c)
-    sumpar<-1e-09* hc/6.023e+17 * sum(ED*LAM)
-    sumpar
-    
-  }
-  Convert_GC_ED(GCOutput)
-}
-
-
-daily_GC.f<-function(lat,long,jday){
-  #function to calculate day-averaged photon flux
-  #longitude is not needed (only relevant for instantaneous flux at given time)
-  #we only need to run this for each latitude band in the model. 
-  timeseq<-0:23
-  sum(sapply(0:23,run_GC.f,long=long,lat=lat,jday=jday),na.rm=T)/24
-  
-}
-
-bantryGCPAR$PAR<-sapply(bantryGCPAR$time,daily_GC.f,lat=latitude_bantry,long=longitude_bantry)
-
 
 input_data<-data.frame(
   time=1:345,
@@ -75,14 +31,12 @@ input_data<-data.frame(
   NH4_in=bantry$Ammonium,
   NO3_in=bantry$Nitrate,
   PO4_in=1000,
-  K_d=0.11,
+  K_d=0.15,
   F_in=bantry$F_in,
   theta = setup_solar_angle(latitude=51.7,start_day=25,ndays=345)
 )
 
-
-
-#input_data_OctStart<-rbind(input_data[330:345],)
+input_data<-rbind(input_data[330:345],)
 
 parms_bantry_alaria <- c(
   mu      = 0.4,    # maximum growth rate           / 1/d
@@ -126,4 +80,3 @@ default_input %>%
   theme_minimal()
 
 plot(bantry_run$time,bantry_run$B,xlab='day of year',ylab='Dry Weight of Macroalgae /g')
-#plot(bantry_run$time,bantry_run$Yield/parms_bantry_alaria[['Q_min']],xlab='day of year',ylab='Dry Weight of Macroalgae cumulative yield /g')

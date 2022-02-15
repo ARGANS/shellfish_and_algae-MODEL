@@ -164,12 +164,14 @@ run_model<-function(default_parms,default_input,parms=NULL,input=NULL,y0){
   else{
     input_data<-defualt_input
   }
+  run_length<-max(input_data$time)
+  times=seq(1,run_length,by=1)
   # use default input where no values provided
   boundary_forcings(input_data) #create boundary forcings
   parms<-replace(default_parms,names(parms),parms) #parameters use defaults where no parmater provided in run config
   if(parms['harvest_method']==0){
     #no harvesting
-    Out<-ode(times = input_data$time, 
+    Out<-ode(times = times, 
              func=MA_model,
              y=y0,
              parms=parms)
@@ -179,7 +181,7 @@ run_model<-function(default_parms,default_input,parms=NULL,input=NULL,y0){
     #harvest at set frequency
     
    
-    Out_timed_harvest <- ode(times = input_data$time, 
+    Out_timed_harvest <- ode(times = times, 
                              func = MA_model, 
                              y = y0, 
                              parms = parms, 
@@ -189,7 +191,7 @@ run_model<-function(default_parms,default_input,parms=NULL,input=NULL,y0){
     
   } else if(parms['harvest_method']==2){
     
-    Out_limit_harvest <- ode(times = input_data$time, 
+    Out_limit_harvest <- ode(times = times, 
                              func = MA_model,  
                              y = y0, 
                              parms = parms,
@@ -197,6 +199,6 @@ run_model<-function(default_parms,default_input,parms=NULL,input=NULL,y0){
                              rootfun=harvest_limit_rootfunc)
     Out<-Out_limit_harvest
   }
-  cbind(input_data,Out)
-  
+  #cbind(input_data,Out)
+  Out
 }
