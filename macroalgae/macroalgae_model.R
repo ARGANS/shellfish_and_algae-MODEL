@@ -38,17 +38,12 @@ boundary_forcings<-function(input_data){
   # t_z (vertical turnover of SML in d-1)
   # theta (anlge of solar incidence degrees)
 
-  maf<-make_approx_fun<-function(param){
-    # given a column name construct an approxfun for that parameter with time
-    assign(param,approxfun(x=input_data$time,y=input_data[,param], method='linear',rule=2),envir=.GlobalEnv)
+  output = NULL
+  for (param in names(input_data)) {
+    output[[param]] = approxfun(x=input_data$time, y=input_data[,param], method='linear', rule=2)
   }
-
-  for (name in names(input_data)) {
-    maf(name)
-  }
-
-  return(invisible(0))
-
+  
+  return(output)
 
 }
 

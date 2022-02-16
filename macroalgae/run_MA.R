@@ -56,8 +56,8 @@ default_input<- data.frame(
   F_in   = 100,
   h_z_SML= 30,
   t_z    = 0,
-  D_in      = 0.1,
-  theta = setup_solar_angle(latitude,start_day=0,ndays=length(time))
+  D_in   = 0.1,
+  theta  = setup_solar_angle(latitude,start_day=0,ndays=length(time))
 )
 
 # Default algae parameters: Ulva -----------------------------------
@@ -138,12 +138,11 @@ default_parms_run<-c(
 
 
 default_run <- function(parms=c(default_parms_run,default_parms_farm,default_parms_ulva),input_data=default_input){
-  boundary_forcings(input_data)
-  y0   <- c(NH4=NH4_in(1),NO3=NO3_in(1),N_s=1,N_f=1,D=0,Yield=0)
+  input_functions = boundary_forcings(input_data)
+  
+  y0   <- c(NH4=input_functions$NH4_in(1),NO3=input_functions$NO3_in(1),N_s=1,N_f=1,D=0,Yield=0)
 
-  
-  Out <- ode(times = input_data$time, func = MA_model, y = y0, parms = parms)
-  
+  Out <- ode(times = input_data$time, func = MA_model, y = y0, parms = c(parms, input_functions))
   
   #plot(Out[,'NH4'])
   plot(Out)
@@ -162,12 +161,13 @@ run_model<-function(default_parms,default_input,parms=NULL,input=NULL,y0){
 
   }
   else{
-    input_data<-defualt_input
+    input_data<-default_input
   }
   run_length<-max(input_data$time)
   times=seq(1,run_length,by=1)
   # use default input where no values provided
-  boundary_forcings(input_data) #create boundary forcings
+  input_functions = boundary_forcings(input_data) #create boundary forcings
+  parms = c(parms, input_functions)
   parms<-replace(default_parms,names(parms),parms) #parameters use defaults where no parmater provided in run config
   if(parms['harvest_method']==0){
     #no harvesting
