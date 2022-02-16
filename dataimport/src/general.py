@@ -31,34 +31,34 @@ def getdataFromMarineCopernicus(dataInfo, dateBeginning, dateEnd, outputDirector
     Newest version (?):
         python -m motuclient (part of the code prosposed by CMEMS)
     """
-    if (np.isnan(dataInfo["depth-min"].values[:])):
+    if (np.isnan(dataInfo["depth-min"])):
         print(f'python -m motuclient '
-            f' --motu {dataInfo["motu"].values[0]}'
-            f' --service-id {dataInfo["service-id"].values[0]}'
-            f' --product-id {dataInfo["product-id"].values[0]}'
-            f' --longitude-min {dataInfo["longitude-min"].values[0]}'
-            f' --longitude-max {dataInfo["longitude-max"].values[0]}'
-            f' --latitude-min {dataInfo["latitude-min"].values[0]}'
-            f' --latitude-max {dataInfo["latitude-max"].values[0]}'
+            f' --motu {dataInfo["motu"]}'
+            f' --service-id {dataInfo["service-id"]}'
+            f' --product-id {dataInfo["product-id"]}'
+            f' --longitude-min {dataInfo["longitude-min"]}'
+            f' --longitude-max {dataInfo["longitude-max"]}'
+            f' --latitude-min {dataInfo["latitude-min"]}'
+            f' --latitude-max {dataInfo["latitude-max"]}'
             f' --date-min {dateBeginning}'
             f' --date-max {dateEnd}'
             f' --depth-min {deepthmin}'
             f' --depth-max {deepthmax}'
-            f' --variable {dataInfo["variable"].values[0]}'
+            f' --variable {dataInfo["variable"]}'
             f' --out-dir {outputDirectory}'
             f' --out-name {outputFile}'
             f' --user "mjaouen" --pwd "Azerty123456"')
         os.system(f'motuclient -h'
-            f' --motu {dataInfo["motu"].values[0]}'
-            f' --service-id {dataInfo["service-id"].values[0]}'
-            f' --product-id {dataInfo["product-id"].values[0]}'
-            f' --longitude-min {dataInfo["longitude-min"].values[0]}'
-            f' --longitude-max {dataInfo["longitude-max"].values[0]}'
-            f' --latitude-min {dataInfo["latitude-min"].values[0]}'
-            f' --latitude-max {dataInfo["latitude-max"].values[0]}'
+            f' --motu {dataInfo["motu"]}'
+            f' --service-id {dataInfo["service-id"]}'
+            f' --product-id {dataInfo["product-id"]}'
+            f' --longitude-min {dataInfo["longitude-min"]}'
+            f' --longitude-max {dataInfo["longitude-max"]}'
+            f' --latitude-min {dataInfo["latitude-min"]}'
+            f' --latitude-max {dataInfo["latitude-max"]}'
             f' --date-min {dateBeginning}'
             f' --date-max {dateEnd}'
-            f' --variable {dataInfo["variable"].values[0]}'
+            f' --variable {dataInfo["variable"]}'
             f' --out-dir {outputDirectory}'
             f' --out-name {outputFile}'
             f' --user mjaouen --pwd Azerty123456'
@@ -67,18 +67,18 @@ def getdataFromMarineCopernicus(dataInfo, dateBeginning, dateEnd, outputDirector
         deepthmin = str(deepthmin)
         deepthmax = str(deepthmax)
         os.system(f'python -m motuclient '
-            f' --motu {dataInfo["motu"].values[0]}'
-            f' --service-id {dataInfo["service-id"].values[0]}'
-            f' --product-id {dataInfo["product-id"].values[0]}'
-            f' --longitude-min {dataInfo["longitude-min"].values[0]}'
-            f' --longitude-max {dataInfo["longitude-max"].values[0]}'
-            f' --latitude-min {dataInfo["latitude-min"].values[0]}'
-            f' --latitude-max {dataInfo["latitude-max"].values[0]}'
+            f' --motu {dataInfo["motu"]}'
+            f' --service-id {dataInfo["service-id"]}'
+            f' --product-id {dataInfo["product-id"]}'
+            f' --longitude-min {dataInfo["longitude-min"]}'
+            f' --longitude-max {dataInfo["longitude-max"]}'
+            f' --latitude-min {dataInfo["latitude-min"]}'
+            f' --latitude-max {dataInfo["latitude-max"]}'
             f' --date-min {dateBeginning}'
             f' --date-max {dateEnd}'
             f' --depth-min {deepthmin}'
             f' --depth-max {deepthmax}'
-            f' --variable {dataInfo["variable"].values[0]}'
+            f' --variable {dataInfo["variable"]}'
             f' --out-dir {outputDirectory}'
             f' --out-name {outputFile}'
             f' --user "mjaouen" --pwd "Azerty123456"'
@@ -94,16 +94,16 @@ def giveFile(filename,filetype):
         return filename+'.'+filetype
 
 def getdataFromFtp(dataFin, outputDirectory):
-    HOSTNAME = dataFin["lien"].values[0]
-    USERNAME = dataFin["motu"].values[0]
-    PASSWORD = dataFin["service-id"].values[0]
+    HOSTNAME = dataFin["lien"]
+    USERNAME = dataFin["motu"]
+    PASSWORD = dataFin["service-id"]
     # Connect FTP Server
     ftp_server = ftplib.FTP(HOSTNAME, USERNAME, PASSWORD)
 
     # force UTF-8 encoding
     ftp_server.encoding = "utf-8"
 
-    ftp_server.cwd('/'+dataFin["product-id"].values[0])
+    ftp_server.cwd('/'+dataFin["product-id"])
     filelist = ftp_server.nlst()
 
     ftp_server.dir()
@@ -168,36 +168,34 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, dateBeginning, date
     endDate = splitDate(dateEnd)
     # we select the lines that contains the data on the right zone
     wantedDataLine = dataFin.loc[(dataFin["Parameter"] == wantedData) & (dataFin["Place"] == zone)]
-    servicetypelist = wantedDataLine["source"].values[:]
-    print('servicetypelist ', servicetypelist)
-    for j in range(len(wantedDataLine)):
-        servicetype = servicetypelist[j:j+1]
-        filename = wantedData + zone + wantedDataLine[j:j+1]["fileType"].values[0] + dateBeginning.strftime("%Y-%m-%d")
-        outputFile = giveFile(filename, wantedDataLine[j:j+1]["fileType"].values[0])
+    for j in wantedDataLine.index.values:
+        servicetype = dataFin.iloc[j]["source"]
+        filename = wantedData + zone + dataFin.iloc[j]["fileType"] + dateBeginning.strftime("%Y-%m-%d")
+        outputFile = giveFile(filename, dataFin.iloc[j]["fileType"])
         if servicetype == 'marineCopernicus':
-            getdataFromMarineCopernicus(wantedDataLine[j:j+1], dateBeginning.strftime('"%Y-%m-%d %H:%M:%S"'),
+            getdataFromMarineCopernicus(dataFin.iloc[j], dateBeginning.strftime('"%Y-%m-%d %H:%M:%S"'),
                                         dateEnd.strftime('"%Y-%m-%d %H:%M:%S"'), outputDirectory,
                                         outputFile, deepthmin, deepthmax)
 
         elif servicetype == 'WCS':
             # define the connection
-            url = wantedDataLine[j:j+1]["lien"].values[0]
+            url = dataFin.iloc[j]["lien"]
             # define variables
             # requestbbox = (lonOuest, latSud, lonEst, latNord)
             requestbbox = (-4.7, 48.55, -4.50, 48.65)
             # requestbbox = (2.0, 51.5, 5.0, 54.0)
-            layer = wantedDataLine[j:j+1]["variable"].values[0]
+            layer = dataFin.iloc[j]["variable"]
             outputFileAdress=outputDirectory+outputFile
             # get the data
-            getdataWCS(url, layer, requestbbox, outputFileAdress, wantedDataLine[j:j+1]["service-id"].values[0], wantedDataLine[j:j+1]["fileType"].values[0])
+            getdataWCS(url, layer, requestbbox, outputFileAdress, dataFin.iloc[j]["service-id"], dataFin.iloc[j]["fileType"])
 
         elif servicetype == 'cdsapi':
             c = cdsapi.Client()
-            variable = wantedDataLine[j:j+1]["product-id"].values[0]
-            fileformat = wantedDataLine[j:j+1]["fileType"].values[0]
-            prodtype = wantedDataLine[j:j+1]["type"].values[0]
-            prodname = wantedDataLine[j:j+1]["service-id"].values[0]
-            time = wantedDataLine[j:j+1]["time"].values[0]
+            variable = dataFin.iloc[j]["product-id"]
+            fileformat = dataFin.iloc[j]["fileType"]
+            prodtype = dataFin.iloc[j]["type"]
+            prodname = dataFin.iloc[j]["service-id"]
+            time = dataFin.iloc[j]["time"]
             years, months, days = givedatesForClimatCoper(begDate, endDate)
             c.retrieve(
                 prodname,
@@ -213,7 +211,7 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, dateBeginning, date
                 outputFile)
 
         elif servicetype == 'ftp':
-            getdataFromFtp(wantedDataLine[j:j+1], outputDirectory)
+            getdataFromFtp(dataFin.iloc[j], outputDirectory)
 
 def giveDateslist(dateBeginning, dateEnd):
     datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
