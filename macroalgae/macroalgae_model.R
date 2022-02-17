@@ -6,6 +6,8 @@
 # Gilbert Langlois (ARGANS, Brest, France) glanglois@argans.eu
 
 
+# REQUIRES R>4.1!
+
 # this model contains only the code for building boundary forcing functions and
 # the model equations. Model run is controlled by run_MA.R
 
@@ -38,7 +40,7 @@ boundary_forcings<-function(input_data){
   # t_z (vertical turnover of SML in d-1)
   # theta (anlge of solar incidence degrees)
 
-  output = NULL
+  output = list()
   for (param in names(input_data)) {
     output[[param]] = approxfun(x=input_data$time, y=input_data[,param], method='linear', rule=2)
   }
@@ -157,16 +159,21 @@ MA_model <- function(t, y, parms) {
       f_NH4       <- ((V_NH4*NH4)/(K_NH4+NH4))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NH4
       f_NO3       <- ((V_NO3*NO3)/(K_NO3+NO3))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NO3.
       
+      NH4_added      <-lambda_R*(NH4_in(t)-NH4)
+      NO3_added      <-lambda_R*(NO3_in(t)-NO3)
+      
       NO3_removed <- (f_NO3*B)-(r_N*NH4)
       NH4_removed <- (f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s)
       
-      dNH4        <- lambda_R*(NH4_in(t)-NH4)-(f_NH4*B)+(r_L*D)-(r_N*NH4)+(d_m*N_s)     # change in NH4 with time  - eq 3 in Hadley et al (note max(h_MA/z,1) term is omitted because we assume the surface box is well mixed - need to think further about this - should we be looking across entire mixed layer - or include this in the lambda term?)
-      dNO3        <- lambda_R*(NO3_in(t)-NO3)-(f_NO3*B)+(r_N*NH4)             # change in NO3 with time  - eq 4 in Hadley et al (note max(h_MA/z,1) term is omitted because we assume the surface box is well mixed - need to think further about this - should we be looking across entire mixed layer - or include this in the lambda term?)
-      dN_s        <- (f_NH4+f_NO3)*B-min(mu_g_EQT*N_s,PO4_in(t)*N_to_P)-(d_m*N_s)                          # change in internal nitrogen store - eq 5 in Hadley
-      dN_f        <- min(mu_g_EQT*N_s,PO4_in(t)*N_to_P)-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
+      dNH4        <- lambda_R*(NH4_in(t)-NH4)-((f_NH4*B)+(r_L*D)-(r_N*NH4)+(d_m*N_s))/30   # change in NH4 with time  - eq 3 in Hadley et al (note max(h_MA/z,1) term is omitted because we assume the surface box is well mixed - need to think further about this - should we be looking across entire mixed layer - or include this in the lambda term?)
+      dNO3        <- lambda_R*(NO3_in(t)-NO3)-((f_NO3*B)+(r_N*NH4))/30            # change in NO3 with time  - eq 4 in Hadley et al (note max(h_MA/z,1) term is omitted because we assume the surface box is well mixed - need to think further about this - should we be looking across entire mixed layer - or include this in the lambda term?)
+      dN_s        <- (f_NH4+f_NO3)*B-min(mu_g_EQT*N_f,PO4_in(t)*N_to_P)-(d_m*N_s)                          # change in internal nitrogen store - eq 5 in Hadley
+      dN_f        <- min(mu_g_EQT*N_f,PO4_in(t)*N_to_P)-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
       dD          <- lambda_R*(D_in(t)-D + d_m*N_f - r_L*D)                  # change in detritus with time
       dYield      <- 0
       list(c(dNH4, dNO3,dN_s,dN_f,dD,dYield),
+         NH4_added = NH4_added,
+         NO3_added = NO3_added,
          NO3_removed = NO3_removed,
          NH4_removed = NH4_removed,
          lambda_R  = lambda_R,
