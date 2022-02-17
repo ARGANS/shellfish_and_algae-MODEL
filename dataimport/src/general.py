@@ -163,14 +163,17 @@ def givedatesForClimatCoper(begDate, endDate):
     return years, months, days
 
 
-def getData(wantedData, zone, dataFin, deepthmin, deepthmax, dateBeginning, dateEnd, outputDirectory):
-    begDate = splitDate(dateBeginning)
-    endDate = splitDate(dateEnd)
+def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, dateBeginning=None, dateEnd=None):
     # we select the lines that contains the data on the right zone
     wantedDataLine = dataFin.loc[(dataFin["Parameter"] == wantedData) & (dataFin["Place"] == zone)]
     for j in wantedDataLine.index.values:
         servicetype = dataFin.iloc[j]["source"]
-        filename = wantedData + zone + dataFin.iloc[j]["fileType"] + dateBeginning.strftime("%Y-%m-%d")
+        if DataLine.iloc[0]["daily"] == 1:
+            begDate = splitDate(dateBeginning)
+            endDate = splitDate(dateEnd)
+            filename = wantedData + zone + dataFin.iloc[j]["fileType"] + dateBeginning.strftime("%Y-%m-%d")
+        else:
+            filename = wantedData + zone + dataFin.iloc[j]["fileType"]
         outputFile = giveFile(filename, dataFin.iloc[j]["fileType"])
         if servicetype == 'marineCopernicus':
             getdataFromMarineCopernicus(dataFin.iloc[j], dateBeginning.strftime('"%Y-%m-%d %H:%M:%S"'),

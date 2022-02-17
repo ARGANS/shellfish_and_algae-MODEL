@@ -14,7 +14,12 @@ dataFin=pd.read_csv('./dataCmd.csv',';')
 
 datesList=giveDateslist(dateBeginning,dateEnd)
 
-for (dateBeg, dateE) in zip(datesList[0], datesList[1]):
-    for dat in wantedData:
+for dat in wantedData:
+    DataLine = dataFin.loc[dataFin["Parameter"] == dat]
+    if DataLine.iloc[0]["daily"] == 1:
+        for (dateBeg, dateE) in zip(datesList[0], datesList[1]):
+            DataOutputDirectory = outputDirectory + dat + '/'
+            getData(dat, zone, dataFin, deepthmin, deepthmax,  DataOutputDirectory, dateBeg, dateE)
+    else:
         DataOutputDirectory = outputDirectory + dat + '/'
-        getData(dat, zone, dataFin, deepthmin, deepthmax, dateBeg, dateE, DataOutputDirectory)
+        getData(dat, zone, dataFin, deepthmin, deepthmax, DataOutputDirectory)
