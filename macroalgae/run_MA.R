@@ -55,10 +55,19 @@ default_input<- data.frame(
   K_d    = 0.1,
   F_in   = 100,
   h_z_SML= 30,
-  t_z    = 0,
+  t_z    = 10,
   D_in   = 0.1,
   theta  = setup_solar_angle(latitude,start_day=0,ndays=length(time))
 )
+
+
+## parms required by macroalge_model:
+#input parms list ####
+
+# Farm dimensions: x_farm,y_farm,z_farm
+# MA dimensions: h_MA, w_MA, density_MA
+# Growth parameters: Q_min, K_c, T_O, T_max, T_min, V_NH4, V_NO3, K_NH4, K_N03, a_cs, I_s, mu, r_L, r_N, d_m,
+# MA properties: N_to_P
 
 # Default algae parameters: Ulva -----------------------------------
 
@@ -80,8 +89,8 @@ default_parms_ulva <- c(
   a_cs    = 0.00033, # nitrogen-specific shading     / m2 mg-1 (N)
   d_m     = 0.003,   # mortality rate                / 1/d
   h_MA    = 0.2,     # height of seaweed             / m
-  w_MA    = 0.2,     # width of seaweed e.g. on rope /m
-  r_L     = 0.2,     # remineralisation rate         / 1/d
+  w_MA    = 1,     # width of seaweed e.g. on rope /m
+  r_L     = 0.1,     # remineralisation rate         / 1/d
   r_N     = 0.1     # nitrification rate            / 1/d
 )
 
@@ -104,7 +113,7 @@ default_parms_porphyra <- c(
   I_s     = 277,     # saturation irradiance         / umol photons m-2 s-1
   a_cs    = 0.00036, # nitrogen-specific shading     / m2 mg-1 (N)
   d_m     = 0.003,   # mortality rate                / 1/d
-  h_MA    = 0.2,     # height of seaweed             / m
+  h_MA    = 0.4,     # height of seaweed             / m
   w_MA    = 0.2,     # width of seaweed e.g. on rope /m
   r_L     = 0.2,     # remineralisation rate         / 1/d
   r_N     = 0.1     # nitrification rate            / 1/d
@@ -113,11 +122,10 @@ default_parms_porphyra <- c(
 # Default Farm Parms -----------------------------------------------
 
 default_parms_farm<-c(
-  A_farm = 1e6,        # area of farm (default 1m2) /m^2
-#  y_farm = 1000,       # width of farm perpendicular to flow direction    
-#  density = 0.45,      # fraction of farm area occupied by algae
-  x_farm = 1,            #farm length in flow direction  
-  z       = 1,       # cultivation depth             / m
+  y_farm = 1000,       # width of farm perpendicular to flow direction    
+  density_MA = 0.4,      # fraction of farm area occupied by algae
+  x_farm = 1000,            #farm length in flow direction  
+  z       = 2,       # cultivation depth             / m
   #N_farm  = 0# additional ammonium input to farm e.g. from salmon mg/N/m-3
   harvest_first = 60, #days from start of run to first harvest
   harvest_freq = 30, #days (only used if harvest_method==1)
@@ -128,13 +136,13 @@ default_parms_farm<-c(
 # Default run parms -----------------------------------
 
 default_parms_run<-c(
-  refresh_rate = 1, #if value is 1, farm is fully refreshed with new water each day. Otherwise calculate from horizontal and vertical flow
+  #refresh_rate = 1, #if value is 1, farm is fully refreshed with new water each day. Otherwise calculate from horizontal and vertical flow
   harvest_method=0, #options: 0:no harvesting, 1.fixed frequency, 2. light-driven
   light_scheme=1 #options 1: Zollman self-shading scheme, 2: simple vertical light no self shading, 3: solar angle light no self shading
   )
 
 
-# Default run functions ----------------------------------------
+# Default run function ----------------------------------------
 
 
 default_run <- function(parms=c(default_parms_run,default_parms_farm,default_parms_ulva),input_data=default_input){
