@@ -116,7 +116,7 @@ default_parms_farm<-c(
   A_farm = 1e6,        # area of farm (default 1m2) /m^2
 #  y_farm = 1000,       # width of farm perpendicular to flow direction    
 #  density = 0.45,      # fraction of farm area occupied by algae
-  x_farm = 450,            #farm length in flow direction  
+  x_farm = 1,            #farm length in flow direction  
   z       = 1,       # cultivation depth             / m
   #N_farm  = 0# additional ammonium input to farm e.g. from salmon mg/N/m-3
   harvest_first = 60, #days from start of run to first harvest
@@ -128,9 +128,9 @@ default_parms_farm<-c(
 # Default run parms -----------------------------------
 
 default_parms_run<-c(
-  refresh_rate = 0, #if value is 1, farm is fully refreshed with new water each day. Otherwise calculate from horizontal and vertical flow
+  refresh_rate = 1, #if value is 1, farm is fully refreshed with new water each day. Otherwise calculate from horizontal and vertical flow
   harvest_method=0, #options: 0:no harvesting, 1.fixed frequency, 2. light-driven
-  light_scheme=3 #options 1: Zollman self-shading scheme, 2: simple vertical light no self shading, 3: solar angle light no self shading
+  light_scheme=1 #options 1: Zollman self-shading scheme, 2: simple vertical light no self shading, 3: solar angle light no self shading
   )
 
 
@@ -140,7 +140,7 @@ default_parms_run<-c(
 default_run <- function(parms=c(default_parms_run,default_parms_farm,default_parms_ulva),input_data=default_input){
   input_functions = boundary_forcings(input_data)
   
-  y0   <- c(NH4=input_functions$NH4_in(1),NO3=input_functions$NO3_in(1),N_s=1,N_f=1,D=0,Yield=0)
+  y0   <- c(NH4=input_data$NH4_in[1],NO3=input_data$NO3_in[1],N_s=1,N_f=1,D=0,Yield=0)
 
   Out <- ode(times = input_data$time, func = MA_model, y = y0, parms = c(parms, input_functions))
   
@@ -158,7 +158,7 @@ run_model<-function(default_parms,default_input,parms=NULL,input=NULL,y0){
     df<-default_input[1:nrow(input),]
     df[,colnames(input)]<-input
     input_data<-df
-
+    print(colnames(input_data))
   }
   else{
     input_data<-default_input
