@@ -137,7 +137,7 @@ MA_model <- function(t,y,parms) {
     V_EFF<-y_farm*(x_farm+F_in(t))*(z+t_z(t))
     # therefore nutrient change in the outflow of the farm (to depth z+t_z) is scaled to V_MA/V_EFF of the local nutrient change (See dNH4 and dNO3 terms)
     
-    
+    lambda   <- min(1,(F_in(t)/x_farm)) #
     
     # nutrient controls on growth, relation to biomass ####
     Q           <- Q_min*(1+(N_s/N_f))                                       # Internal nutrient quota of macroalgae
@@ -194,21 +194,22 @@ MA_model <- function(t,y,parms) {
     PO4_tot<-PO4_in(t)*V_EFF/V_MA
     
     #model state variables ####
-    dNH4        <- min(1,V_EFF/V_MA)*(NH4_in(t)-NH4) -((f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s))*V_MA/V_EFF  # change in NH4 with time
- 
-    dNO3        <- min(1,V_EFF/V_MA)*(NO3_in(t)-NO3) -((f_NO3*B)-(r_N*NH4))*V_MA/V_EFF           # change in NO3 with time 
+    dNH4        <- min(1,lambda)*(NH4_in(t)-NH4) -((f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s))*V_MA/V_EFF  # change in NH4 with time
+    
+    dNO3        <- min(1,lambda)*(NO3_in(t)-NO3) -((f_NO3*B)-(r_N*NH4))*V_MA/V_EFF           # change in NO3 with time 
     
     dN_s        <- (f_NH4+f_NO3)*B-min(mu_g_EQT*N_f,PO4_tot*N_to_P)-(d_m*N_s)                          # change in internal nitrogen store - eq 5 in Hadley
     
     dN_f        <- min(mu_g_EQT*N_f,PO4_tot*N_to_P)-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
     
-    dD          <- max(0,min(1,V_EFF/V_MA))*(D_in(t)-D) + (d_m*N_f - r_L*D)*V_MA/V_EFF                 # change in detritus with time
+    dD          <- min(1,lambda)*(D_in(t)-D) + (d_m*N_f - r_L*D)*V_MA/V_EFF                 # change in detritus with time
+    
     
     dYield      <- 0
     
     output<-list(c(dNH4, dNO3,dN_s,dN_f,dD,dYield),
          Farm_NO3_demand = NO3_removed*V_MA,
-         Farm_NH4_demand = NH4_removed,
+         Farm_NH4_demand = NH4_removed*V_MA,
          V_EFF = V_EFF,
          volscale=V_EFF/V_MA,
          Q         = Q,
