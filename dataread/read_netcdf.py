@@ -1,9 +1,7 @@
 import datetime
-import os
 import numpy as np
 import netCDF4 as nc
 import pandas as pd
-import time
 import math
 
 
@@ -150,9 +148,9 @@ def extractWithAverage(ncDataset, variable, averagingDims, weighted=True, **kwar
     return averagedArray
 
 def averageOverMLD(array2D, mld, depthAxis):
-    # array2D must be in (time, depth)
-    # mld must be in (time)
-    # depthAxis must be in (depth) (time dependent depth not handled right now)
+    # array2D must be along (time, depth)
+    # mld must be along (time)
+    # depthAxis must be along (depth) (time dependent depth not handled right now)
 
     # Build weights to average over time dependent MLD
     weights = np.zeros(array2D.shape)
@@ -308,14 +306,14 @@ class AllData:
             paramNames.insert(0, mldName)
 
         for param in paramNames:
-            #print(param)
+            print(param)
             data = self.parameterData[param].getVariable(latitude=latitude, longitude=longitude,
                                                 time=dateRange)
             timeAxis = self.parameterData[param].getVariable(variable='time', latitude=latitude,
                                                 longitude=longitude, time=dateRange)
 
             addData = pd.DataFrame({'date': timeAxis})
-            #print(addData.duplicated(['date']).sum())
+            print(addData.duplicated(['date']).sum())
 
             if data.ndim == 2: # data has depth
                 # Get the MLD at the times in paramTime
@@ -338,6 +336,7 @@ class AllData:
             addData.loc[np.ma.getmaskarray(addParam), [param]] = None
 
             df = pd.merge_ordered(df, addData, on='date', how='left')
+            print(df.duplicated(['date']).sum())
 
         return df
 
@@ -354,7 +353,7 @@ if __name__ == "__main__":
     zone = 'IBI'
 
     startDate = datetime.datetime(2020, 1, 1, 12)
-    endDate = datetime.datetime(2021, 1, 1, 12)
+    endDate = datetime.datetime(2021, 1, 31, 12)
 
     mainpath = 'I:/work-he/apps/safi/data/IBI/'
 
@@ -385,9 +384,10 @@ if __name__ == "__main__":
     )
 
     #df = algaeData.getTimeSeriesInMLD(lat, lon, (startDate, endDate), parameters=['Ammonium', 'par'])
-    df = algaeData.getTimeSeriesInMLD(lat, lon, (startDate, endDate), parameters=['Ammonium', 'Nitrate', 'Temperature', 'ocean_mixed_layer_thickness', 'par'])
+    #df = algaeData.getTimeSeriesInMLD(lat, lon, (startDate, endDate), parameters=['Ammonium', 'Nitrate', 'Temperature', 'ocean_mixed_layer_thickness', 'par'])
+    df = algaeData.getTimeSeriesInMLD(lat, lon, (startDate, endDate))
     print(df)
-    df.to_csv(mainpath+'Bantry_data/bantry_test2.csv',
+    df.to_csv(mainpath+'Bantry_data/bantry_MLDaveraged.csv',
               index=False, sep=';')
 
     del algaeData
