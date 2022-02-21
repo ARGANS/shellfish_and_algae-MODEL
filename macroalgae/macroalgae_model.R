@@ -214,85 +214,91 @@ MA_model <- function(t,y,parms) {
   }) 
 }
 
-MA_model_old <- function(t, y, parms) {
- #model runs per unit area - the only thing that is affected by size of the farm is the relationship
-  # between flow in and width of farm and height of algae and vertical turnover i.e. nutrient resupply. 
-  #The density of the farm determines the spacing between lines of width w_MA, with maximum density being 45% (spacing of w_MA between lines and 5% of area allowed for access / shipping transit through the farm etc)
-  
-  
-  with(as.list(c(y, parms)), {
-    ### Internal variables
-      # farm refresh rate (i.e. nutrient resupply due to advection and vertical turnover)
-      if(refresh_rate==1)
-      {lambda_R=1}
-      else {
-        lambda_RF    <- min(1,(F_in(t)/x_farm)) # horizontal flow refresh rate
-        lambda_Rz    <-(t_z(t)/h_MA) #vertical turnover refresh rate (in proportion of farm not refreshed by horizontal flow)
-        lambda_R    <- min(1,lambda_RF+(1-lambda_RF)*lambda_Rz) # refresh rate of farm considering both horizontal flow and vertical turnover within SML
-      }
-       # nutrient controls on growth, relation to biomass
-      Q           <- Q_min*(1+(N_s/N_f))                                       # Internal nutrient quota of macroalgae
-      B           <- N_f/Q_min                                                 # Biomass of dry macroalgae
-      g_Q         <- (Q-Q_min)/(Q-K_c)                                         # Growth limitation due to internal nutrient reserves
-      # temperature-growth dynamics (from martin and marques 2002)
-      if(SST(t)>T_O)
-        {T_x<-T_max}
-      else
-        {T_x<-T_min}
-      g_T<-exp(-2.3*((SST(t)-T_O)/(T_x-T_O))^2)
-      
-      if(light_scheme==1){
-      #light limits to growth including self-shading - adapted from Zollman et al 2021
-        I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
-        I_av <-(I_top/(K_d(t)*h_MA+N_f*a_cs))*(1-exp(-(K_d(t)*h_MA+N_f*a_cs)))          # calclulate the average irradiance throughout the height of the farm
-        g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
-      } else if (light_scheme==2){
-      # simple vertical light no shading
-          I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
-          I_av <-(I_top/(K_d(t)*h_MA))*(1-exp(-(K_d(t)*h_MA)))          # calclulate the average irradiance throughout the height of the farm
-          g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
-      } else if (light_scheme==3){
-        #solar angle accounted for no shading
-          I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sin(theta(t)*pi/180))                                    # calculate incident irradiance at the top of the farm
-          I_av <-(I_top/(K_d(t)*h_MA/sin(theta(t)*pi/180)))*(1-exp(-(K_d(t)*h_MA/sin(theta(t)*pi/180))))          # calclulate the average irradiance throughout the height of the farm
-          g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
-      } 
-      
-      
-      mu_g_EQT    <- mu*g_E*g_Q*g_T                                            # Growth function for macroalgae
-      f_NH4       <- ((V_NH4*NH4)/(K_NH4+NH4))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NH4
-      f_NO3       <- ((V_NO3*NO3)/(K_NO3+NO3))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NO3.
-      
-      NH4_added      <-lambda_R*(NH4_in(t)-NH4)
-      NO3_added      <-lambda_R*(NO3_in(t)-NO3)
-      
-      NO3_removed <- (f_NO3*B)-(r_N*NH4)
-      NH4_removed <- (f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s)
-      
-      dNH4        <- lambda_R*(NH4_in(t)-NH4)-((f_NH4*B)+(r_L*D)-(r_N*NH4)+(d_m*N_s))/30   # change in NH4 with time  - eq 3 in Hadley et al (note max(h_MA/z,1) term is omitted because we assume the surface box is well mixed - need to think further about this - should we be looking across entire mixed layer - or include this in the lambda term?)
-      dNO3        <- lambda_R*(NO3_in(t)-NO3)-((f_NO3*B)+(r_N*NH4))/30            # change in NO3 with time  - eq 4 in Hadley et al (note max(h_MA/z,1) term is omitted because we assume the surface box is well mixed - need to think further about this - should we be looking across entire mixed layer - or include this in the lambda term?)
-      dN_s        <- (f_NH4+f_NO3)*B-min(mu_g_EQT*N_f,PO4_in(t)*N_to_P)-(d_m*N_s)                          # change in internal nitrogen store - eq 5 in Hadley
-      dN_f        <- min(mu_g_EQT*N_f,PO4_in(t)*N_to_P)-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
-      dD          <- lambda_R*(D_in(t)-D + d_m*N_f - r_L*D)                  # change in detritus with time
-      dYield      <- 0
-      list(c(dNH4, dNO3,dN_s,dN_f,dD,dYield),
-         NH4_added = NH4_added,
-         NO3_added = NO3_added,
-         NO3_removed = NO3_removed,
-         NH4_removed = NH4_removed,
-         lambda_R  = lambda_R,
-         Q         = Q,
-         B         = B,
-         g_Q       = g_Q,
-         g_T       = g_T,
-         g_E       = g_E,
-         mu_g_EQT  = mu_g_EQT,
-         f_NH4     = f_NH4,
-         f_NO3     = f_NO3
-         )
-  })
-}
-
+# MA_model_old <- function(t, y, parms) {
+#  #model runs per unit area - the only thing that is affected by size of the farm is the relationship
+#   # between flow in and width of farm and height of algae and vertical turnover i.e. nutrient resupply. 
+#   #The density of the farm determines the spacing between lines of width w_MA, with maximum density being 45% (spacing of w_MA between lines and 5% of area allowed for access / shipping transit through the farm etc)
+#   
+#   
+#   with(as.list(c(y, parms)), {
+#     ### Internal variables
+#       # farm refresh rate (i.e. nutrient resupply due to advection and vertical turnover)
+#       if(refresh_rate==1)
+#       {lambda_R=1}
+#       else {
+#         lambda_RF    <- min(1,(F_in(t)/x_farm)) # horizontal flow refresh rate
+#         lambda_Rz    <-(t_z(t)/h_MA) #vertical turnover refresh rate (in proportion of farm not refreshed by horizontal flow)
+#         lambda_R    <- min(1,lambda_RF+(1-lambda_RF)*lambda_Rz) # refresh rate of farm considering both horizontal flow and vertical turnover within SML
+#       }
+#        # nutrient controls on growth, relation to biomass
+#       Q           <- Q_min*(1+(N_s/N_f))                                       # Internal nutrient quota of macroalgae
+#       B           <- N_f/Q_min                                                 # Biomass of dry macroalgae
+#       g_Q         <- (Q-Q_min)/(Q-K_c)                                         # Growth limitation due to internal nutrient reserves
+#       # temperature-growth dynamics (from martin and marques 2002)
+#       if(SST(t)>T_O)
+#         {T_x<-T_max}
+#       else
+#         {T_x<-T_min}
+#       g_T<-exp(-2.3*((SST(t)-T_O)/(T_x-T_O))^2)
+#       
+#       if(light_scheme==1){
+#       #light limits to growth including self-shading - adapted from Zollman et al 2021
+#         I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
+#         I_av <-(I_top/(K_d(t)*h_MA+N_f*a_cs))*(1-exp(-(K_d(t)*h_MA+N_f*a_cs)))          # calclulate the average irradiance throughout the height of the farm
+#         g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
+#       } else if (light_scheme==2){
+#       # simple vertical light no shading
+#           I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
+#           I_av <-(I_top/(K_d(t)*h_MA))*(1-exp(-(K_d(t)*h_MA)))          # calclulate the average irradiance throughout the height of the farm
+#           g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
+#       } else if (light_scheme==3){
+#         #solar angle accounted for no shading
+#           I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sin(theta(t)*pi/180))                                    # calculate incident irradiance at the top of the farm
+#           I_av <-(I_top/(K_d(t)*h_MA/sin(theta(t)*pi/180)))*(1-exp(-(K_d(t)*h_MA/sin(theta(t)*pi/180))))          # calclulate the average irradiance throughout the height of the farm
+#           g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
+#       } 
+#       
+#       
+#       mu_g_EQT    <- mu*g_E*g_Q*g_T                                            # Growth function for macroalgae
+#       f_NH4       <- ((V_NH4*NH4)/(K_NH4+NH4))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NH4
+#       f_NO3       <- ((V_NO3*NO3)/(K_NO3+NO3))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NO3.
+#       
+#       NH4_added      <-lambda_R*(NH4_in(t)-NH4)
+#       NO3_added      <-lambda_R*(NO3_in(t)-NO3)
+#       
+#       NO3_removed <- (f_NO3*B)-(r_N*NH4)
+#       NH4_removed <- (f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s)
+#       
+# 
+#       dNH4        <- lambda_R*(NH4_in(t)-NH4)-((f_NH4*B)+(r_L*D)-(r_N*NH4)+(d_m*N_s))/30   # change in NH4 with time  - eq 3 in Hadley et al (note max(h_MA/z,1) term is omitted because we assume the surface box is well mixed - need to think further about this - should we be looking across entire mixed layer - or include this in the lambda term?)
+#       dNO3        <- lambda_R*(NO3_in(t)-NO3)-((f_NO3*B)+(r_N*NH4))/30            # change in NO3 with time  - eq 4 in Hadley et al (note max(h_MA/z,1) term is omitted because we assume the surface box is well mixed - need to think further about this - should we be looking across entire mixed layer - or include this in the lambda term?)
+#       dN_s        <- (f_NH4+f_NO3)*B-min(mu_g_EQT*N_f,PO4_in(t)*N_to_P)-(d_m*N_s)                          # change in internal nitrogen store - eq 5 in Hadley
+#       dN_f        <- min(mu_g_EQT*N_f,PO4_in(t)*N_to_P)-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
+# 
+# 
+#       dN_s        <- (f_NH4+f_NO3)*B-min(mu_g_EQT*N_s,PO4_in(t)*N_to_P)-(d_m*N_s)                          # change in internal nitrogen store - eq 5 in Hadley
+#       dN_f        <- min(mu_g_EQT*N_s,PO4_in(t)*N_to_P)-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
+# 
+#       dD          <- lambda_R*(D_in(t)-D + d_m*N_f - r_L*D)                  # change in detritus with time
+#       dYield      <- 0
+#       list(c(dNH4, dNO3,dN_s,dN_f,dD,dYield),
+#          NH4_added = NH4_added,
+#          NO3_added = NO3_added,
+#          NO3_removed = NO3_removed,
+#          NH4_removed = NH4_removed,
+#          lambda_R  = lambda_R,
+#          Q         = Q,
+#          B         = B,
+#          g_Q       = g_Q,
+#          g_T       = g_T,
+#          g_E       = g_E,
+#          mu_g_EQT  = mu_g_EQT,
+#          f_NH4     = f_NH4,
+#          f_NO3     = f_NO3
+#          )
+#   })
+# }
+# 
 
 
 
