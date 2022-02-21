@@ -167,7 +167,14 @@ MA_model <- function(t,y,parms) {
       I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sin(theta(t)*pi/180))                                    # calculate incident irradiance at the top of the farm
       I_av <-(I_top/(K_d(t)*h_MA/sin(theta(t)*pi/180)))*(1-exp(-(K_d(t)*h_MA/sin(theta(t)*pi/180))))          # calclulate the average irradiance throughout the height of the farm
       g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
+    } else if (light_scheme==4){
+      #solar angle accounted included with shading
+      sine<-sin(theta(t)*pi/180)
+      I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sine)
+      I_av <-(I_top / (K_d(t)*h_MA/sine   +   N_f*a_cs/(1-sine)))*(1-exp(-(  K_d(t)*h_MA/sine  +   N_f*a_cs/(1-sine)   )))
+      g_E <- I_av/(((I_s)+I_av)) 
     } 
+    
     
     # growth function (uptake of nutrient from internal reserves) ####
     
@@ -183,14 +190,17 @@ MA_model <- function(t,y,parms) {
     NO3_removed <- (f_NO3*B)-(r_N*NH4)
     NH4_removed <- (f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s)
     
+    #How much phosphate is available for growth
+    PO4_tot<-PO4_in(t)*V_EFF/V_MA
+    
     #model state variables ####
     dNH4        <- max(0,min(1,V_EFF/V_MA))*(NH4_in(t)-NH4) -((f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s))*V_MA/V_EFF  # change in NH4 with time
  
     dNO3        <- max(0,min(1,V_EFF/V_MA))*(NO3_in(t)-NO3) -((f_NO3*B)-(r_N*NH4))*V_MA/V_EFF           # change in NO3 with time 
     
-    dN_s        <- (f_NH4+f_NO3)*B-min(mu_g_EQT*N_f,PO4_in(t)*N_to_P)-(d_m*N_s)                          # change in internal nitrogen store - eq 5 in Hadley
+    dN_s        <- (f_NH4+f_NO3)*B-min(mu_g_EQT*N_f,PO4_tot*N_to_P)-(d_m*N_s)                          # change in internal nitrogen store - eq 5 in Hadley
     
-    dN_f        <- min(mu_g_EQT*N_f,PO4_in(t)*N_to_P)-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
+    dN_f        <- min(mu_g_EQT*N_f,PO4_tot*N_to_P)-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
     
     dD          <- max(0,min(1,V_EFF/V_MA))*(D_in(t)-D) + (d_m*N_f - r_L*D)*V_MA/V_EFF                 # change in detritus with time
     
