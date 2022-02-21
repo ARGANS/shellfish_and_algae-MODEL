@@ -171,7 +171,7 @@ MA_model <- function(t,y,parms) {
       #solar angle accounted included with shading
       sine<-sin(theta(t)*pi/180)
       I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sine)
-      I_av <-(I_top / (K_d(t)*h_MA/sine   +   N_f*a_cs/(1-sine)))*(1-exp(-(  K_d(t)*h_MA/sine  +   N_f*a_cs/(1-sine)   )))
+      I_av <-(I_top / ((K_d(t)*h_MA/sine)   +   (N_f*a_cs/(sine))))*(1-exp(-(  (K_d(t)*h_MA/sine)  +   (N_f*a_cs/(sine))   )))
       g_E <- I_av/(((I_s)+I_av)) 
     } 
     
@@ -194,9 +194,9 @@ MA_model <- function(t,y,parms) {
     PO4_tot<-PO4_in(t)*V_EFF/V_MA
     
     #model state variables ####
-    dNH4        <- max(0,min(1,V_EFF/V_MA))*(NH4_in(t)-NH4) -((f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s))*V_MA/V_EFF  # change in NH4 with time
+    dNH4        <- min(1,V_EFF/V_MA)*(NH4_in(t)-NH4) -((f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s))*V_MA/V_EFF  # change in NH4 with time
  
-    dNO3        <- max(0,min(1,V_EFF/V_MA))*(NO3_in(t)-NO3) -((f_NO3*B)-(r_N*NH4))*V_MA/V_EFF           # change in NO3 with time 
+    dNO3        <- min(1,V_EFF/V_MA)*(NO3_in(t)-NO3) -((f_NO3*B)-(r_N*NH4))*V_MA/V_EFF           # change in NO3 with time 
     
     dN_s        <- (f_NH4+f_NO3)*B-min(mu_g_EQT*N_f,PO4_tot*N_to_P)-(d_m*N_s)                          # change in internal nitrogen store - eq 5 in Hadley
     
