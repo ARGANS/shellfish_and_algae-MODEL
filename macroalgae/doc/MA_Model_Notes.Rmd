@@ -1,109 +1,571 @@
 ---
-title: "Macroalgae model notes (draft ATBD)"
-output:
-  pdf_document: default
-  html_notebook: default
-  word_document: default
+title: "Macroalgae model notes"
+
+
+header-includes:
+  - \usepackage{amsmath}
+
+output: 
+  bookdown::pdf_document2:
+    number_sections: true 
+bibliography: bib.bib
+
 ---
-```{r, include=FALSE}
+
+```{r setup, include=FALSE}
+
+
+options(scipen=999)
+
+knitr::opts_knit$set(root.dir = '../')
 source("../hadley_model_test.R", local = knitr::knit_global())
+
 op = function(x, d=0) sprintf(paste0("%1.",d,"f"), x) 
+
+
 ```
 
+```{=tex}
+
+\newcommand{\version}{0.1[DRAFT]}
+
+
+% farm and MA dimensions %
+
+\newcommand{\zfarm}{\mathrm{z_{farm}}}
+\newcommand{\xfarm}{\mathrm{x_{farm}}}
+\newcommand{\yfarm}{\mathrm{y_{farm}}}
+
+\newcommand{\dens}{\rho_{\mathrm{farm}}}
+
+\newcommand{\hMA}{h_{MA}}
+\newcommand{\wMA}{w_{MA}}
+
+\newcommand{\VMA}{V_{MA}}
+
+% flow and effective volume %
+
+\newcommand{\flow}{v}
+\newcommand{\tz}{t_z}
+
+\newcommand{\Veff}{V_{EFF}}
+
+\newcommand{\SMLD}{h_{SML}}
+
+
+% state variables and related %
+
+\newcommand{\ammon}{\mathrm{NH_4}}
+\newcommand{\ammonext}{\mathrm{NH_{4\_ext}}}
+
+
+\newcommand{\nitr}{\mathrm{NO_3}}
+\newcommand{\nitrext}{\mathrm{NO_{3\_ext}}}
+
+\newcommand{\NXx}{\mathrm{NX_x}}
+
+\newcommand{\Ns}{\mathrm{N_s}}
+\newcommand{\Nf}{\mathrm{N_f}}
+
+\newcommand{\phos}{\mathrm{PO_4}}
+\newcommand{\NP}{\mathrm{N:P_{MA}}}
+
+
+
+
+\newcommand{\D}{\mathrm{D}}
+\newcommand{\rl}{r_{L}}
+\newcommand{\Kd}{K_{d}}
+\newcommand{\rlD}{\rl.\D}
+\newcommand{\rN}{r_{N}}
+\newcommand{\rnN}{\rN.\ammon}
+
+\newcommand{\dm}{d_{M}}
+
+\newcommand{\dmNf}{\dm.\Nf}
+\newcommand{\VNXx}{V_{\NXx}}
+
+\newcommand{\VNHfour}{V_{\ammon}}
+\newcommand{\VNOthree}{V_{\nitr}}
+
+\newcommand{\KNHfour}{K_{\ammon}}
+\newcommand{\KNOthree}{K_{\nitr}}
+
+
+\newcommand{\KNXx}{K_{\NXx}}
+\newcommand{\Q}{Q}
+
+\newcommand{\Qmax}{\Q_{\mathrm{max}}}
+\newcommand{\Qmin}{\Q_{\mathrm{min}}}
+\newcommand{\gE}{g_{E}}
+\newcommand{\gQ}{g_{Q}}
+\newcommand{\gT}{g_{T}}
+\newcommand{\Kc}{K_{c}}
+\newcommand{\T}{\mathrm{T}}
+\newcommand{\To}{\T_\mathrm{o}}
+\newcommand{\Tmax}{\T_{max}}
+\newcommand{\Tmin}{\T_{min}}
+\newcommand{\Tx}{\T_x}
+\newcommand{\dord}{d_{ord}}
+\newcommand{\Isurf}{I_{surf}}
+\newcommand{\Itop}{I_{top}}
+\newcommand{\Iavg}{I_{avg}}
+\newcommand{\Isat}{I_{sat}}
+\newcommand{\acs}{a_{cs}}
+
+
+\newcommand{\perday}{\mathrm{d}^{-1}}
+\newcommand{\perdw}{\mathrm{g}^{-1}\mathrm{(dw)}}
+\newcommand{\percubicm}{\mathrm{m}^{-3}}
+\newcommand{\degc}{^{\circ}}
+
+```
+This is version  $\version$ of the document
 
 # Background
 
-# Scope and design philosophy
+## Scope and design philosophy
 
-The model is required by the funder to predict the potential yield of macroalgae from European waters on a 1x1km grid. The funder wishes for the assessment of 3 different species of macroalage and requires (external to this model) to ensure that the downstream effects of nutrient utilisation are accounted for in terms of productivity of downstream seaweed farms. 
+The model is required by the funder to predict the potential yield of macroalgae from European waters on a 1x1km grid. The funder wishes for the assessment of 3 different species of macroalage and requires (external to this model) to ensure that the downstream effects of nutrient utilisation are accounted for in terms of productivity of downstream seaweed farms.
 
-This model is designed to run quickly and independently from any geospatial dynamics or interactions which will be handled at the next level up in the software stack being built to meet the requirements of the project. 
+This model is designed to run independently from any geospatial dynamics or interactions which will be handled at the next level up in the software stack being built to meet the requirements of the project.
 
 The model is designed to be flexible enough to be run as a single macroalgal farm 'sub-unit' e.g. 1x1m horizontal extent in a nested multi-scale model of a farm in order to investigate within-farm nutrient and productivity dynamics as may be required. However it is envisaged that the model will be run once for each 1x1 km grid square, with a simple farm density scaling parameter to represent the reality that seaweed farms cannot occupy the entirety of a 1x1km grid square, but may be more productive spread out over an area rather than intensively farmed in one compact unit. Beyond this, as the funder wishes for 'potential' yield the model will not consider practical aspects of limits to seaweed production (distance from coast, maximum possible harvesting frequency, line density, conflicts with other uses of the sea etc.) as these are out of scope. Similarly the effect of grazing, bacterial or viral pressure on macroalgal productivity or the potential impacts of storms or harmful algal blooms are not considered with the scope of this model (although some of these may be identified as risk factors for aquaculture activities within the geospatial framework that this model will operate).
 
-The model is driven by nutrient inputs, light and temperature and is designed to be flexible enough to be able to represent any species of macroalgae by means of parameter set modification
+The model is driven by nutrient inputs, light and temperature and is sufficiently simple that it is possible to represent the behaviour of any species of macroalgae by parameter modification without changing the model code. It is derived from a recent simple multi-species model of macroalgal growth by @Hadley2015.
 
 # Model description
 
-#The model is based on the macroalgal model presented for three species of macroalgae by Hadley et al., (2015) following Aldridge and Trimmer (2009) and Solidoro et al., (1997). Hadley et al., (2015) provide full details of their model which should enable  a like-for like reproduction of their results for comparison / checking. 
+    
+
+## Model equations {#model}
 
 
-## Hadley et al., 2015 Model
 
-Hadley et al model was implemented in R, according to the equations laid out in their paper, using the DeSolve package. When implemented as described in their paper, it is not possible to reproduce their results. In particular, light limitation due to self-shading in the model is too strong, with light strongly limiting macroalgal growth at a standing stock of 0.8g of fixed nitrogen (proxy for biomass in the model - approximately 60g DW) per cubic metre of water. Given a modelled height of 0.2m, this corresponds to around 12 g DW / m^2^ according to the Hadley pareterisation (Fig 1). 
+The model presented here is based on the model of @Hadley2015, which follows @Adridge2009 and further @Solidoro1997. The model currency is nitrogen, with 2 inorganic forms, ammonium ($\ammon$) and nitrate ($\nitr$) in water. Algae are able to take up these into a store ($\Ns$) for conversion into fixed nitrogen ($\Nf$), i.e. biomass nitrogen. These 4 nitrogen pools (all with units of mg N m$^{-3}$), plus Detritus, D in g dw m$^{-3}$are the state variables of the model. An additional teschnical state variable , Yield, tracks the quantity of macroalgal material harvested (detailed in Section \@ref(harvest)) 
+
+### Farm dimensions and nutrient supply {#farm}
+
+A farm (Fig. \@ref(fig:farm)) is described by its horizontal and vertical dimensions. Horizonal dimensions are aligned to a notional flow direction, where $\xfarm$ and $\yfarm$ are the sizes of the farm in the flow direction and perpendicular to the flow direction, respectively. For the current application these would typically be fixed at the size of the grid box (1000m). A farm density term, $\dens$, defines the proportion of the total farm area where seaweed is growing (to account for spacing between lines or cages, plus space for access or the transit of other marine craft through the farm area). Typically this value should be no greater than 40% [@vanderMolen]. In order to maximise nutrient availabilty, macroalgal lines are assumed to extend to the full width of the farm perpendicular to flow ($\yfarm$) with notional spacing between lines in the x direction allowing for a density < 1.
+
+![(#fig:farm) Schematic of macroalgal farm](images/farm.png)
 
 
-The term g_E in Hadley et al is a scaling factor on maximum specific growth rate which, along with analagous nutrient and temperature functions, inhibit growth. A value of g_e = 1 means no light inhibition, a value of 0.1, for example means 90% inhibition of growth due to low light availability. The term integrates the light attenuation coefficient of water (0.1 m^-1^) as well as the attentuation due to macroalgal self-shading, the latter being the dominant term in g_E. 
-```{r}
+The cultivation depth, $\zfarm$ is defined as the distance from the water surface to the base of the seaweed. The volume of macroalgae within the the farm is given by:
 
 
-Nf<-1:1000 #fixed N in mg / m3
-# other paramseters as per default parameter settings for Hadley model with Porphyra
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \VMA=\yfarm.\xfarm.\dens.\hMA (\#eq:VMA)
+\end{equation}
+```
 
-plot(Nf,light_limitation(Nf),xlab='fixed N in mg per cubic metre',ylab='g_E (unitless)')
+Where $\hMA$ is the height of the macroaglae (a fixed, species specific parameter). 
 
-#### Figure 1. Relationship between biomass (represented by fixed N) and g_E light limitation term
+The water within the farm volume, extending to the water surface, is considered to be well mixed in all cases. However, the flow of water through the farm horizontally by advection and via vertical mixing introduces new water (and therefore nutrients), affecting both the available concentration of nutrient to drive macroalgal growth and the resulting effect of such growth on the water concentration. Given input terms of horizonal advective flow, $\flow$, and vertical mixing, $t_z$ (both in length units), an effective volume of influence, $Veff$ can be defined as:
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \Veff = \yfarm.(\xfarm+\flow).(\zfarm+\tz) (\#eq:VMA)
+\end{equation}
+```
+
+The ratio $\frac{\VMA}{\Veff}$ is used to scale the nutrient uptake within the farm to the net effect on concentration within the effective volume of water. Furthermore, as nutrient flow will tend to restore nutrient concentration back to the ambient concentration, the inverse term ($\frac{\Veff}{\VMA}$) can be used to determine the nutrient concentration restoration rate to the farm volume, with a maximum value of 1 (per timestep).
+
+Ammonium and nitrate concentration in the model are a function of the restoration of nutrients to ambient concentration by the input of new water, their biomass-specific uptake by seaweed ($f(\NXx,Q).B$); remineralisation of detrital material, $\rlD$; nitrification of $\ammon$ to $\nitr$ ($\rnN$); and a mortality term, $\dmNf$,  that returns stored nitrogen to the ammonium pool. 
+
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \frac{d\mathrm{NH_4}}{dt}=\min(1,\frac{\Veff}{\VMA}).(\ammonext-\ammon)+(\rlD  + \dmNf - f(\ammon,Q).B - \rnN).\frac{\VMA}{\Veff} (\#eq:NH4dt)
+\end{equation}
+```
+
+```{=tex}
+\begin{equation}
+    \displaystyle 
+    \frac{d\mathrm{NO_3}}{dt}=\min(1,\frac{\Veff}{\VMA}).(\nitrext-\nitr)+(\rnN - f(\nitr,Q).B).\frac{\VMA}{\Veff} (\#eq:NO3dt)
+\end{equation}
 ```
 
 
-Figure 1 suggests that at 12 g DW / m^2^ 90% of light transmission is restricted on average across the 0.2 m depth containing macroalgae. It can be inferred from the plot of equilibrium runs of the Hadley et al., model (Fig 2, their Figure 4), that light is not limiting in their runs even at biomass density of in excess of 1.5kg m-2. (13 mg n to 1 g DW as per Prophyra in Hadley et al).
+The pool of internal nitrogen stored by the macroalgae, $\Ns$ is controlled by the uptake of $\ammon$ and $\nitr$ into the store, the light, temperature and nutrient dependent growth rate (i.e. the uptake from stored inorganic N to fixed biomass N ($\Nf$)) and the mortality term. 
 
-![](images/Hadley_Fig4.png)
-Figure 2: Hadley et al 2015 Fig. 4 (see caption above)
+```{=tex}
+\begin{equation}
+    \displaystyle 
+    \frac{d\Ns}{dt}=(f(\ammon,Q)+f(\nitr,Q)).B-min(\mu.g(E,Q,T).\Ns,\phos_{\Veff}.\NP)-\dmNf (\#eq:Ns)
+\end{equation}
+```
 
-When we run the model we find that even with fish farm point source input of N_farm = 0 the system reaches strong light limitation and a fixed nitrogen biomass of only a few grams per square metre. 
+Here, the term $\mu.g(E,Q,T).\Ns$ represents the nitrogen, temperature and light dependent conversion of stored nitrogen to fixed nitrogen (i.e. biomass growth). When the total available phosphate within the effective volume of influence ($\phos_{\Veff}$) is less than the phosphate requirements to support the calculated conversion of $\Ns$ to $\Nf$, growth is limited to this phosphate availability. 
 
-It is not clear whether the error lies with our implementation or the equations laid out in their paper but after a day of investigation it was not possible to reconcile the results of our implementation of the model with those presented in the paper, despite numerous hours trying. 
+Fixed (biomass) nitrogen, $\Nf$ is then:
 
-An analagous light limitation scheme from Zollmannn et al 2021 (their equations 5 and 6) has been implemented to replace the code that cannot be successfully reproduced (Figure 3). This has been adapted to allow a vertical extent of clear water (i.e. no seaweed) above the farm.
+```{=tex}
+\begin{equation}
+    \displaystyle 
+    \frac{d\mathrm{N_f}}{dt}=min(\mu.g(E,Q,T).\Ns,\phos.\NP)-\dmNf (\#eq:Nf)
+\end{equation}
+```
 
-```{r}
+Finally, the detrital pool is determined from the inflow of detrital material, the loss of $\Nf$ due to mortality and the remineralisation of detritus to $\ammon$.
 
-
-Nf<-1:100000 #fixed N in mg / m3
-# other paramseters as per default parameter settings for Hadley model with Porphyra
-
-plot(Nf,light_limitation_zollmann(Nf),xlab='fixed N in mg per cubic metre',ylab='g_E (unitless)')
-
-#### Figure 2. Relationship between biomass (represented by fixed N)
-#### and g_E light limitation term with scheme from Zollman et al (2021)
+```{=tex}
+\begin{equation}
+    \displaystyle 
+    \frac{d\D}{dt}=\min(1,\frac{\Veff}{\VMA}).(\D_{ext}-\D)+ (\dmNf- \rlD).\frac{\VMA}{\Veff} (\#eq:D)
+\end{equation}
 ```
 
 
-This is clearly a much less strong light limitation and produces results of an appropriate order of magnitude when compared to the Hadley et al., 2015 equilibrium runs (Fig. 4). 
+### Growth dynamics {#growth}
 
-```{r}
-parms_farm['N_farm']=50
-Low<- ode(times = times, func = Hadley_model, y = y0, parms = c(parms_porphyra,parms_farm))
+Uptake from inorganic nutrients into the fixed nitrogen pool, $\Nf$ is controlled by standard Monod / Michaelis Menten kinetics, whereby the uptake is dependent on the maximum specific uptake rate $\VNXx$ per unit biomass, the concentration of $\ammon$/$\nitr$ and the half-saturation constant for the species of interest ($\KNXx$), scaled between minimum and maximum value by the internal nutrient quota, Q:
 
-parms_farm['N_farm']=100
-Med<- ode(times = times, func = Hadley_model, y = y0, parms = c(parms_porphyra,parms_farm))
-
-parms_farm['N_farm']=5000
-High<- ode(times = times, func = Hadley_model, y = y0, parms = c(parms_porphyra,parms_farm))
-
-# multiply by 0.2m (height of farm to convert 
-# to per m-2 for comparison with Hadley fig 4)
-{plot(times,High[,'N_f']*0.2,xlab='time (days)',ylab='N_f (mg N m-2)',type='l')
-lines(times,Med[,'N_f']*0.2, lty=2)
-lines(times,Low[,'N_f']*0.2, lty=3)}
-
-#### Figure 2. Relationship between biomass (represented by fixed N)
-#### and g_E light limitation term with scheme from Zollman et al (2021)
-
-
+```{=tex}
+\begin{equation}
+    \displaystyle 
+    f_\NXx = \frac{\VNXx.\NXx}{\KNXx+\NXx}.\frac{\Qmax-\Q}{\Qmax-\Qmin}
+\end{equation}
 ```
 
-```{r echo=FALSE}
-print('mean equilibrium biomass')
-print(paste('N_farm = 50:',op(mean(tail(Low[,'N_f']*0.2,356)))))
-print(paste('N_farm = 100:',op(mean(tail(Med[,'N_f']*0.2,356)))))
-print(paste('N_farm = 5000:',op(mean(tail(High[,'N_f']*0.2,356)))))
+Nitrogen is fixed from the internal nutrient pool to the fixed nitrogen pool through a specific maximum growth rate, $\mu$, scaled by temperature, light and internal nutrient availability. 
 
-print('estimates from Haldey et al fig 4 (panel C- Porphyra)')
-print(paste('N_farm = 50:', 11000))
-print(paste('N_farm = 100:', 21000))
-print(paste('N_farm = 5000:', 340000))
-
-
+```{=tex}
+\begin{equation}
+    \displaystyle 
+    \mu.g(E,Q,T) = \mu.\gE.\gQ.\gT
+\end{equation}
 ```
+
+where $\gQ$ scales the maximum growth rate according to the internal nutrient reserves:
+
+```{=tex}
+\begin{equation}
+    \displaystyle 
+    \gQ =  \frac{\Q-\Qmin}{\Q-\Kc} 
+\end{equation}
+```
+
+The temperature scaling term used by @Hadley2015 only inhibits growth at temperatures below the optimum temperature, $\To$. However, it is well known that macroalgal species growth rate declines also at temperatures above their optimum. Therefore we adapt the scheme of @Martin2002 which has a 'bell curve' temperature dependence.
+
+```{=tex}
+\begin{equation}
+    \displaystyle 
+    \gT =  \mathrm{e}^{-2.3(\frac{\T-\To}{\T-\Tx})^2} 
+\end{equation}
+```
+
+
+Where $\Tx=\Tmax$ for $\T>\To$ and $\Tx=\Tmin$ for $\T<\To$.
+
+The light-dependent scaling as described by @Hadley2015 could not be successfully implemented here, possibly due to a reporting error in their paper (see appendix). 
+
+The daily maximum angle of incident light is calculated as a function of latitude (L) and ordinal day of the year ($\dord$):
+
+```{=tex}
+\begin{equation}
+    \displaystyle 
+    \theta = 90-L-23.45 cos(\frac{360}{365}.(\dord+10))
+\end{equation}
+```
+
+The light intensity at the top of the macroalgae is then calculated as:
+
+```{=tex}
+\begin{equation}
+    \displaystyle 
+    \Itop = \Isurf.e^{(-\Kd.\frac{\zfarm-\hMA}{sin(\theta)})}
+\end{equation}
+```
+
+and the mean irradiance throughout the height of the macroalgae, accounting for self-shading is then calculated as:
+
+```{=tex}
+\begin{equation}
+    \displaystyle 
+    \Iavg = \frac{\Itop}{\frac{\Kd.\hMA}{\sin(\theta)}+\frac{\Nf.\acs}{(\sin(\theta))}}.(1-e^{-(\frac{\Kd.\hMA}{\sin(\theta)}+\frac{\Nf.\acs}{(\sin(\theta))})}
+\end{equation}
+```
+
+ 
+
+The growth scaling function $\gE$ is then
+
+```{=tex}
+\begin{equation}
+    \displaystyle 
+    \gE = \frac{Iavg}{\Isat+\Iavg}
+\end{equation}
+```
+ where $\Isat$ is the species specific saturation irradiace value of the macroalgae. 
+
+
+
+## model structure and ins/outs
+
+The model is implemented as a series of differential equations,solved in R using the `deSolve` package [@deSolve] in file `macroalgae_model.R` (see Section \@ref(model) ). The same file also contains functions for creating time-varying forcing functions from input data (Section \@ref(forcings)); and functions for managing harvesting of the macroalgae under various management options \@ref(harvest). 
+
+For testing or other individual runs, the model can be initialised and run using the run_MA.R script in the same directory as the model code. When operationalised within the wider modelling environment it will be initialised and run from a pything script which will pass boundary forcings, parameter values and run control settings directly to the model and retrieve outputs. 
+
+### Parameter values {#params}
+
+#### Species-specific macroalgal parameters
+
+Species-specific algal parameters are listed in Table \@ref(tab:algaeparams).
+```{r algaeparams, echo=FALSE}
+ source("run_MA.R")
+nicenames<-c("$\\mu$","$\\VNHfour$","$\\VNOthree$","$\\KNHfour$","$\\KNOthree$","$\\Qmax$","$\\Qmin$","$\\NP$","$\\Kc$","$\\To$","$\\Tmin$","$\\Tmax$","$\\Isat$","$\\acs$","$\\dm$","$\\hMA$","$\\wMA$","$\\rl$","$\\rN$")
+descriptions<-c('maximum specific growth rate',
+                'maximum ammonium uptake rate',
+                'maximum nitrate uptake rate',
+                'half saturation constant for ammonium',
+                'half saturation constant for nitrate',
+                'maximum internal nitrogen',
+                'minimum internal nitrogen',
+                'N to P ratio of macroalgal biomass',
+                'half growth constant',
+                'optimum growth temperature',
+                'minimum temperature for growth',
+                'maximum temperature for growth',
+                'saturation irradiance',
+                'nitrogen-specific shading',
+                'mortality rate',
+                'height of macralgae',
+                'width of macroalgae e.g. on rope',
+                'remineralisation rate',
+                'nitrification rate')
+units<-c("$\\perday$",
+         "mg(N) $\\perdw$ $\\perday$",
+         "mg(N) $\\perdw$ $\\perday$",
+         "mg(N) $\\percubicm$",
+         "mg(N) $\\percubicm$",
+         "mg(N) $\\perdw$",
+         "mg(N) $\\perdw$",
+         "-",
+         "mg(N) $\\perdw$",
+         "$\\degc$C",
+         "$\\degc$C",
+         "$\\degc$C",
+         "$\\mu$mol m$^{-2}$ s$^{-1}$",
+         "m$^{2}$ mg(N)$^{-1}$",
+         "$\\perday$",
+         "m",
+         "m",
+         "$\\perday$",
+         "$\\perday$"         )
+
+algaeparams<-data.frame(parameter=nicenames,description=descriptions,units=units,ulva=as.character(as.numeric(default_parms_ulva)),saccharina=as.character(as.numeric(default_parms_saccharina)))
+ knitr::kable(algaeparams, format='latex',escape=FALSE,caption = 'Species specific parameter values for macroalgae, including default values for ulva and alaria ')
+ 
+ 
+```
+
+
+### Environmental forcings {#forcings}
+
+#### PAR {#par}
+
+
+### Harvesting functions and yield calculation {#harvest}
+
+### Model ins and outs {#inouts}
+
+### Run control parameters
+
+## Characterising model behaviour
+
+Model behaviour is characterised by considering 4 regime types which challenge the model to work at the extreme cases of nutrient concentration and availabilty: 1) low nutrient, low flow; 2) high nutrient, low flow; 3) low nutrient, high flow and 4) high nutrient high flow. The model is run with default parameter set for ulva and all other parameters set to default values (Section \@ref(params)). Input values are simulated sinusoidal parameters representing annual cycles for PAR, ammonium  and nitrate. Phosphate is kept in excess. Fixed values of the other forcings are used. Common to all runs, PAR varies betweem 200 and 1000 $\mathrm{\mu mol m{^{-3}} s{^{-1}}}$, $\Kd$ is fixed at 0.1 m$^{-1}$ and latitude (used to calculate solar angle) is 50 degrees. The remaining forcings differ between each run and are summarised in Table \@ref(tab:refruns).
+
+
+```{r refruns, echo=FALSE}
+source("run_MA.R")
+ names<-c("$\\ammonext$","$\\nitrext$","$\\flow$","$\\tz$")
+ refrunforcings<-data.frame(forcing=names,
+                            hnhf=c("60 $\\pm$ 30","150 $\\pm$ 90","1000","10"),
+                            lnhf=c("2 $\\pm$ 1.8","10 $\\pm$ 8","1000","10"),
+                            hnlf=c("60 $\\pm$ 30","150 $\\pm$ 90","10","5"),
+                            lnlf=c("2 $\\pm$ 1.8","10 $\\pm$ 8","10","5"),
+                            units =  c("mg(N) $\\percubicm$","mg(N) $\\percubicm$","m/d","m")
+                            )
+
+ knitr::kable(refrunforcings, format='latex',escape=FALSE,caption = 'Forcing values for reference runs')
+ 
+ 
+```
+
+Selected model outputs for each of the four reference runs are presented in Fig. \@ref(fig:refruns2). These demonstrate a number of important characteristics of the model (which are also characteristic of macroalgal growth in reality). Firstly it is clear from panel B (dry weight of biomass in g per metre of rope) that flow rate has a much more significant role to play than concentration in driving total biomass production. This is due to seaweed (particularly ulva's) ability to rapidly take up nutrients into its internal store evan at relatively low concentrations. Therefore, with high flow the seaweed can keep its internal store full (Q approaches $\Qmax$, panel C) while growing through the winter. In the high nutrient high flow environment this can be maintained year-round and productivity is limited only by temperature and light availability (and the intrinsic growth parameters of the seaweed species being modelled). In the low nutrient high flow scenario the macroalgae relies partially on its internal nutrient reserve in the summer and Q therefore reduces, leading to somewhat slower growth. However in the low flow environment, resupply of nutrient strongly limits uptake and growth, with low biomass yields and Q -> $\Qmin$. To first order, flow rate therfore will be the main determinant of yield for a given species and the importance of properly constraining nutrient uptake and assimilation parameters is key for predicting realistic yields. 
+
+```{r refruns2, echo=FALSE, fig.cap='Reference runs of the model showing a) NH4 concentration in farm outflow, b) nitrate concentration in farm outflow, c) biomass (dry weight) per linear metre and d) nutrient quota, Q of the macroalgal biomass'}
+library(ggplot2)
+library(patchwork)
+ source("run_MA.R")
+
+
+  lnlf_out<-as.data.frame(reference_run(lnlf))
+  hnlf_out<-as.data.frame(reference_run(hnlf))
+  lnhf_out<-as.data.frame(reference_run(lnhf))
+  hnhf_out<-as.data.frame(reference_run(hnhf))
+  lnlf_out$run<-'lnlf'
+  lnhf_out$run<-'lnhf'
+  hnlf_out$run<-'hnlf'
+  hnhf_out$run<-'hnhf'
+  
+  refruns<-rbind(lnlf_out,hnlf_out,lnhf_out,hnhf_out)
+  
+ a<- ggplot(refruns) +
+ aes(x = time, y = NH4, colour = run) +
+ geom_point(shape = "circle", size = 0.7) +
+ scale_color_hue(direction = 1) +
+ theme_minimal()
+b<-  ggplot(refruns) +
+ aes(x = time, y = NO3, colour = run) +
+ geom_point(shape = "circle", size = 0.7) +
+ scale_color_hue(direction = 1) +
+ theme_minimal()
+  c<-  ggplot(refruns) +
+ aes(x = time, y = B_line, colour = run) +
+ geom_point(shape = "circle", size = 0.7) +
+ scale_color_hue(direction = 1) +
+ theme_minimal()  
+ d<-   ggplot(refruns) +
+ aes(x = time, y = Q, colour = run) +
+ geom_point(shape = "circle", size = 0.7) +
+ scale_color_hue(direction = 1) +
+ theme_minimal()
+  
+ a+b+c+d
+  
+
+
+
+ 
+ 
+ 
+```
+
+
+## Model validation
+
+Model validation will be carried out in 2 steps. Firstly, the model will be used to reproduce seaweed yeild data from sites around Euro where local environmental data (nutrients, flow, temperature) are available. These sites will capture as great a range of environemntal conditions as possible. The work to find relevant datasets is ongoing. These datasets will be used to perform a validation/tuning exercise to ensure that the model is producing reasonable results when the environmental conditions are well constrained. However there are limited data available and we expect only to be able to find a handfl of sites with some or all of the necessary data. Therefore in a second step, yield-only data, which is somewhat more easily available, will be used along with environmental focings derived from CMEMS via the Argans platform will to drive the model, thereby validating both the model and the environmental data from CMEMS. While we might not expect strong quantitative agreement we would hope for order-of-magnitude level model ability and, importantly, good relative agreement between different sites. This work will be ongoing in the second half of the project (post April).
+
+For now, a test run using CMEMS data for Bantry bay is used to demonstrate realistic model behaviour. CMEMS data for 2020-2021 is used to drive the model with a parameter set representative of saccharina sp. The model is driven by modelled water current speed, nutrients, temperature and satellite-retrieved PAR (where data gaps exist, substitution is performed for par data according to Section \@ref(par)). Depth of water mixing ($\tz$) is set to 10m and the light attenuation coefficient is set to 0.1 (d$^{-1}$). Figure \@ref(fig:bantry_run) presents the full output of the model. 
+
+```{r bantry_run, echo=FALSE, fig.cap='Bantry bay test model run driven by CMEMS and satelite data'}
+
+source('bantry_run.R')
+plot(bantry_run,cex.axis=0.5, cex.main=0.6)
+
+  
+```
+
+
+ 
+ 
+ 
+
+
+
+# References
+
+
+
+
+
+<!--OLD BITS (Select and cntrl-shift-c to uncomment in RStudio) -->
+
+<!-- ## light model comparison -->
+
+<!-- The influence of three different light schemes are compared here to investigate their influence on the model results. These -->
+
+
+<!-- ## Input data -->
+
+<!-- ## PAR subsitutuion for missing data. -->
+
+<!-- Where PAR data is unavailable, clear sky PAR is calculated using the scheme of @Gregg1990. Par is calculated per hour and averaged over a 24 hour period to give a constant photon flux as required by the model. -->
+
+<!-- ##Appendix I: @Hadley2015 Model -->
+
+<!-- Hadley et al model was implemented in R, according to the equations laid out in their paper, using the DeSolve package. When implemented as described in their paper, it is not possible to reproduce their results. In particular, light limitation due to self-shading in the model is too strong, with light strongly limiting macroalgal growth at a standing stock of 0.8g of fixed nitrogen (proxy for biomass in the model - approximately 60g DW) per cubic metre of water. Given a modelled height of 0.2m, this corresponds to around 12 g DW / m^2^ according to the Hadley pareterisation (Fig 1). -->
+
+<!-- The term g_E in Hadley et al is a scaling factor on maximum specific growth rate which, along with analagous nutrient and temperature functions, inhibit growth. A value of g_e = 1 means no light inhibition, a value of 0.1, for example means 90% inhibition of growth due to low light availability. The term integrates the light attenuation coefficient of water (0.1 m^-1^) as well as the attentuation due to macroalgal self-shading, the latter being the dominant term in g_E. -->
+
+<!-- ```{r} -->
+
+
+<!-- Nf<-1:1000 #fixed N in mg / m3 -->
+<!-- # other paramseters as per default parameter settings for Hadley model with Porphyra -->
+
+<!-- plot(Nf,light_limitation(Nf),xlab='fixed N in mg per cubic metre',ylab='g_E (unitless)') -->
+
+<!-- #### Figure 1. Relationship between biomass (represented by fixed N) and g_E light limitation term -->
+<!-- ``` -->
+
+<!-- Figure \@ref(fig:Had4) suggests that at 12 g DW / m^2^ 90% of light transmission is restricted on average across the 0.2 m depth containing macroalgae. It can be inferred from the plot of equilibrium runs of the Hadley et al., model (Fig 2, their Figure 4), that light is not limiting in their runs even at biomass density of in excess of 1.5kg m-2. (13 mg n to 1 g DW as per Prophyra in Hadley et al). -->
+
+
+<!-- ![(#fig:Had4) Hadley et al 2015 (their Fig. 4)](images/Hadley_Fig4.png) -->
+
+<!-- When we run the model we find that even with fish farm point source input of N_farm = 0 the system reaches strong light limitation and a fixed nitrogen biomass of only a few grams per square metre. -->
+
+<!-- It is not clear whether the error lies with our implementation or the equations laid out in their paper but after a day of investigation it was not possible to reconcile the results of our implementation of the model with those presented in the paper, despite numerous hours trying. -->
+
+<!-- An analagous light limitation scheme from Zollmannn et al 2021 (their equations 5 and 6) has been implemented to replace the code that cannot be successfully reproduced (Figure 3). This has been adapted to allow a vertical extent of clear water (i.e. no seaweed) above the farm. -->
+
+<!-- ```{r} -->
+
+
+<!-- Nf<-1:100000 #fixed N in mg / m3 -->
+<!-- # other paramseters as per default parameter settings for Hadley model with Porphyra -->
+
+<!-- plot(Nf,light_limitation_zollmann(Nf),xlab='fixed N in mg per cubic metre',ylab='g_E (unitless)') -->
+
+<!-- #### Figure 2. Relationship between biomass (represented by fixed N) -->
+<!-- #### and g_E light limitation term with scheme from Zollman et al (2021) -->
+<!-- ``` -->
+
+<!-- This is clearly a much less strong light limitation and produces results of an appropriate order of magnitude when compared to the Hadley et al., 2015 equilibrium runs (Fig. 4). -->
+
+<!-- ```{r} -->
+<!-- parms_farm['N_farm']=50 -->
+<!-- Low<- ode(times = times, func = Hadley_model, y = y0, parms = c(parms_porphyra,parms_farm)) -->
+
+<!-- parms_farm['N_farm']=100 -->
+<!-- Med<- ode(times = times, func = Hadley_model, y = y0, parms = c(parms_porphyra,parms_farm)) -->
+
+<!-- parms_farm['N_farm']=5000 -->
+<!-- High<- ode(times = times, func = Hadley_model, y = y0, parms = c(parms_porphyra,parms_farm)) -->
+
+<!-- # multiply by 0.2m (height of farm to convert -->
+<!-- # to per m-2 for comparison with Hadley fig 4) -->
+<!-- {plot(times,High[,'N_f']*0.2,xlab='time (days)',ylab='N_f (mg N m-2)',type='l') -->
+<!-- lines(times,Med[,'N_f']*0.2, lty=2) -->
+<!-- lines(times,Low[,'N_f']*0.2, lty=3)} -->
+
+<!-- #### Figure 3. N_f per m-2 yield in equilibrium run for porphyra with new light scheme -->
+
+
+<!-- ``` -->
+
+<!-- ```{r echo=FALSE} -->
+<!-- print('mean equilibrium biomass') -->
+<!-- print(paste('N_farm = 50:',op(mean(tail(Low[,'N_f']*0.2,356))))) -->
+<!-- print(paste('N_farm = 100:',op(mean(tail(Med[,'N_f']*0.2,356))))) -->
+<!-- print(paste('N_farm = 5000:',op(mean(tail(High[,'N_f']*0.2,356))))) -->
+
+<!-- print('estimates from Haldey et al fig 4 (panel C- Porphyra)') -->
+<!-- print(paste('N_farm = 50:', 11000)) -->
+<!-- print(paste('N_farm = 100:', 21000)) -->
+<!-- print(paste('N_farm = 5000:', 340000)) -->
+
+
+<!-- ``` -->
+
+<!-- ## Harvest regime -->
+
+<!-- Hadley et al implement a regular harvest regime with an establisment period and then harvesting of a fraction of the macroalgae at a frequency of e.g. 14 days. This relives light limitation and provides a quantifiable yield from the farm. Here we implement a dynamic harvesting regime in which harvesting is triggered by light limitation to maximise yield. Harvest frequency is variable throughout the year and dynamically determined by the model, when the parameter g_E reaches the value 'harvest_threshold'. -->
