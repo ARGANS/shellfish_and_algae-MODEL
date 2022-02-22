@@ -61,7 +61,7 @@ parms_bantry_alaria <- c(
   T_r     = 1,
   I_s     =90,     # saturation irradiance         / umol photons m-2 s-1
   a_cs    = 0.00036, # nitrogen-specific shading     / m2 mg-1 (N)
-  d_m     = 0.003,   # mortality rate                / 1/d
+  d_m     = 0.002,   # mortality rate                / 1/d
   h_MA    = 2,     # height of seaweed             / m
   w_MA    = 0.3,     # width of seaweed e.g. on rope /m
   r_L     = 0.10,     # remineralisation rate         / 1/d
@@ -72,7 +72,8 @@ parms_bantry<-c(
   harvest_first     = 100,
   harvest_frequency = 30,
   harvest_fraction  = 0.75,
-  harvest_method    = 0
+  harvest_method    = 0,
+  light_scheme=1
 )
 
 bantry_run<-run_model(c(default_parms_farm,default_parms_ulva,default_parms_run),default_input,input=input_data,parms=c(parms_bantry_alaria,parms_bantry),y0=c(c(NH4=bantry$Ammonium[1],NO3=bantry$Nitrate[1],N_s=100,N_f=100,D=0,Yield=0)))
