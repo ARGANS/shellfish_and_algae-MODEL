@@ -10,10 +10,9 @@
 
 
 #load the model ####
-try (source('macroalgae_model.R'), silent=TRUE)
+source('macroalgae_model.R')
 
-# nasty hack to get around relative path in Rmd documentation call to run_MA.R...
-try (source('../macroalgae_model.R'), silent=TRUE)
+
 
 # dummy data (in lieu of environmental forcings) ######## -------------------------
 
@@ -97,7 +96,7 @@ default_parms_ulva <- c(
 
 
 # Default algae parameters: Alaria
-default_parms_alaria <- c(
+default_parms_saccharina <- c(
   mu      = 0.06,    # maximum growth rate           / 1/d
   V_NH4   = 100,      # max. ammonium uptake rate     / mg(N)g-1(dw)d-1
   V_NO3   = 200,      # max. nitrate uptake rate      / mg(N)g-1(dw)d-1
@@ -254,7 +253,11 @@ hnlf<-c(
 )
 
 
-
+### override default parms for reference harvest runs
+parms_harvest_run<-c(
+  harvest_method=1,
+  light_regime=4
+)
 
 
 # reference run function ----------------------------------------
@@ -262,7 +265,7 @@ hnlf<-c(
 
 reference_run <- function(input_data,parms=c(default_parms_run,default_parms_farm,test_parms_ulva)){
   with(as.list(input_data), {
-  time<-1:3650
+  time<-1:730
   input_frame<- data.frame(
     time   = time,
     PAR    = 400 + (300*sin(2*pi*(time-91)/365)),
@@ -290,6 +293,8 @@ reference_run <- function(input_data,parms=c(default_parms_run,default_parms_far
 }
 
 
+
+
 #lnlf_out<-reference_run(lnlf)
 #hnlf_out<-reference_run(hnlf)
 #lnhf_out<-reference_run(lnhf)
@@ -306,7 +311,6 @@ run_model<-function(default_parms,default_input,parms=NULL,input=NULL,y0){
     df<-default_input[1:nrow(input),]
     df[,colnames(input)]<-input
     input_data<-df
-    print(colnames(input_data))
   }
   else{
     input_data<-default_input
