@@ -45,7 +45,7 @@ op = function(x, d=0) sprintf(paste0("%1.",d,"f"), x)
 
 % flow and effective volume %
 
-\newcommand{\flow}{v}
+\newcommand{\flow}{F_{in}}
 \newcommand{\tz}{t_z}
 
 \newcommand{\Veff}{V_{EFF}}
@@ -68,6 +68,7 @@ op = function(x, d=0) sprintf(paste0("%1.",d,"f"), x)
 \newcommand{\Nf}{\mathrm{N_f}}
 
 \newcommand{\phos}{\mathrm{PO_4}}
+\newcommand{\phosext}{\phos_{\mathrm{ext}}}
 \newcommand{\NP}{\mathrm{N:P_{MA}}}
 
 
@@ -118,7 +119,8 @@ op = function(x, d=0) sprintf(paste0("%1.",d,"f"), x)
 \newcommand{\perdw}{\mathrm{g}^{-1}\mathrm{(dw)}}
 \newcommand{\percubicm}{\mathrm{m}^{-3}}
 \newcommand{\degc}{^{\circ}}
-
+\newcommand{\parunits}{\mu\mathrm{mol\ m}^{-2}\mathrm{ s}^{-1}}
+\newcommand{\Nconcnunits}{\mathrm{mg\ m}^{-3}}
 ```
 This is version  $\version$ of the document
 
@@ -368,8 +370,76 @@ algaeparams<-data.frame(parameter=nicenames,description=descriptions,units=units
 
 ### Environmental forcings {#forcings}
 
-#### PAR {#par}
+Environmental forcings can be time-varying or constant and are passed to the model as vectors (for time-varying) or single values (for constant). The model initialisation then creates interpolating forcing functions using the `stats::approxfun` function, allowing the ODE solver to access forcing values at any point in time. For most forcings the value is linearly interpolated  between daily values, but for advection and vertical mixing focings the values are implemented as constant values for each day [THIS IS STILL TO DO!]. 
 
+Table \@ref(tab:forcings) summarises the environmetal forcings expected by the model. 
+
+```{r forcings}
+forcings<-data.frame(
+  forcing = c('PAR',
+              'SST',
+              '$\\ammonext$',
+              '$\\nitrext$',
+              '$\\phosext$',
+              '$\\Kd$',
+              '$\\flow$',
+              '$\\tz$',
+              '$\\mathrm{D_{ext}}$',
+              'theta'),
+  description = c('photosythetically active radiation',
+                  'sea surface temperature',
+                  'ambient NH4 concentration',
+                  'ambient NO3 concentration',
+                  'ambient PO4 concentration',
+                  'light attenuation coefficient in water',
+                  'water current flow rate',
+                  'vertical mixing length term',
+                  'detrital concentration',
+                  'solar angle'
+                  
+                  ),
+  units = c('$\\parunits$',
+            '$\\degc$C',
+                  '$\\Nconcnunits$',
+                  '$\\Nconcnunits$',
+                  '$\\Nconcnunits$',
+                  'm$^{-1}$',
+                  'm d$^{-1}$',
+                  'm',
+                  '$\\Nconcnunits$ (N)',
+                  '$\\degc$'
+                  )
+)
+knitr::kable(forcings, format='latex',escape=FALSE,caption = 'Environmental forcings to the macroalal model')
+
+```
+
+
+
+#### Photosynthetically active radiation (PAR) {#par}
+
+PAR data is derived from XXX? The nature of this data means that missing values are not uncommon, particularly in winter months. We therefore substitute data based on modelled clear sky PAR calculated according to the scheme of @Gregg1990. The function `modelled_par` in R script `calc_par.R` calculates daily mean par given latitude using the `atmos` package which implemented the @Gregg1990 model. 
+
+In order to represent PAR after accounting for cloud cover on days where data is absent, we scale the modelled par by a scaling factor randomly sampled from a normal distribution with the mean and standard deviation calculated from the par in observed data for the same location, normalised to the modelled clear-sky PAR. The function `substitute_par` in `calc_par.R` is used to make this data substitution.
+
+```{r substitute_par}
+source('calc_par.R')
+substitute_par
+```
+Fig \@ref(fig:parsubs)
+
+```{r parsubs, echo=FALSE, fig.cap='Bantry Bay par data (red points) with substituted data highlighed (black circles). Modelled clear-sky par shown as solid line'}
+source('bantry_run.R')
+
+plot(bantry$par,xlab='doy',ylab='par / umol/m2/s',pch='.',col='red',cex=2)
+lines(par_GC$par_GC)
+bp<-bantry$par
+bp[which(!is.na(obspar))]<-NA
+points(bp)
+
+
+
+```
 
 ### Harvesting functions and yield calculation {#harvest}
 
