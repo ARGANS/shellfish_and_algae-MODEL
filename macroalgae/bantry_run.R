@@ -1,16 +1,16 @@
 ### test run with bantry bay data - MJ 1-/02/2022
 
+source('run_MA.R')
+source('calc_par.R')
+library(atmos)
+
+
+
 bantry<-read.csv('bantry_data/bantry_MLDaveraged.csv',sep = ';')
 
 #quick hack substitute missing values
 bantry$Ammonium[is.na(bantry$Ammonium)]<-0.4
 bantry$Nitrate[is.na(bantry$Nitrate)]<-8
-
-
-
-source('run_MA.R')
-
-
 
 
 convert_umolN_to_mgm3<-function(data_in){
@@ -29,6 +29,14 @@ bantry$Ammonium<-convert_umolN_to_mgm3(bantry$Ammonium)
 bantry$Nitrate<-convert_umolN_to_mgm3(bantry$Nitrate)
 bantry$F_in<-sqrt(bantry$northward_Water_current^2 + bantry$eastward_Water_current^2)*3600*24 #take 'hypotenuse of N and E flow and convert from m/s to m/day
 bantry$par<-convert_photonflux(bantry$par) 
+
+##used for par substitution documentation only
+obspar<-bantry$par
+##
+par_GC<-read.csv('bantry_data/bantry_par_theoretical.csv')
+
+bantry$par[1:365]<-substitute_par(bantry$par[1:365],par_GC$par_GC)
+bantry$par[366:396]<-bantry$par[1:31]
 
 input_data<-data.frame(
   time=1:396,
