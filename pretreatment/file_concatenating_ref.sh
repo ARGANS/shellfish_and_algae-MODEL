@@ -26,3 +26,13 @@ ncap2 -O -s 'time=array(621234.,24,$time)' out.nc out.nc
 # 'lat' needs to be reversed (ordered) to find adequate coordinates optimally
 ncpdq -a '-lat' out.nc out.nc
 # Maybe rename lat into latitude and lon into longitude ?
+
+
+#### Averages for masks
+# Done in two steps for memory issues, could be done with just ncwa
+# use '-v PAR_mean' to extract only the interest variable
+# average over time first
+ncra -d depth,0.,10. merged.nc averaged.nc
+# Then average over depth
+ncwa -O -a depth averaged.nc averaged.nc
+# TODO: weights ?
