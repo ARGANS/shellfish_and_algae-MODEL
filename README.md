@@ -1,6 +1,5 @@
 # shellfish_and_algae-MODEL
 
-```
-./manage.sh build
-./manage.sh run
-```
+## Data downloading subtask 
+- command to build docker image: `./manage_dataimport.sh build`
+- ccommand to run container from the image created by the command above: `./manage_dataimport.sh run`
