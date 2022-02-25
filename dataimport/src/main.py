@@ -1,4 +1,5 @@
 from general import readcsv, giveDateslist, getData
+import pandas as pd
 
 wantedData=['Temperature','Nitrate','Ammonium','Phosphate','Salinity','northward_Water_current','eastward_Water_current']
 dateBeginning = '2020-11-15 00:00:00'
