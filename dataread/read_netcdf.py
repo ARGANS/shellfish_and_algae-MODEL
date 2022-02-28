@@ -132,7 +132,12 @@ def extractWithAverage(ncDataset, variable, averagingDims, weighted=True, **kwar
 
             dimVector, _, _ = extractVarSubset(ncDataset, nameAxis, **kwargs)
 
-            dimWeights = weightsForAverage(dimVector, min(dimVector), max(dimVector))
+            # If axis bounds were specified by value, use these for weights.
+            # This will fail if only one value of nameAxis is provided.
+            leftLimit = kwargs[nameAxis][0] if (nameAxis in kwargs) else min(dimVector)
+            rightLimit = kwargs[nameAxis][1] if (nameAxis in kwargs) else min(dimVector)
+
+            dimWeights = weightsForAverage(dimVector, leftLimit, rightLimit)
 
             # Expand on all dataDims, with dimWeights aligned to the correct dim
             expandAxes = [i for i in range(len(dataDims)) if dataDims[i]!=nameAxis]
