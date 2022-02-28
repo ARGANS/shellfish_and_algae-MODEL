@@ -192,6 +192,8 @@ MA_model <- function(t,y,parms) {
     
     #How much phosphate is available for growth
     PO4_tot<-PO4_in(t)*V_EFF/V_MA
+    #convert N:P from mol/mol to g/g
+    N_to_P<-N_to_P*14/31
     
     #model state variables ####
     dNH4        <- min(1,lambda)*(NH4_in(t)-NH4) -((f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s))*V_MA/V_EFF  # change in NH4 with time
