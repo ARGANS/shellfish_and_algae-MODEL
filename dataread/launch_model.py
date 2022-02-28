@@ -4,13 +4,13 @@ from rpy2.robjects.packages import STAP
 from rpy2.robjects.conversion import localconverter
 import pandas as pd
 import datetime
+import json
 
 
-if __name__=="__main__":
+if __name__ =="__main__":
 
     with open('P:/Aquaculture/shellfish_and_algae-MODEL/macroalgae/run_MA.R', 'r') as f:
         body = f.read()
-        #body = body.replace('\r\n', '\n')
         run_MA = STAP(body, "run_model")
 
     # Read from CSV for now
@@ -33,9 +33,39 @@ if __name__=="__main__":
 
     print(dataToR)
 
+    with open('P:/Aquaculture/shellfish_and_algae-MODEL/macroalgae/model_parameters.json', 'r') as f:
+        default_parms = json.loads(f.read())
 
+
+    parms_species = default_parms['algae']['species']['ulva']['parameters']
+    parms_farm = default_parms['algae']['farm_parameters']
+    parms_run = default_parms['algae']['run_parameters']
+
+    parms_run['light_scheme'] = 2
+
+    parms_species = robjects.ListVector(parms_species)
+    parms_farm = robjects.ListVector(parms_farm)
+    parms_run = robjects.ListVector(parms_run)
+    parms_additional = robjects.ListVector({"latitude": 55.})
+
+    # get the R concatenator function
+    conc = robjects.r('c')
+
+    parameters = conc(parms_species, parms_farm, parms_run, parms_additional)
+
+    y0 = robjects.ListVector({"NH4": 0,
+                              "NO3": 0,
+                              "N_s": 1,
+                              "N_f": 1,
+                              "D": 0,
+                              "Yield": 0
+                            })
+
+    #print(parms)
+
+    # Using a converter between R data.frame and python pd.DataFrame
     with localconverter(robjects.default_converter + pandas2ri.converter):
-       out = run_MA.run_model(input = dataToR)
+       out = run_MA.run_model(input=dataToR, parameters=parameters, y0=y0)
 
     print(out)
 

@@ -1,0 +1,134 @@
+{
+    "algae": {
+        "species": {
+            "saccharina": {
+                "full_name": "blabla",
+                "description": "long blabla",
+                "parameters": {
+                    "mu"      : 0.06,
+                    "V_NH4"   : 100,
+                    "V_NO3"   : 200,
+                    "K_NH4"   : 11,
+                    "K_NO3"   : 200,
+                    "Q_max"   : 22,
+                    "Q_min"   : 10,
+                    "N_to_P"  : 12,
+                    "K_c"     : 8,
+                    "T_O"     : 12.5,
+                    "T_min"   : 0,
+                    "T_max"   : 20,
+                    "I_s"     : 90,
+                    "a_cs"    : 0.00036,
+                    "d_m"     : 0.0003,
+                    "h_MA"    : 2,
+                    "w_MA"    : 0.3,
+                    "r_L"     : 0.10,
+                    "r_N"     : 0.1
+                }
+            },
+            "porphyra": {
+                "full_name": "blabla",
+                "description": "long blabla",
+                "parameters": {
+                    "mu"      : 0.33,
+                    "V_NH4"   : 60,
+                    "V_NO3 "  : 25,
+                    "K_NH4"   : 700,
+                    "K_NO3"   : 100,
+                    "Q_max"   : 70,
+                    "Q_min"   : 14,
+                    "N_to_P"  : 12,
+                    "K_c"     : 7,
+                    "T_O"     : 12,
+                    "T_min"   : 1,
+                    "T_max"   : 25,
+                    "I_s"     : 277,
+                    "a_cs"    : 0.00036,
+                    "d_m"     : 0.003,
+                    "h_MA"    : 0.4,
+                    "w_MA"    : 0.2,
+                    "r_L"     : 0.2,
+                    "r_N"     : 0.1
+                }
+            },
+            "ulva": {
+                "full_name": "blabla",
+                "description": "long blabla",
+                "parameters": {
+                    "mu"      : 0.45,
+                    "V_NH4"   : 124,
+                    "V_NO3"   : 39,
+                    "K_NH4"   : 700,
+                    "K_NO3"   : 70,
+                    "Q_max"   : 42,
+                    "Q_min"   : 13,
+                    "N_to_P"  : 12,
+                    "K_c"     : 7,
+                    "T_O"     : 12,
+                    "T_min"   : 1,
+                    "T_max"   : 25,
+                    "I_s"     : 200,
+                    "a_cs"    : 0.00033,
+                    "d_m"     : 0.0003,
+                    "h_MA"    : 0.2,
+                    "w_MA"    : 1,
+                    "r_L"     : 0.1,
+                    "r_N"     : 0.1
+                }
+            }
+        },
+        "species_parameters_descriptions": {
+            "mu"      : ["maximum growth rate"                   , "1/d"],
+            "V_NH4"   : ["maximum ammonium uptake rate"          , "mg(N)g-1(dw)d-1"],
+            "V_NO3"   : ["maximum nitrate uptake rate"           , "mg(N)g-1(dw)d-1"],
+            "K_NH4"   : ["Half saturation constant for NH4"      , "mg(N)m-3"],
+            "K_NO3"   : ["Half saturation constant for NO3"      , "mg(N)m-3"],
+            "Q_max"   : ["maximum internal nitrogen"             , "mg(N) g-1 (dw)"],
+            "Q_min"   : ["minimum internal nitrogen"             , "mg(N) g-1 (dw)"],
+            "N_to_P"  : ["N:P ratio of seaweed biomass"          , ""],
+            "K_c"     : ["Half growth constant"                  , "mg(N) g-1 (dw)"],
+            "T_O"     : ["optimum growth temperature"            , "oC"],
+            "T_min"   : ["minimum temperature for growth"        , "oC"],
+            "T_max"   : ["maximum temperature for growth"        , "oC"],
+            "I_s"     : ["saturation irradiance"                 , "umol photons m-2 s-1"],
+            "a_cs"    : ["nitrogen-specific shading"             , "m2 mg-1 (N)"],
+            "d_m"     : ["mortality rate"                        , "1/d"],
+            "h_MA"    : ["height of seaweed"                     , "m"],
+            "w_MA"    : ["width of seaweed e.g. on rope "        , "m"],
+            "r_L"     : ["remineralisation rate"                 , "1/d"],
+            "r_N"     : ["nitrification rate"                    , "1/d"]
+        },
+        "farm_parameters":{
+            "y_farm"            : 1000,
+            "density_MA"        : 0.4,
+            "x_farm"            : 1000,
+            "z"                 : 2,
+            "harvest_first"     : 60,
+            "harvest_freq"      : 30,
+            "harvest_threshold" : 0.2,
+            "harvest_fraction"  : 0.75
+        },
+        "farm_parameters_description": {
+            "y_farm"            : ["width of farm perpendicular to flow direction", ""],
+            "density_MA"        : ["fraction of farm area occupied by algae", ""],
+            "x_farm"            : ["farm length in flow direction", ""],
+            "z"                 : ["cultivation depth", "m"],
+            "harvest_first"     : ["days from start of run to first harvest", ""],
+            "harvest_freq"      : ["days (only used if harvest_method==1)", ""],
+            "harvest_threshold" : ["value of light-dependent growth factor (g_E) at which harvest happens (only used if harvest_method==2)", ""],
+            "harvest_fraction"  : ["fraction of total biomass to harvest (only used if harvest_method != 0)", ""]
+        },
+        "run_parameters": {
+            "harvest_method": 0,
+            "light_scheme": 4
+        },
+        "run_parameters_description": {
+            "harvest_method": "options: 0.no harvesting, 1.fixed frequency, 2. light-driven",
+            "light_scheme": "options 1: Zollman self-shading scheme, 2: simple vertical light no self shading, 3: solar angle light no self shading,4: selfshading with solar angle accounted for."
+        }
+    },
+    "shellfish": {
+        "species": {},
+        "parameter_description": {}
+    }
+}
