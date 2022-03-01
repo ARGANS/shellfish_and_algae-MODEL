@@ -57,7 +57,7 @@ default_input<- data.frame(
   F_in   = 100,
   h_z_SML= 30,
   t_z    = 10,
-  D_in   = 0.1
+  D_in   = 0
 )
 
 
