@@ -155,8 +155,7 @@ MA_model <- function(t,y,parms) {
     lambda   <- min(1,(F_in(t)/x_farm)) #
     
     # nutrient controls on growth, relation to biomass ####
-    #Q           <- ifelse(N_f>0,Q_min*(1+(N_s/N_f)),0)                                       # Internal nutrient quota of macroalgae
-    Q           <-Q_min*(1+(N_s/N_f))                                      # Internal nutrient quota of macroalgae
+    Q           <- ifelse(N_f>0,Q_min*(1+(N_s/N_f)),0)                                       # Internal nutrient quota of macroalgae                                      # Internal nutrient quota of macroalgae
     B           <- N_f/Q_min                                                 # Biomass of dry macroalgae
     g_Q         <- (Q-Q_min)/(Q-K_c)                                         # Growth limitation due to internal nutrient reserves
     # temperature-growth dynamics (from martin and marques 2002) ####
