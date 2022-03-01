@@ -38,7 +38,7 @@ par_GC<-read.csv('bantry_data/bantry_par_theoretical.csv')
 bantry$par[1:365]<-substitute_par(bantry$par[1:365],par_GC$par_GC)
 bantry$par[366:396]<-bantry$par[1:31]
 
-input_data<-data.frame(
+bantry_input_data<-data.frame(
   time=1:396,
   PAR=bantry$par,
   SST=bantry$Temperature,
@@ -84,8 +84,16 @@ parms_bantry<-c(
   latitude=51.6
 )
 
-bantry_run<-run_model(c(default_parms_farm,default_parms_ulva,default_parms_run),default_input,input=input_data,parms=c(parms_bantry_alaria,parms_bantry),y0=c(c(NH4=bantry$Ammonium[1],NO3=bantry$Nitrate[1],N_s=100,N_f=100,D=0,Yield=0)))
-names(bantry_run)[names(bantry_run)=='time'][2]<-'time2'
+
+bantry_in<-setup_run_input(input=bantry_input_data)
+bantry_parms<-setup_run_parms(parms=c(parms_bantry_alaria,parms_bantry))
+
+bantry_run<-run_MA_model(input=bantry_in,
+                         parameters=bantry_parms,
+                         y0=c(NH4=bantry$Ammonium[1],NO3=bantry$Nitrate[1],N_s=100,N_f=100,D=0,Yield=0),
+                         output='odeout')
+  
+#names(bantry_run)[names(bantry_run)=='time'][2]<-'time2'
 
 br<-as.data.frame(bantry_run)
 

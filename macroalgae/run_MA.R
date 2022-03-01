@@ -55,7 +55,6 @@ default_input<- data.frame(
   PO4_in = PO4_mean + (PO4_magn*sin(2*pi*(time+91)/365)),
   K_d    = 0.1,
   F_in   = 100,
-  h_z_SML= 30,
   t_z    = 10,
   D_in   = 0
 )
@@ -197,6 +196,9 @@ default_parms_run<-c(
   )
 
 
+## make full defulat parmaeter set --------
+default_parms<-c(default_parms_run,default_parms_farm,default_parms_ulva)
+
 
 # Idealised reference runs
 #-------------------------------
@@ -300,56 +302,59 @@ reference_run <- function(input_data,parms=c(default_parms_run,default_parms_far
 #hnhf_out<-reference_run(hnhf)
 
 
-
-
-
-# Main function: run_model-------------------------------------------
-
-run_model<-function(default_parms,default_input,parms=NULL,input=NULL,y0){
-  if(is.data.frame(input)){
-    df<-default_input[1:nrow(input),]
-    df[,colnames(input)]<-input
-    input_data<-df
-  }
-  else{
-    input_data<-default_input
-  }
-  run_length<-max(input_data$time)
-  times=seq(1,run_length,by=1)
-  # use default input where no values provided
-  input_functions = boundary_forcings(input_data) #create boundary forcings
-  parms = c(parms, input_functions)
-  parms<-replace(default_parms,names(parms),parms) #parameters use defaults where no parmater provided in run config
-  if(parms['harvest_method']==0){
-    #no harvesting
-    Out<-ode(times = times, 
-             func=MA_model,
-             y=y0,
-             parms=parms)
-    
-  } else if(parms['harvest_method']==1){
-    
-    #harvest at set frequency
-    
-   
-    Out_timed_harvest <- ode(times = times, 
-                             func = MA_model, 
-                             y = y0, 
-                             parms = parms, 
-                             event=list(func=harvest_eventfunc, root=TRUE),
-                             rootfun=harvest_timed_rootfunc)
-    Out<-Out_timed_harvest
-    
-  } else if(parms['harvest_method']==2){
-    
-    Out_limit_harvest <- ode(times = times, 
-                             func = MA_model,  
-                             y = y0, 
-                             parms = parms,
-                             events=list(func=harvest_eventfunc, root=TRUE),
-                             rootfun=harvest_limit_rootfunc)
-    Out<-Out_limit_harvest
-  }
-  #cbind(input_data,Out)
-  Out
+setup_run_parms<-function(default_parms.=default_parms, parms){
+  #when calling rum_MA_model from R, use this function to overwrite default parameters as needed
+  run_parms<-replace(default_parms.,names(parms),parms)
+  run_parms
 }
+
+setup_run_input<-function(default_input.=default_input,input){
+  df<-default_input.[1:nrow(input),]
+  df[,colnames(input)]<-input
+  df
+}
+
+
+# # Main function: run_model-------------------------------------------
+# 
+# run_model<-function(default_parms,default_input,parms=NULL,input=NULL,y0){
+#   
+#   run_length<-max(input_data$time)
+#   times=seq(1,run_length,by=1)
+#   # use default input where no values provided
+#   input_functions = boundary_forcings(input_data) #create boundary forcings
+#   parms = c(parms, input_functions)
+#   parms<-replace(default_parms,names(parms),parms) #parameters use defaults where no parmater provided in run config
+#   if(parms['harvest_method']==0){
+#     #no harvesting
+#     Out<-ode(times = times,
+#              func=MA_model,
+#              y=y0,
+#              parms=parms)
+# 
+#   } else if(parms['harvest_method']==1){
+# 
+#     #harvest at set frequency
+# 
+# 
+#     Out_timed_harvest <- ode(times = times,
+#                              func = MA_model,
+#                              y = y0,
+#                              parms = parms,
+#                              event=list(func=harvest_eventfunc, root=TRUE),
+#                              rootfun=harvest_timed_rootfunc)
+#     Out<-Out_timed_harvest
+# 
+#   } else if(parms['harvest_method']==2){
+# 
+#     Out_limit_harvest <- ode(times = times,
+#                              func = MA_model,
+#                              y = y0,
+#                              parms = parms,
+#                              events=list(func=harvest_eventfunc, root=TRUE),
+#                              rootfun=harvest_limit_rootfunc)
+#     Out<-Out_limit_harvest
+#   }
+#   #cbind(input_data,Out)
+#   Out
+# }
