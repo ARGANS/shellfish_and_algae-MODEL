@@ -155,7 +155,8 @@ MA_model <- function(t,y,parms) {
     lambda   <- min(1,(F_in(t)/x_farm)) #
     
     # nutrient controls on growth, relation to biomass ####
-    Q           <- Q_min*(1+(N_s/N_f))                                       # Internal nutrient quota of macroalgae
+    #Q           <- ifelse(N_f>0,Q_min*(1+(N_s/N_f)),0)                                       # Internal nutrient quota of macroalgae
+    Q           <-Q_min*(1+(N_s/N_f))                                      # Internal nutrient quota of macroalgae
     B           <- N_f/Q_min                                                 # Biomass of dry macroalgae
     g_Q         <- (Q-Q_min)/(Q-K_c)                                         # Growth limitation due to internal nutrient reserves
     # temperature-growth dynamics (from martin and marques 2002) ####
@@ -180,13 +181,13 @@ MA_model <- function(t,y,parms) {
     } else if (light_scheme==3){
       #solar angle accounted for no shading
       theta<-get_solar_angle(latitude,t)
-      I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sin(theta(t)*pi/180))                                    # calculate incident irradiance at the top of the farm
-      I_av <-(I_top/(K_d(t)*h_MA/sin(theta(t)*pi/180)))*(1-exp(-(K_d(t)*h_MA/sin(theta(t)*pi/180))))          # calclulate the average irradiance throughout the height of the farm
+      I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sin(theta*pi/180))                                    # calculate incident irradiance at the top of the farm
+      I_av <-(I_top/(K_d(t)*h_MA/sin(theta*pi/180)))*(1-exp(-(K_d(t)*h_MA/sin(theta*pi/180))))          # calclulate the average irradiance throughout the height of the farm
       g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
     } else if (light_scheme==4){
       #solar angle accounted included with shading
-      theta<-get_solar_angle(latitutde,t)
-      sine<-sin(theta(t)*pi/180)
+      theta<-get_solar_angle(latitude,t)
+      sine<-sin(theta*pi/180)
       I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sine)
       I_av <-(I_top / ((K_d(t)*h_MA/sine)   +   (N_f*a_cs/(sine))))*(1-exp(-(  (K_d(t)*h_MA/sine)  +   (N_f*a_cs/(sine))   )))
       g_E <- I_av/(((I_s)+I_av)) 
