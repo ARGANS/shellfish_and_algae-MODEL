@@ -52,6 +52,14 @@ boundary_forcings<-function(input_data){
 
 
 
+get_solar_angle<-function(latitude, doy){
+  # Calculates max solar incidence angle theta for a day of year, given latitude 
+  declin<-23.45*cos(((360/365)*(doy+10))*pi/180)
+  90-(latitude+declin)
+}
+
+
+
 setup_solar_angle<-function(latitude, start_day=0, ndays){
   # Calculates max solar incidence angle theta for each day of year given latitude. 
   # Output is ready to be fed into boundary_forcings to generate approxfun
@@ -59,6 +67,13 @@ setup_solar_angle<-function(latitude, start_day=0, ndays){
   declin<-23.45*cos(((360/365)*(1:ndays+10+start_day))*pi/180)
   90-(latitude+declin)
 }
+
+
+
+## =============================================================================
+# deployment control (i.e. when to plant out the macroalgae)
+## =============================================================================
+
 
 
 ## =============================================================================
@@ -164,11 +179,13 @@ MA_model <- function(t,y,parms) {
       g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
     } else if (light_scheme==3){
       #solar angle accounted for no shading
+      theta<-get_solar_angle(latitude,t)
       I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sin(theta(t)*pi/180))                                    # calculate incident irradiance at the top of the farm
       I_av <-(I_top/(K_d(t)*h_MA/sin(theta(t)*pi/180)))*(1-exp(-(K_d(t)*h_MA/sin(theta(t)*pi/180))))          # calclulate the average irradiance throughout the height of the farm
       g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
     } else if (light_scheme==4){
       #solar angle accounted included with shading
+      theta<-get_solar_angle(latitutde,t)
       sine<-sin(theta(t)*pi/180)
       I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sine)
       I_av <-(I_top / ((K_d(t)*h_MA/sine)   +   (N_f*a_cs/(sine))))*(1-exp(-(  (K_d(t)*h_MA/sine)  +   (N_f*a_cs/(sine))   )))

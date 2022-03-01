@@ -57,8 +57,7 @@ default_input<- data.frame(
   F_in   = 100,
   h_z_SML= 30,
   t_z    = 10,
-  D_in   = 0.1,
-  theta  = setup_solar_angle(latitude,start_day=0,ndays=length(time))
+  D_in   = 0.1
 )
 
 
@@ -170,6 +169,7 @@ test_parms_ulva <- c(
 # Default Farm Parms 
 
 default_parms_farm<-c(
+  latitude=52,
   y_farm = 1000,       # width of farm perpendicular to flow direction    
   density_MA = 0.4,      # fraction of farm area occupied by algae
   x_farm = 1000,            #farm length in flow direction  
@@ -276,8 +276,7 @@ reference_run <- function(input_data,parms=c(default_parms_run,default_parms_far
     K_d    = 0.1,
     F_in   = F_in,
     D_in   = 0.1,
-    t_z    = t_z,
-    theta  = setup_solar_angle(latitude,start_day=0,ndays=length(time))
+    t_z    = t_z
   )
   input_functions = boundary_forcings(input_frame)
   
