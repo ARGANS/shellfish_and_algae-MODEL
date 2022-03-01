@@ -187,14 +187,43 @@ run_MA_model<-function(input,parameters,y0,output='df'){
 MA_model <- function(t,y,parms) {
   #New model version diverges from Hadley model in its spatial structure. Hadley et al model runs notionally per unit volume of water, with flow through of water in volume units. In the old version of the model implemented here this was adapted for a flow-through and vertical water flux in m/d. A major shortcoming of the old version is the resupply of nutrients via the labmda term, which cannot be greater than 1 and therefore the total input of nutrient can only be enough per timestep to restore nutrient back to ambient levels. At a timestep of 1 day this is not sufficient given the significant drawdown of nutrients by the seaweed and the model is limited then by the lambda term (the way the Hadley model is structured values of labmda>1 when F_in > farm volume increase nutrient concentration above ambient which does not make sense). In this new version of the model, advection and vertical mixing lengths give an effective volume over which nutrient concentration change is calculated, thereby allowing for a realistic throughput of nutrient and output of meaningful delta-C.
   
-  #input parms list ####
+  #parameters expected: ####
+  # Farm location:
+  #  latitude (degrees)
+  # Farm dimensions: 
+  #  x_farm (m), 
+  #  y_farm (m),
+  #  z_farm (m)
+  # MA dimensions: 
+  #  h_MA (m), 
+  #  w_MA (m), 
+  #  density_MA (fraction - 0 to 1)
+  # Growth parameters: 
+  #  Q_min (mg N per g dry weight), 
+  #  K_c (mg N per g dry weight), 
+  #  T_O (degrees celcius), 
+  #  T_max (degrees celcius), 
+  #  T_min (degrees celcius), 
+  #  V_NH4 (mg N per g dry weight per day), 
+  #  V_NO3 (mg N per g dry weight per day), 
+  #  K_NH4 (mg N per m^3), 
+  #  K_N03 (mg N per m^3), 
+  #  a_cs  (m^2 per mg N), 
+  #  I_s,  (micromol photons per m^2 per s)
+  #  mu,  1/d
+  #  r_L, 1/d
+  #  r_N, 1/d
+  #  d_m, 1/d
+  # MA properties: 
+  #  N_to_P, molar ratio (unitless),
   
-  # Farm dimensions: x_farm,y_farm,z_farm
-  # MA dimensions: h_MA, w_MA, density_MA
-  # Growth parameters: Q_min, K_c, T_O, T_max, T_min, V_NH4, V_NO3, K_NH4, K_N03, a_cs, I_s, mu, r_L, r_N, d_m,
-  # MA properties: N_to_P
-  
-  #time varying inputs: K_d, theta,NO3_in, NH4_in, PO4_in, D_in
+  #time varying inputs: 
+  # K_d, 1/m 
+  # SST, degrees celcius
+  # NO3_in, mg N per m^3
+  # NH4_in, mg N per m^3
+  # PO4_in, mmol P per m^3 (i.e. uM)
+  # D_in,  mg N per m^3
   
   
   with(as.list(c(y, parms)), {
@@ -264,8 +293,8 @@ MA_model <- function(t,y,parms) {
     
     #How much phosphate is available for growth
     PO4_tot<-PO4_in(t)*V_EFF/V_MA
-    #convert N:P from mol/mol to g/g
-    N_to_P<-N_to_P*14/31
+    #convert N:P from mol/mol to mg/mol
+    N_to_P<-N_to_P*14
     
     #model state variables ####
     dNH4        <- min(1,lambda)*(NH4_in(t)-NH4) -((f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s))*V_MA/V_EFF  # change in NH4 with time
