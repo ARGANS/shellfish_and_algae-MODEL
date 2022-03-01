@@ -47,7 +47,6 @@ input_data<-data.frame(
   PO4_in=1000,
   K_d=0.1,
   F_in=bantry$F_in,
-  theta = setup_solar_angle(latitude=51.7,start_day=25,ndays=396),
   t_z = 10
 )
 
@@ -81,7 +80,8 @@ parms_bantry<-c(
   harvest_frequency = 30,
   harvest_fraction  = 0.75,
   harvest_method    = 0,
-  light_scheme=1
+  light_scheme=1,
+  latitude=51.6
 )
 
 bantry_run<-run_model(c(default_parms_farm,default_parms_ulva,default_parms_run),default_input,input=input_data,parms=c(parms_bantry_alaria,parms_bantry),y0=c(c(NH4=bantry$Ammonium[1],NO3=bantry$Nitrate[1],N_s=100,N_f=100,D=0,Yield=0)))
