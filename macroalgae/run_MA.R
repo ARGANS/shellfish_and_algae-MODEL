@@ -6,16 +6,12 @@
 # This script allows manual execution of the model by reading in environmental focings and parameter sets
 
 
-#required libraries
+#required libraries ####
 library(rjson)
 
 
 #load the model ####
 source('macroalgae_model.R')
-
-
-
-
 
 
 # dummy data (in lieu of environmental forcings) ######## -------------------------
@@ -217,7 +213,19 @@ test_parms_ulva <- c(
 )
 
 ## make full defulat parmaeter set --------
-default_parms<-c(default_parms_run,default_parms_farm,default_parms_ulva)
+default_parms<-c(default_parms_run,default_parms_farm,parms_ulva)
+
+setup_run_parms<-function(default_parms.=default_parms, parms){
+  #when calling rum_MA_model from R, use this function to overwrite default parameters as needed
+  run_parms<-replace(default_parms.,names(parms),parms)
+  run_parms
+}
+
+setup_run_input<-function(default_input.=default_input,input){
+  df<-default_input.[1:nrow(input),]
+  df[,colnames(input)]<-input
+  df
+}
 
 
 # Idealised reference runs
@@ -276,16 +284,15 @@ hnlf<-c(
 
 
 ### override default parms for reference harvest runs
-parms_harvest_run<-c(
-  harvest_method=1,
-  light_regime=4
+parms_ref_harvest_run<-c(
+  harvest_method=1
 )
 
 
 # reference run function ----------------------------------------
 
 
-reference_run <- function(input_data,parms=c(default_parms_run,default_parms_farm,test_parms_ulva)){
+reference_run <- function(input_data,nondefault_parms){
   with(as.list(input_data), {
   time<-1:730
   input_frame<- data.frame(
@@ -300,15 +307,13 @@ reference_run <- function(input_data,parms=c(default_parms_run,default_parms_far
     D_in   = 0.1,
     t_z    = t_z
   )
-  input_functions = boundary_forcings(input_frame)
+  
   
   y0   <- c(NH4=input_frame$NH4_in[1],NO3=input_frame$NO3_in[1],N_s=100,N_f=100,D=0,Yield=0)
 
-  Out <- ode(times = input_frame$time, func = MA_model, y = y0, parms = c(parms, input_functions))
   
-  #plot(Out[,'NH4'])
-  #plot(Out)
-  Out
+  parms.=setup_run_parms(parms=nondefault_parms)
+  run_MA_model(input=input_frame,parameters = parms.,y0=y0,output='odeout')
   })
   
 }
@@ -316,23 +321,21 @@ reference_run <- function(input_data,parms=c(default_parms_run,default_parms_far
 
 
 
-#lnlf_out<-reference_run(lnlf)
-#hnlf_out<-reference_run(hnlf)
-#lnhf_out<-reference_run(lnhf)
-#hnhf_out<-reference_run(hnhf)
+#lnlf_out<-reference_run(lnlf,test_parms_ulva)
+#hnlf_out<-reference_run(hnlf,test_parms_ulva)
+#lnhf_out<-reference_run(lnhf,test_parms_ulva)
+#hnhf_out<-reference_run(hnhf,test_parms_ulva)
 
 
-setup_run_parms<-function(default_parms.=default_parms, parms){
-  #when calling rum_MA_model from R, use this function to overwrite default parameters as needed
-  run_parms<-replace(default_parms.,names(parms),parms)
-  run_parms
-}
+#lnlf_harvest_out<-reference_run(lnlf,c(test_parms_ulva,parms_ref_harvest_run))
+#hnlf_harvest_out<-reference_run(hnlf,c(test_parms_ulva,parms_ref_harvest_run))
+#lnhf_harvest_out<-reference_run(lnhf,c(test_parms_ulva,parms_ref_harvest_run))
+#hnhf_harvest_out<-reference_run(hnhf,c(test_parms_ulva,parms_ref_harvest_run))
 
-setup_run_input<-function(default_input.=default_input,input){
-  df<-default_input.[1:nrow(input),]
-  df[,colnames(input)]<-input
-  df
-}
+
+
+
+
 
 
 # # Main function: run_model-------------------------------------------
