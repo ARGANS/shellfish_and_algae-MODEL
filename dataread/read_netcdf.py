@@ -5,9 +5,11 @@ import pandas as pd
 import math
 
 
-def iNearest(value, sortedArray):
+def iNearest(value, sortedArray, mode="closest"):
     # finds the index i in sortedArray such that sortedArray[i] is closest
-    # to value. sortedArray should be 1D.
+    # to value. sortedArray should be 1D with no duplicates.
+    # tip: if mode=="right" and value is in sortedArray then the function
+    # outputs the position of value in sortedArray
 
     n = len(sortedArray)
 
@@ -17,14 +19,18 @@ def iNearest(value, sortedArray):
     if iInsert == 0:
         return 0
     if iInsert == n:
-        return n-1
+        return n - 1
 
-    if (sortedArray[iInsert] - value) < (value - sortedArray[iInsert-1]):
-        #value is nearer iInsert
-        return iInsert
-    else:
+    if mode=="closest":
+        if (sortedArray[iInsert] - value) < (value - sortedArray[iInsert-1]):
+            #value is nearer iInsert
+            return iInsert
+        else:
+            return iInsert - 1
+    elif mode=="left":
         return iInsert - 1
-
+    elif mode=="right":
+        return iInsert
 
 def extractVarSubset(ncDataset, variable, **kwargs):
     # Extract a subset of ncDataset[variable] along any number of dimensions
@@ -60,19 +66,23 @@ def extractVarSubset(ncDataset, variable, **kwargs):
     #       all data to/from a given value/index. When subsetting by indices,
     #       negative indices can be used to count from the end, a negative step
     #       will also be accepted.
-    # WARNING: when slicing a dimension by its exact value, this function
-    #          assumes that the values that the dimesion takes are in ascending
+    # WARNING: when slicing a dimension by its value(s), this function
+    #          assumes that the values that the dimnesion takes are in ascending
     #          order.
 
     dimensions = ncDataset[variable].get_dims()
-    sliceList = [slice(None) for _ in range(len(dimensions))]
+    #sliceList = [slice(None) for _ in range(len(dimensions))]
+    sliceList = [slice(None)] * len(dimensions)
     for iDim, dim in enumerate(dimensions):
         if dim.name in kwargs:
             sliceVal = kwargs[dim.name]
             if type(kwargs[dim.name]) is tuple:
-                lowerBound = ncDataset[dim.name][:] >= (sliceVal[0] or -math.inf)
-                upperBound = ncDataset[dim.name][:] < (sliceVal[1] or math.inf)
-                sliceList[iDim] = np.squeeze(np.where(np.logical_and(lowerBound, upperBound)))
+                # find the indices of the lower and upper bounds, that are within
+                # the demanded values.
+                iLower = iNearest((sliceVal[0] or -math.inf), ncDataset[dim.name][:], mode="right")
+                iUpper = iNearest((sliceVal[1] or math.inf), ncDataset[dim.name][:], mode="left")
+                # include the lower, exclude the latter (in case of equality)
+                sliceList[iDim] = slice(iLower, iUpper+1, None)
             else:
                 # get the index where the dimension is nearest
                 iSlice = iNearest(kwargs[dim.name], ncDataset[dim.name])
@@ -130,7 +140,7 @@ def extractWithAverage(ncDataset, variable, averagingDims, weighted=True, **kwar
     if weighted:
         for nameAxis in averagingDims:
 
-            dimVector, _, _ = extractVarSubset(ncDataset, nameAxis, **kwargs)
+            dimVector, _ = extractVarSubset(ncDataset, nameAxis, **kwargs)
 
             # If axis bounds were specified by value, use these for weights.
             # This will fail if only one value of nameAxis is provided.
@@ -150,7 +160,10 @@ def extractWithAverage(ncDataset, variable, averagingDims, weighted=True, **kwar
 
     averagedArray = np.average(dataArray, averagingAxes, weights=weights)
 
-    return averagedArray
+    # Dimensions that have not been averaged
+    remainingDims = tuple(dim for dim in dataDims if dim not in averagingDims)
+
+    return averagedArray, remainingDims
 
 def averageOverMLD(array2D, mld, depthAxis):
     # array2D must be along (time, depth)
