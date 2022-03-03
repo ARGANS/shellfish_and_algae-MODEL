@@ -70,34 +70,9 @@ setup_solar_angle<-function(latitude, start_day=0, ndays){
 
 
 
-## =============================================================================
-# deployment control (i.e. when to plant out the macroalgae)
-## =============================================================================
-
-
 
 ## =============================================================================
-# harvesting at set frequency
-## =============================================================================
-
-
-# timed_harvest_function<-function(EST=EST,HAR=HAR,HF=HF,name,run_length) {
-#   num<-(run_length - EST)/HAR
-#   harvesttimes<-c(0,seq(from=EST,by=HAR,length.out=num))
-#   len<-length(harvesttimes)
-#   
-#   event<-data.frame(
-#     var=rep(name,length.out=len),
-#     time=harvesttimes,
-#     value=rep(1-HF,length.out=len),
-#     method=rep('multiply',length.out=len)
-#   )
-#   
-#   event
-# }
-
-## =============================================================================
-# harvesting functions
+# harvesting conrol functions - when to plant out and harvest the seaweed
 ## =============================================================================
 
 harvest_limit_rootfunc  <- function(t,y,parms,...){
@@ -105,22 +80,28 @@ harvest_limit_rootfunc  <- function(t,y,parms,...){
     I_top<-PAR(t)*exp(-K_d(t)*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
     I_av <-(I_top/(K_d(t)*z+N_f*a_cs))*(1-exp(-(K_d(t)*z+N_f*a_cs)))          # calclulate the average irradiance throughout theheight of the farm
     g_E <- I_av/(((I_s)+I_av))
-    
-    return(g_E-harvest_threshold)  #when g_e reaches harvest threshold, return 0
+    yroot<-c(t-deployment_day,g_E-harvest_threshold) 
+    return(yroot) 
   })
 }
 
 harvest_timed_rootfunc <- function(t,y,parms,...){
   with(as.list(c(y, parms)), {
-    return(((t-harvest_first)%%harvest_freq))
+    yroot<-c(t-deployment_day,(t-harvest_first)%%harvest_freq)
+    return(yroot)
   })  
 }
-
+ 
 harvest_eventfunc <- function(t, y, parms,...){
   with(as.list(c(y,parms)), {
-    #calculate yield accross whole farm volume i.e. scale up yield (y[6]) by volume of macroalgae
-    V_MA<-y_farm*x_farm*density_MA*h_MA
-    c(y[1],y[2],y[3]*(1-harvest_fraction),y[4]*(1-harvest_fraction),y[5],y[6]+y[4]*harvest_fraction*V_MA) 
+    if(t-deployment_day==0){
+      #deploy some seaweed
+      c(y[1],y[2],y[3],y[4]+deployment_Nf,y[5],y[6],y[7]) 
+    }  else {
+      #harvest; calculate yield either accross whole farm volume i.e. scale up yield (y[6]) by volume of macroalgae or per m of line (y[7]). In both cases divide by Q_min to get DW Biomass in g
+      V_MA<-y_farm*x_farm*density_MA*h_MA
+      c(y[1],y[2],y[3]*(1-harvest_fraction),y[4]*(1-harvest_fraction),y[5],y[6]+y[4]*harvest_fraction*V_MA/Q_min,y[7]+y[4]*harvest_fraction*h_MA*w_MA/Q_min) 
+    }
   })
 
 
@@ -184,7 +165,7 @@ run_MA_model<-function(input,parameters,y0,output='df'){
 ######################################################
 ##   THE MODEL EQUATIONS ###########
 ######################################################
-MA_model <- function(t,y,parms) {
+MA_model <- function(t,y,parms,...) {
   #New model version diverges from Hadley model in its spatial structure. Hadley et al model runs notionally per unit volume of water, with flow through of water in volume units. In the old version of the model implemented here this was adapted for a flow-through and vertical water flux in m/d. A major shortcoming of the old version is the resupply of nutrients via the labmda term, which cannot be greater than 1 and therefore the total input of nutrient can only be enough per timestep to restore nutrient back to ambient levels. At a timestep of 1 day this is not sufficient given the significant drawdown of nutrients by the seaweed and the model is limited then by the lambda term (the way the Hadley model is structured values of labmda>1 when F_in > farm volume increase nutrient concentration above ambient which does not make sense). In this new version of the model, advection and vertical mixing lengths give an effective volume over which nutrient concentration change is calculated, thereby allowing for a realistic throughput of nutrient and output of meaningful delta-C.
   
   #parameters expected: ####
@@ -296,6 +277,10 @@ MA_model <- function(t,y,parms) {
     #convert N:P from mol/mol to mg/mol
     N_to_P<-N_to_P*14
     
+    #capture change in N_f for harvest function
+    Nf_change<-min(mu_g_EQT*N_f,PO4_tot*N_to_P)-(d_m*N_f)
+    
+    
     #model state variables ####
     dNH4        <- min(1,lambda)*(NH4_in(t)-NH4) -((f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s))*V_MA/V_EFF  # change in NH4 with time
     
@@ -308,9 +293,13 @@ MA_model <- function(t,y,parms) {
     dD          <- min(1,lambda)*(D_in(t)-D) + (d_m*N_f - r_L*D)*V_MA/V_EFF                 # change in detritus with time
     
     
-    dYield      <- 0
+    dYield_farm      <- 0
+  
+    dYield_per_m         <- 0
     
-    output<-list(c(dNH4, dNO3,dN_s,dN_f,dD,dYield),
+    
+    output<-list(c(dNH4, dNO3,dN_s,dN_f,dD,dYield_farm,dYield_per_m),
+         Nf_change = Nf_change,
          Farm_NO3_demand = NO3_removed*V_MA,
          Farm_NH4_demand = NH4_removed*V_MA,
          V_EFF = V_EFF,

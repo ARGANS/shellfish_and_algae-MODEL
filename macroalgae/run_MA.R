@@ -309,7 +309,7 @@ reference_run <- function(input_data,nondefault_parms){
   )
   
   
-  y0   <- c(NH4=input_frame$NH4_in[1],NO3=input_frame$NO3_in[1],N_s=100,N_f=100,D=0,Yield=0)
+  y0   <- c(NH4=input_frame$NH4_in[1],NO3=input_frame$NO3_in[1],N_s=100,N_f=100,D=0,Yield_farm=0,Yield_per_m=0)
 
   
   parms.=setup_run_parms(parms=nondefault_parms)
@@ -321,7 +321,7 @@ reference_run <- function(input_data,nondefault_parms){
 
 
 
-#lnlf_out<-reference_run(lnlf,test_parms_ulva)
+lnlf_out<-reference_run(lnlf,test_parms_ulva)
 #hnlf_out<-reference_run(hnlf,test_parms_ulva)
 #lnhf_out<-reference_run(lnhf,test_parms_ulva)
 #hnhf_out<-reference_run(hnhf,test_parms_ulva)
@@ -330,7 +330,7 @@ reference_run <- function(input_data,nondefault_parms){
 #lnlf_harvest_out<-reference_run(lnlf,c(test_parms_ulva,parms_ref_harvest_run))
 #hnlf_harvest_out<-reference_run(hnlf,c(test_parms_ulva,parms_ref_harvest_run))
 #lnhf_harvest_out<-reference_run(lnhf,c(test_parms_ulva,parms_ref_harvest_run))
-#hnhf_harvest_out<-reference_run(hnhf,c(test_parms_ulva,parms_ref_harvest_run))
+hnhf_harvest_out<-reference_run(hnhf,c(test_parms_ulva,parms_ref_harvest_run))
 
 
 
