@@ -6,12 +6,12 @@
 # This script allows manual execution of the model by reading in environmental focings and parameter sets
 
 
-
+#required libraries ####
+library(rjson)
 
 
 #load the model ####
 source('macroalgae_model.R')
-
 
 
 # dummy data (in lieu of environmental forcings) ######## -------------------------
@@ -63,85 +63,133 @@ default_input<- data.frame(
 ## parms required by macroalge_model:
 #input parms list ####
 
-# Farm dimensions: x_farm,y_farm,z_farm
+# Farm dimensions: latitdue, x_farm,y_farm,z_farm
 # MA dimensions: h_MA, w_MA, density_MA
 # Growth parameters: Q_min, K_c, T_O, T_max, T_min, V_NH4, V_NO3, K_NH4, K_N03, a_cs, I_s, mu, r_L, r_N, d_m,
 # MA properties: N_to_P
 
+#load in all parameters from json file
+allparams<-fromJSON(file='model_parameters.json')
+
+parms_ulva<-unlist(allparams$algae$species$ulva$parameters)
+parms_sacchaina<-unlist(allparams$algae$species$saccharina$parameters)
+parms_porphyra<-unlist(allparams$algae$species$porphyra$parameters)
+
+default_parms_farm<-unlist(allparams$algae$farm_parameters)
+default_parms_run<-unlist(allparams$algae$run_parameters)
+
+
+
+# deafult params the old way ------------------------------------
 # Default algae parameters: Ulva 
 
-default_parms_ulva <- c(
-  mu      = 0.45,    # maximum growth rate           / 1/d
-  V_NH4   = 124,      # max. ammonium uptake rate     / mg(N)g-1(dw)d-1
-  V_NO3   = 39,      # max. nitrate uptake rate      / mg(N)g-1(dw)d-1
-  K_NH4   = 700,     # Half saturation constant NH4  / mg(N)m-3
-  K_NO3   = 70,     #   "      "          "    NO3  / mg(N)m-3
-  Q_max   = 42,      # max. internal nitrogen        / mg(N) g-1 (dw)
-  Q_min   = 13,      # min.    "        "            / mg(N) g-1 (dw)
-  N_to_P  = 12,      #N:P ratio of seaweed biomass
-  K_c     = 7,       # Half growth constant          / mg(N) g-1 (dw)
-  T_O     = 12,      # optimum growth temperature    / oC
-  T_min     = 1,       # min temperature for growth  / oC
-  T_max    = 25,     # max temperature for growth     / oC
-  I_s     = 200,     # saturation irradiance         / umol photons m-2 s-1
-  a_cs    = 0.00033, # nitrogen-specific shading     / m2 mg-1 (N)
-  d_m     = 0.0003,   # mortality rate                / 1/d
-  h_MA    = 0.2,     # height of seaweed             / m
-  w_MA    = 1,     # width of seaweed e.g. on rope /m
-  r_L     = 0.1,     # remineralisation rate         / 1/d
-  r_N     = 0.1     # nitrification rate            / 1/d
-)
+# default_parms_ulva <- c(
+#   mu      = 0.45,    # maximum growth rate           / 1/d
+#   V_NH4   = 124,      # max. ammonium uptake rate     / mg(N)g-1(dw)d-1
+#   V_NO3   = 39,      # max. nitrate uptake rate      / mg(N)g-1(dw)d-1
+#   K_NH4   = 700,     # Half saturation constant NH4  / mg(N)m-3
+#   K_NO3   = 70,     #   "      "          "    NO3  / mg(N)m-3
+#   Q_max   = 42,      # max. internal nitrogen        / mg(N) g-1 (dw)
+#   Q_min   = 13,      # min.    "        "            / mg(N) g-1 (dw)
+#   N_to_P  = 12,      #N:P ratio of seaweed biomass
+#   K_c     = 7,       # Half growth constant          / mg(N) g-1 (dw)
+#   T_O     = 12,      # optimum growth temperature    / oC
+#   T_min     = 1,       # min temperature for growth  / oC
+#   T_max    = 25,     # max temperature for growth     / oC
+#   I_s     = 200,     # saturation irradiance         / umol photons m-2 s-1
+#   a_cs    = 0.00033, # nitrogen-specific shading     / m2 mg-1 (N)
+#   d_m     = 0.0003,   # mortality rate                / 1/d
+#   h_MA    = 0.2,     # height of seaweed             / m
+#   w_MA    = 1,     # width of seaweed e.g. on rope /m
+#   r_L     = 0.1,     # remineralisation rate         / 1/d
+#   r_N     = 0.1     # nitrification rate            / 1/d
+# )
 
 
-# Default algae parameters: Alaria
-default_parms_saccharina <- c(
-  mu      = 0.06,    # maximum growth rate           / 1/d
-  V_NH4   = 100,      # max. ammonium uptake rate     / mg(N)g-1(dw)d-1
-  V_NO3   = 200,      # max. nitrate uptake rate      / mg(N)g-1(dw)d-1
-  K_NH4   = 11,     # Half saturation constant NH4  / mg(N)m-3
-  K_NO3   = 200,     #   "      "          "    NO3  / mg(N)m-3
-  Q_max   = 22,      # max. internal nitrogen        / mg(N) g-1 (dw)
-  Q_min   = 10,      # min.    "        "            / mg(N) g-1 (dw)
-  N_to_P  = 12,      #N:P ratio of seaweed biomass
-  K_c     = 8,       # Half growth constant          / mg(N) g-1 (dw)
-  T_O     = 12.5,      # optimum growth temperature    / oC
-  T_min     = 0,       # min temperature for growth  / oC
-  T_max    = 20,     # max temperature for growth     / oC
-   I_s     =90,     # saturation irradiance         / umol photons m-2 s-1
-  a_cs    = 0.00036, # nitrogen-specific shading     / m2 mg-1 (N)
-  d_m     = 0.0003,   # mortality rate                / 1/d
-  h_MA    = 2,     # height of seaweed             / m
-  w_MA    = 0.3,     # width of seaweed e.g. on rope /m
-  r_L     = 0.10,     # remineralisation rate         / 1/d
-  r_N     = 0.1     # nitrification rate            / 1/d
-)
+# # Default algae parameters: Alaria
+# default_parms_saccharina <- c(
+#   mu      = 0.06,    # maximum growth rate           / 1/d
+#   V_NH4   = 100,      # max. ammonium uptake rate     / mg(N)g-1(dw)d-1
+#   V_NO3   = 200,      # max. nitrate uptake rate      / mg(N)g-1(dw)d-1
+#   K_NH4   = 11,     # Half saturation constant NH4  / mg(N)m-3
+#   K_NO3   = 200,     #   "      "          "    NO3  / mg(N)m-3
+#   Q_max   = 22,      # max. internal nitrogen        / mg(N) g-1 (dw)
+#   Q_min   = 10,      # min.    "        "            / mg(N) g-1 (dw)
+#   N_to_P  = 12,      #N:P ratio of seaweed biomass
+#   K_c     = 8,       # Half growth constant          / mg(N) g-1 (dw)
+#   T_O     = 12.5,      # optimum growth temperature    / oC
+#   T_min     = 0,       # min temperature for growth  / oC
+#   T_max    = 20,     # max temperature for growth     / oC
+#    I_s     =90,     # saturation irradiance         / umol photons m-2 s-1
+#   a_cs    = 0.00036, # nitrogen-specific shading     / m2 mg-1 (N)
+#   d_m     = 0.0003,   # mortality rate                / 1/d
+#   h_MA    = 2,     # height of seaweed             / m
+#   w_MA    = 0.3,     # width of seaweed e.g. on rope /m
+#   r_L     = 0.10,     # remineralisation rate         / 1/d
+#   r_N     = 0.1     # nitrification rate            / 1/d
+# )
+# 
+# 
+# 
+# # Default algae parameters: Porphyra 
+# 
+# default_parms_porphyra <- c(
+#   mu      = 0.33,    # maximum growth rate           / 1/d
+#   V_NH4   = 60,      # max. ammonium uptake rate     / mg(N)g-1(dw)d-1
+#   V_NO3   = 25,      # max. nitrate uptake rate      / mg(N)g-1(dw)d-1
+#   K_NH4   = 700,     # Half saturation constant NH4  / mg(N)m-3
+#   K_NO3   = 100,     #   "      "          "    NO3  / mg(N)m-3
+#   Q_max   = 70,      # max. internal nitrogen        / mg(N) g-1 (dw)
+#   Q_min   = 14,      # min.    "        "            / mg(N) g-1 (dw)
+#   N_to_P  = 12,      #N:P ratio of seaweed biomass
+#   K_c     = 7,       # Half growth constant          / mg(N) g-1 (dw)
+#   T_O     = 12,      # optimum growth temperature    / oC
+#   T_min     = 1,       # min temperature for growth  / oC
+#   T_max    = 25,     # max temperature for growth     / oC
+#   I_s     = 277,     # saturation irradiance         / umol photons m-2 s-1
+#   a_cs    = 0.00036, # nitrogen-specific shading     / m2 mg-1 (N)
+#   d_m     = 0.003,   # mortality rate                / 1/d
+#   h_MA    = 0.4,     # height of seaweed             / m
+#   w_MA    = 0.2,     # width of seaweed e.g. on rope /m
+#   r_L     = 0.2,     # remineralisation rate         / 1/d
+#   r_N     = 0.1     # nitrification rate            / 1/d
+# )
 
 
 
-# Default algae parameters: Porphyra 
+# Default Farm Parms 
+# 
+# default_parms_farm<-c(
+#   latitude=52,
+#   y_farm = 1000,       # width of farm perpendicular to flow direction    
+#   density_MA = 0.4,      # fraction of farm area occupied by algae
+#   x_farm = 1000,            #farm length in flow direction  
+#   z       = 2,       # cultivation depth             / m
+# 
+#   harvest_first = 60, #days from start of run to first harvest
+#   harvest_freq = 30, #days (only used if harvest_method==1)
+#   harvest_threshold = 0.2, #value of light-dependent growth factor (g_E) at which harvest happens (only used if harvest_method==2)
+#   harvest_fraction = 0.75 #fraction of total biomass to harvest (only used if harvest_method != 0)
+# )
+# 
 
-default_parms_porphyra <- c(
-  mu      = 0.33,    # maximum growth rate           / 1/d
-  V_NH4   = 60,      # max. ammonium uptake rate     / mg(N)g-1(dw)d-1
-  V_NO3   = 25,      # max. nitrate uptake rate      / mg(N)g-1(dw)d-1
-  K_NH4   = 700,     # Half saturation constant NH4  / mg(N)m-3
-  K_NO3   = 100,     #   "      "          "    NO3  / mg(N)m-3
-  Q_max   = 70,      # max. internal nitrogen        / mg(N) g-1 (dw)
-  Q_min   = 14,      # min.    "        "            / mg(N) g-1 (dw)
-  N_to_P  = 12,      #N:P ratio of seaweed biomass
-  K_c     = 7,       # Half growth constant          / mg(N) g-1 (dw)
-  T_O     = 12,      # optimum growth temperature    / oC
-  T_min     = 1,       # min temperature for growth  / oC
-  T_max    = 25,     # max temperature for growth     / oC
-  I_s     = 277,     # saturation irradiance         / umol photons m-2 s-1
-  a_cs    = 0.00036, # nitrogen-specific shading     / m2 mg-1 (N)
-  d_m     = 0.003,   # mortality rate                / 1/d
-  h_MA    = 0.4,     # height of seaweed             / m
-  w_MA    = 0.2,     # width of seaweed e.g. on rope /m
-  r_L     = 0.2,     # remineralisation rate         / 1/d
-  r_N     = 0.1     # nitrification rate            / 1/d
-)
 
+
+
+
+
+
+# Default run parms 
+# 
+# default_parms_run<-c(
+#   #refresh_rate = 1, #if value is 1, farm is fully refreshed with new water each day. Otherwise calculate from horizontal and vertical flow
+#   harvest_method=0, #options: 0:no harvesting, 1.fixed frequency, 2. light-driven
+#   light_scheme=4 #options 1: Zollman self-shading scheme, 2: simple vertical light no self shading, 3: solar angle light no self shading,4: selfshading with solar angle accounted for. 
+#   )
+# 
+
+
+# test parms ulva ============
 test_parms_ulva <- c(
   mu      = 0.45,    # maximum growth rate           / 1/d
   V_NH4   = 128,      # max. ammonium uptake rate     / mg(N)g-1(dw)d-1
@@ -164,40 +212,20 @@ test_parms_ulva <- c(
   r_N     = 0.1     # nitrification rate            / 1/d
 )
 
-
-# Default Farm Parms 
-
-default_parms_farm<-c(
-  latitude=52,
-  y_farm = 1000,       # width of farm perpendicular to flow direction    
-  density_MA = 0.4,      # fraction of farm area occupied by algae
-  x_farm = 1000,            #farm length in flow direction  
-  z       = 2,       # cultivation depth             / m
-
-  harvest_first = 60, #days from start of run to first harvest
-  harvest_freq = 30, #days (only used if harvest_method==1)
-  harvest_threshold = 0.2, #value of light-dependent growth factor (g_E) at which harvest happens (only used if harvest_method==2)
-  harvest_fraction = 0.75 #fraction of total biomass to harvest (only used if harvest_method != 0)
-)
-
-
-
-
-
-
-
-
-# Default run parms -----------------------------------
-
-default_parms_run<-c(
-  #refresh_rate = 1, #if value is 1, farm is fully refreshed with new water each day. Otherwise calculate from horizontal and vertical flow
-  harvest_method=0, #options: 0:no harvesting, 1.fixed frequency, 2. light-driven
-  light_scheme=4 #options 1: Zollman self-shading scheme, 2: simple vertical light no self shading, 3: solar angle light no self shading,4: selfshading with solar angle accounted for. 
-  )
-
-
 ## make full defulat parmaeter set --------
-default_parms<-c(default_parms_run,default_parms_farm,default_parms_ulva)
+default_parms<-c(default_parms_run,default_parms_farm,parms_ulva)
+
+setup_run_parms<-function(default_parms.=default_parms, parms){
+  #when calling rum_MA_model from R, use this function to overwrite default parameters as needed
+  run_parms<-replace(default_parms.,names(parms),parms)
+  run_parms
+}
+
+setup_run_input<-function(default_input.=default_input,input){
+  df<-default_input.[1:nrow(input),]
+  df[,colnames(input)]<-input
+  df
+}
 
 
 # Idealised reference runs
@@ -256,16 +284,15 @@ hnlf<-c(
 
 
 ### override default parms for reference harvest runs
-parms_harvest_run<-c(
-  harvest_method=1,
-  light_regime=4
+parms_ref_harvest_run<-c(
+  harvest_method=1
 )
 
 
 # reference run function ----------------------------------------
 
 
-reference_run <- function(input_data,parms=c(default_parms_run,default_parms_farm,test_parms_ulva)){
+reference_run <- function(input_data,nondefault_parms){
   with(as.list(input_data), {
   time<-1:730
   input_frame<- data.frame(
@@ -280,15 +307,13 @@ reference_run <- function(input_data,parms=c(default_parms_run,default_parms_far
     D_in   = 0.1,
     t_z    = t_z
   )
-  input_functions = boundary_forcings(input_frame)
   
-  y0   <- c(NH4=input_frame$NH4_in[1],NO3=input_frame$NO3_in[1],N_s=100,N_f=100,D=0,Yield=0)
+  
+  y0   <- c(NH4=input_frame$NH4_in[1],NO3=input_frame$NO3_in[1],N_s=100,N_f=100,D=0,Yield_farm=0,Yield_per_m=0)
 
-  Out <- ode(times = input_frame$time, func = MA_model, y = y0, parms = c(parms, input_functions))
   
-  #plot(Out[,'NH4'])
-  #plot(Out)
-  Out
+  parms.=setup_run_parms(parms=nondefault_parms)
+  run_MA_model(input=input_frame,parameters = parms.,y0=y0,output='odeout')
   })
   
 }
@@ -296,23 +321,21 @@ reference_run <- function(input_data,parms=c(default_parms_run,default_parms_far
 
 
 
-#lnlf_out<-reference_run(lnlf)
-#hnlf_out<-reference_run(hnlf)
-#lnhf_out<-reference_run(lnhf)
-#hnhf_out<-reference_run(hnhf)
+lnlf_out<-reference_run(lnlf,test_parms_ulva)
+#hnlf_out<-reference_run(hnlf,test_parms_ulva)
+#lnhf_out<-reference_run(lnhf,test_parms_ulva)
+#hnhf_out<-reference_run(hnhf,test_parms_ulva)
 
 
-setup_run_parms<-function(default_parms.=default_parms, parms){
-  #when calling rum_MA_model from R, use this function to overwrite default parameters as needed
-  run_parms<-replace(default_parms.,names(parms),parms)
-  run_parms
-}
+#lnlf_harvest_out<-reference_run(lnlf,c(test_parms_ulva,parms_ref_harvest_run))
+#hnlf_harvest_out<-reference_run(hnlf,c(test_parms_ulva,parms_ref_harvest_run))
+#lnhf_harvest_out<-reference_run(lnhf,c(test_parms_ulva,parms_ref_harvest_run))
+hnhf_harvest_out<-reference_run(hnhf,c(test_parms_ulva,parms_ref_harvest_run))
 
-setup_run_input<-function(default_input.=default_input,input){
-  df<-default_input.[1:nrow(input),]
-  df[,colnames(input)]<-input
-  df
-}
+
+
+
+
 
 
 # # Main function: run_model-------------------------------------------

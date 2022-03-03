@@ -1,5 +1,6 @@
 ### Script to calculate theroteitcal par atthe sea surface for any latitude
 
+library(atmos)
 modelled_par<-function(rlat){
   #using the Gregg and Carder Scheme as implemented in the atmos package provided by Bernard Gentili <gentili@obs-vlfr.f
   # calculate the daily total par irradiance for the latitude given fora whole year 
@@ -8,7 +9,7 @@ modelled_par<-function(rlat){
   
   
   day_total<-function(jday,rlat){
-    day<-seq(from=0,to=23.9,by=0.1)
+    day<-seq(from=0.4,to=23.9,by=0.5)
     totalpar<-function(jday,rlat,hr){
       h = 6.6256E-34
       c = 2.998E8
@@ -24,13 +25,23 @@ modelled_par<-function(rlat){
   sapply(year,day_total,rlat=rlat)
 }
 
-
 # example code to generate csv file for latitude of bantry bay
 
 # bantry_par<-modelled_par(51.65)
 # write.csv(file='bantry_par_theoretical.csv',data.frame(jday=1:365,par_GC=bantry_par),row.names = FALSE)
 
 
+generate_par_table<-function(){
+  #generate table of par data for each day for every latitude 0-90 and write it out as a csv
+  latitudes<-0:90
+  x<-sapply(latitudes,modelled_par)
+  write.table(x=x,file = 'PARTable.csv',row.names=FALSE, col.names=FALSE,sep=',')
+  return('done')
+}
+
+
+# uncomment line below to generate new partable (note this takes a good few minutes)
+# generate_par_table()
 
 substitute_par<-function(observed_par,modelled_par){
   #function to subsitute where PAR values are missing - modelled par is clear-sky so use scaling factor to give representative par value
