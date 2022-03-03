@@ -6,8 +6,6 @@ import netCDF4 as nc
 import matplotlib.pyplot as plt
 import pandas as pd
 
-#import sys
-#sys.path.append('../../dataImport/dataread/')
 from dataread.read_netcdf import extractWithAverage
 
 mainpath = 'I:/work-he/apps/safi/data/IBI/'
@@ -84,17 +82,25 @@ if __name__ == "__main__":
     #we get the average on the 10 first meters
     northcurrentAverage = getAverageAlongDepth('northward_Water_current', (0,10), date, mainpath)
     eastcurrentAverage = getAverageAlongDepth('eastward_Water_current', (0,10), date, mainpath)
+    currentaveragetime = time.time()-initialTime
+    print('time to compute the current average: ',currentaveragetime)
     mask = eastcurrentAverage.mask
     maskposition = np.where(mask == True)#we get the position of the masked data
     #we compute the average of nutriment at day D and day D+1
+    timebeforenitr = time.time()
     nitrateAverage = getAverageAlongDepth('Nitrate', (0,10), date, mainpath)
     nitrateAverageDayPlus1 = getAverageAlongDepth('Nitrate', (0, 10), dateplus1, mainpath)
+    print('time to compute the Nitrate average at day D and day D+1: ', time.time()-timebeforenitr)
+    timebefstream = time.time()
     northStream, eastStream = giveStream(northcurrentAverage, eastcurrentAverage)
+    print('time to compute the stream direction: ', time.time()-timebefstream)
     nbrUpStrm = giveNbrOfUpstreamCell(northStream, eastStream)
-    finaltime = time.time()-initialTime
-    print('running time : ',finaltime,' seconds')
     # we compute the nutriment at day D+1, with a deficit of 10% of day D nutriment
+    timebefdeficite = time.time()
     nitrateAverageDayPlus1 = calcDeficit(nitrateAverageDayPlus1, nitrateAverage, northStream, eastStream)
+    print('time to compute the deficite: ', time.time()-timebefdeficite)
+    finaltime = time.time()-initialTime
+    print('general running time : ',finaltime,' seconds')
 
     northStream[maskposition] = np.nan
     eastStream[maskposition] = np.nan
@@ -103,13 +109,13 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     im = ax.imshow((np.abs(northStream) + np.abs(eastStream) - 1) * (np.abs(northStream) + np.abs(eastStream) - 2) / 2)
     ax.invert_yaxis()
-    ax.set_title('grid cells that points to themself')
+    ax.set_title('grid cells that points to themself IBI 16/04/2020')
     fig.colorbar(im)
     plt.show()
 
     fig, ax = plt.subplots()
     plt.imshow(nitrateAverage)
-    ax.set_title('nitrate Average')
+    ax.set_title('nitrate Average IBI 16/04/2020')
     ax.invert_yaxis()
     plt.clim(0, 8)
     plt.colorbar()
@@ -117,15 +123,17 @@ if __name__ == "__main__":
 
     fig, ax = plt.subplots()
     plt.imshow(nitrateAverageDayPlus1)
-    ax.set_title('nitrate Average the day after')
+    ax.set_title('nitrate Average 10% deficit IBI 17/04/2020')
     ax.invert_yaxis()
     plt.clim(0, 8)
     plt.colorbar()
     plt.show()
 
+    negval = (nitrateAverageDayPlus1 < 0) * 1.
+    negval[maskposition] = np.nan
     fig, ax = plt.subplots()
-    plt.imshow((nitrateAverageDayPlus1<0)*1.)
-    ax.set_title('nitrate Average the day after, neagtives values')
+    plt.imshow(negval)
+    ax.set_title('nitrate Average 10% deficit IBI 17/04/2020, neagtives values')
     ax.invert_yaxis()
     plt.colorbar()
     plt.show()
@@ -133,7 +141,7 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     im = ax.imshow(nbrUpStrm)
     ax.invert_yaxis()
-    ax.set_title('Number of upstream cells')
+    ax.set_title('Number of upstream cells IBI 16/04/2020')
     fig.colorbar(im)
     plt.show()
 
@@ -142,7 +150,7 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     im = ax.imshow(anyUpcell)
     ax.invert_yaxis()
-    ax.set_title('0 upstream cells')
+    ax.set_title('0 upstream cells IBI 16/04/2020')
     fig.colorbar(im)
     plt.show()
 
@@ -151,20 +159,20 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     im = ax.imshow(morethan1)
     ax.invert_yaxis()
-    ax.set_title('Multiple upstream cells')
+    ax.set_title('Multiple upstream cells IBI 16/04/2020')
     fig.colorbar(im)
     plt.show()
 
     fig, ax = plt.subplots()
     im = ax.imshow(eastStream)
-    ax.set_title('east stream')
+    ax.set_title('east stream IBI 16/04/2020')
     ax.invert_yaxis()
     fig.colorbar(im)
     plt.show()
 
     fig, ax = plt.subplots()
     im = ax.imshow(northStream)
-    ax.set_title('north stream')
+    ax.set_title('north stream IBI 16/04/2020')
     ax.invert_yaxis()
     fig.colorbar(im)
     plt.show()
