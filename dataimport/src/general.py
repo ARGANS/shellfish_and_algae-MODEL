@@ -168,7 +168,7 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
     wantedDataLine = dataFin.loc[(dataFin["Parameter"] == wantedData) & (dataFin["Place"] == zone)]
     for j in wantedDataLine.index.values:
         servicetype = dataFin.iloc[j]["source"]
-        if DataLine.iloc[0]["daily"] == 1:
+        if wantedDataLine.iloc[0]["daily"] == 1:
             begDate = splitDate(dateBeginning)
             endDate = splitDate(dateEnd)
             filename = wantedData + zone + dataFin.iloc[j]["fileType"] + dateBeginning.strftime("%Y-%m-%d")

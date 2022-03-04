@@ -6,6 +6,7 @@ import netCDF4 as nc
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from saveAsTiff import getMetadata, saveAsTiff
 from dataread.read_netcdf import extractWithAverage
 
 mainpath = 'I:/work-he/apps/safi/data/IBI/'
@@ -31,7 +32,7 @@ def getAverageAlongDepth(data:str, depth:tuple, date:datetime.datetime, mainpath
                 fn=path+f[i]
                 ncDataset = nc.Dataset(fn)
                 break
-    return extractWithAverage(ncDataset, variable, ('depth',), depth=depth, time_index=0)[0]
+    return extractWithAverage(ncDataset, variable, ('depth',), depth=depth, time_index=0)[0], ncDataset
 
 # this function put 0 to the stream that goes outside the studied area
 def correctBorder(streamMat):
@@ -80,16 +81,16 @@ def calcDeficit(nitrateAverageDayPlus1, nitrateAverage, northStream, eastStream)
 if __name__ == "__main__":
     initialTime = time.time()
     #we get the average on the 10 first meters
-    northcurrentAverage = getAverageAlongDepth('northward_Water_current', (0,10), date, mainpath)
-    eastcurrentAverage = getAverageAlongDepth('eastward_Water_current', (0,10), date, mainpath)
+    northcurrentAverage, ds = getAverageAlongDepth('northward_Water_current', (0,10), date, mainpath)
+    eastcurrentAverage, _ = getAverageAlongDepth('eastward_Water_current', (0,10), date, mainpath)
     currentaveragetime = time.time()-initialTime
     print('time to compute the current average: ',currentaveragetime)
     mask = eastcurrentAverage.mask
     maskposition = np.where(mask == True)#we get the position of the masked data
     #we compute the average of nutriment at day D and day D+1
     timebeforenitr = time.time()
-    nitrateAverage = getAverageAlongDepth('Nitrate', (0,10), date, mainpath)
-    nitrateAverageDayPlus1 = getAverageAlongDepth('Nitrate', (0, 10), dateplus1, mainpath)
+    nitrateAverage,_ = getAverageAlongDepth('Nitrate', (0,10), date, mainpath)
+    nitrateAverageDayPlus1,_ = getAverageAlongDepth('Nitrate', (0, 10), dateplus1, mainpath)
     print('time to compute the Nitrate average at day D and day D+1: ', time.time()-timebeforenitr)
     timebefstream = time.time()
     northStream, eastStream = giveStream(northcurrentAverage, eastcurrentAverage)
@@ -101,11 +102,23 @@ if __name__ == "__main__":
     print('time to compute the deficite: ', time.time()-timebefdeficite)
     finaltime = time.time()-initialTime
     print('general running time : ',finaltime,' seconds')
+    xsize, ysize, ulx, uly, xres, yres = getMetadata(ds)
 
     northStream[maskposition] = np.nan
     eastStream[maskposition] = np.nan
     nbrUpStrm[maskposition] = np.nan
     nitrateAverageDayPlus1[maskposition] = np.nan
+
+    saveAsTiff(nitrateAverage, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/IBI/NO3Average16042020.tiff")
+
+    saveAsTiff(nbrUpStrm, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/IBI/nbrUpStrm16042020.tiff")
+
+    saveAsTiff(nitrateAverageDayPlus1, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/IBI/NO3Average10pctDeficit17042020.tiff")
+
+
     fig, ax = plt.subplots()
     im = ax.imshow((np.abs(northStream) + np.abs(eastStream) - 1) * (np.abs(northStream) + np.abs(eastStream) - 2) / 2)
     ax.invert_yaxis()
