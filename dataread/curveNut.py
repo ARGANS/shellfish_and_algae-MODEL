@@ -52,31 +52,26 @@ def smooth(y, box_pts):
     return y_smooth
 
 #give the indices coresponding to lonval, and latval in the list of coordinates
-def givecoor(path,lonval,latval,dataName):
+def givecoor(path,lonval,latval,dataName,dataFin):
     for r, d, f in os.walk(path):
-        # we take a data file
+        #we take a data file
         fn = path + f[0]
         ds = nc.Dataset(fn)
-        # we look where does the data came from
-        if dataName == 'par':
-            # we get the longitude and latitude list
-            lonList = ds['lon'][:]
-            latList = ds['lat'][:]
-        else:
-            # we get the longitude and latitude list
-            lonList = ds['longitude'][:]
-            latList = ds['latitude'][:]
-        i=0
+    DataLine = dataFin.loc[dataFin["Parameter"] == dataName]
+    # we get the longitude and latitude list
+    lonList = ds[DataLine.iloc[0]["longName"]][:]
+    latList = ds[DataLine.iloc[0]["latName"]][:]
+    i=0
+    loni = lonList[i]
+    # we browse the data until we find a coordiate bigger than the wanted coordiante
+    while i+1<len(lonList) and lonval>loni:
+        i+=1
         loni = lonList[i]
-        # we browse the data until we find a coordiate bigger than the wanted coordiante
-        while i<len(lonList) and lonval>loni:
-            i+=1
-            loni = lonList[i]
-        j = 0
+    j = 0
+    lati = latList[j]
+    while j+1 < len(latList) and latval > lati:
+        j += 1
         lati = latList[j]
-        while j+1 < len(latList) and latval > lati:
-            j += 1
-            lati = latList[j]
     return i, j
 
 '''latitude = 771
@@ -92,10 +87,9 @@ zone = 'IBI'
 dataTabl=[]
 
 path=mainpath+dataName+"/"
-dataFin=readcsv()
-wantedDataLine = np.where((dataFin[:, 1] == dataName) & (dataFin[:, 2] == zone))
-imgNb = wantedDataLine[0][0]
-data = dataFin[imgNb][15]
+dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
+wantedDataLine = dataFin.loc[(dataFin["Parameter"] == dataName) & (dataFin["Place"] == zone)]
+data = wantedDataLine.iloc[-1]["variable"] #we find the data name in the dataset
 ldate = []
 
 #we get the
@@ -109,11 +103,10 @@ print(z)
 for dat in ['Salinity', 'Nitrate']:
     path=mainpath+dat+"/"
     print(path)
-    dataFin=readcsv()
-    wantedDataLine = np.where((dataFin[:, 1] == dat) & (dataFin[:, 2] == zone))
-    imgNb = wantedDataLine[0][0]
-    data = dataFin[imgNb][15] #we find the data name in the dataset
-    longitude, latitude = givecoor(path, lon, lat, dat) #we get the indices of the wanted position
+    dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
+    wantedDataLine = dataFin.loc[(dataFin["Parameter"] == dat) & (dataFin["Place"] == zone)]
+    data = wantedDataLine.iloc[-1]["variable"] #we find the data name in the dataset
+    longitude, latitude = givecoor(path, lon, lat, dat, dataFin) #we get the indices of the wanted position
     listValue = []
     ldate = []
     for r, d, f in os.walk(path):
@@ -150,9 +143,9 @@ ax2.plot(ldate, smooth(dataTabl[1][:,3],10), label='18.5 m')
 ax.legend()
 ax.set_xlabel('date')
 ax.set_ylabel('PSU')
-ax.set_title("{} lat: {}  lon: {}".format(lat,lon))
+ax.set_title("Salinity lat: {}  lon: {}".format(dat,lat,lon))
 ax2.legend()
 ax2.set_xlabel('date')
 ax2.set_ylabel('mmol m-3')
-ax2.set_title("{} lat: {}  lon: {}".format(lat,lon))
+ax2.set_title("NO3 lat: {}  lon: {}".format(lat,lon))
 plt.show()

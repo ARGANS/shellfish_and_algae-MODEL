@@ -10,7 +10,7 @@ import h5py
 path = 'I:/work-he/apps/safi/data/IBI/'
 
 #read the csv where we listed the location of the different data
-def readcsv(file='./dataCmd.csv'):
+def readcsv(file='./../dataimport/src/dataCmd.csv'):
     data = pd.read_csv(file, delimiter=',', header=0)
     numpData = data.to_numpy()
     for k in range(len(numpData)):
@@ -22,31 +22,26 @@ def readcsv(file='./dataCmd.csv'):
     return dataFin
 
 #give the indices coresponding to lonval, and latval in the list of coordinates
-def givecoor(path,lonval,latval,dataName):
+def givecoor(path,lonval,latval,dataName,dataFin):
     for r, d, f in os.walk(path):
         #we take a data file
         fn = path + f[0]
         ds = nc.Dataset(fn)
-        #we look where does the data came from
-        if dataName == 'par':
-            #we get the longitude and latitude list
-            lonList = ds['lon'][:]
-            latList = ds['lat'][:]
-        else:
-            # we get the longitude and latitude list
-            lonList = ds['longitude'][:]
-            latList = ds['latitude'][:]
-        i=0
+    DataLine = dataFin.loc[dataFin["Parameter"] == dataName]
+    # we get the longitude and latitude list
+    lonList = ds[DataLine.iloc[0]["longName"]][:]
+    latList = ds[DataLine.iloc[0]["latName"]][:]
+    i=0
+    loni = lonList[i]
+    # we browse the data until we find a coordiate bigger than the wanted coordiante
+    while i+1<len(lonList) and lonval>loni:
+        i+=1
         loni = lonList[i]
-        # we browse the data until we find a coordiate bigger than the wanted coordiante
-        while i+1<len(lonList) and lonval>loni:
-            i+=1
-            loni = lonList[i]
-        j = 0
+    j = 0
+    lati = latList[j]
+    while j+1 < len(latList) and latval > lati:
+        j += 1
         lati = latList[j]
-        while j+1 < len(latList) and latval > lati:
-            j += 1
-            lati = latList[j]
     return i, j
 
 #sort the list of data from the older to the newer
@@ -80,7 +75,7 @@ lat = 51.583332
 lon = -9.916667
 
 depth = 1
-dataName = 'Temperature'
+dataName = 'par'
 zone = 'IBI'
 
 #we construct the path to the data
@@ -88,11 +83,12 @@ path=path+dataName+"/"
 print(path)
 
 #we search after the name of the data we want in the dataset
-dataFin=readcsv()
-wantedDataLine = np.where((dataFin[:, 1] == dataName) & (dataFin[:, 2] == zone))
-imgNb = wantedDataLine[0][0]
-data = dataFin[imgNb][15]
-longitude, latitude = givecoor(path,lon,lat,dataName)
+
+dataFin=pd.read_csv('./../dataimport/src/dataCmd.csv',';')
+wantedDataLine = dataFin.loc[(dataFin["Parameter"] == dataName) & (dataFin["Place"] == zone)]
+data = wantedDataLine.iloc[-1]["variable"]
+print(data)
+longitude, latitude = givecoor(path,lon,lat,dataName, dataFin)
 
 listValue = []
 ldate = []

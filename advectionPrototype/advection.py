@@ -71,11 +71,18 @@ def giveNbrOfUpstreamCell(northStream, eastStream):
             nbrUpStrm[i+int(northStream[i,j]),int(j+eastStream[i,j])] +=1
     return nbrUpStrm
 
-#compute the nutriment at day plus one, taking into account a consumption of 10% of the day before nutriment
-def calcDeficit(nitrateAverageDayPlus1, nitrateAverage, northStream, eastStream):
+#compute the nutriment at day plus one, taking into account a consumption of defpct% of the day before nutriment
+def calcDeficit(nitrateAverageDayPlus1, nitrateAverage, northStream, eastStream,defpct):
     for i in range(len(northStream)):
         for j in range(len(northStream[0])):
-            nitrateAverageDayPlus1[i+int(northStream[i,j]),int(j+eastStream[i,j])] -= nitrateAverage[i,j]*0.1
+            nitrateAverageDayPlus1[i+int(northStream[i,j]),int(j+eastStream[i,j])] -= nitrateAverage[i,j]*defpct
+    return nitrateAverageDayPlus1
+
+#compute the nutriment at day plus one, taking into account a consumption of defpct% of the day before nutriment
+def calcNoDeficit(nitrateAverageDayPlus1, nitrateAverage, northStream, eastStream,defpct):
+    for i in range(len(northStream)):
+        for j in range(len(northStream[0])):
+            nitrateAverageDayPlus1[i+int(northStream[i,j]),int(j+eastStream[i,j])] -= nitrateAverage[i,j]*defpct
     return nitrateAverageDayPlus1
 
 if __name__ == "__main__":
@@ -98,7 +105,7 @@ if __name__ == "__main__":
     nbrUpStrm = giveNbrOfUpstreamCell(northStream, eastStream)
     # we compute the nutriment at day D+1, with a deficit of 10% of day D nutriment
     timebefdeficite = time.time()
-    nitrateAverageDayPlus1 = calcDeficit(nitrateAverageDayPlus1, nitrateAverage, northStream, eastStream)
+    nitrateAverageDayPlus1 = calcDeficit(nitrateAverageDayPlus1, nitrateAverage, northStream, eastStream, 0.1)
     print('time to compute the deficite: ', time.time()-timebefdeficite)
     finaltime = time.time()-initialTime
     print('general running time : ',finaltime,' seconds')
