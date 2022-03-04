@@ -78,13 +78,6 @@ def calcDeficit(nitrateAverageDayPlus1, nitrateAverage, northStream, eastStream,
             nitrateAverageDayPlus1[i+int(northStream[i,j]),int(j+eastStream[i,j])] -= nitrateAverage[i,j]*defpct
     return nitrateAverageDayPlus1
 
-#compute the nutriment at day plus one, taking into account a consumption of defpct% of the day before nutriment
-def calcNoDeficit(nitrateAverageDayPlus1, nitrateAverage, northStream, eastStream,defpct):
-    for i in range(len(northStream)):
-        for j in range(len(northStream[0])):
-            nitrateAverageDayPlus1[i+int(northStream[i,j]),int(j+eastStream[i,j])] -= nitrateAverage[i,j]*defpct
-    return nitrateAverageDayPlus1
-
 if __name__ == "__main__":
     initialTime = time.time()
     #we get the average on the 10 first meters
