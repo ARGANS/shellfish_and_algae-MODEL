@@ -38,7 +38,7 @@ par_GC<-read.csv('bantry_data/bantry_par_theoretical.csv')
 bantry$par[1:365]<-substitute_par(bantry$par[1:365],par_GC$par_GC)
 bantry$par[366:396]<-bantry$par[1:31]
 
-input_data<-data.frame(
+bantry_input_data<-data.frame(
   time=1:396,
   PAR=bantry$par,
   SST=bantry$Temperature,
@@ -47,7 +47,6 @@ input_data<-data.frame(
   PO4_in=1000,
   K_d=0.1,
   F_in=bantry$F_in,
-  theta = setup_solar_angle(latitude=51.7,start_day=25,ndays=396),
   t_z = 10
 )
 
@@ -77,17 +76,43 @@ parms_bantry_alaria <- c(
 )
 
 parms_bantry<-c(
-  harvest_first     = 100,
-  harvest_frequency = 30,
-  harvest_fraction  = 0.75,
-  harvest_method    = 0,
-  light_scheme=1
+  light_scheme=4,
+  latitude=51.6
+
 )
 
-bantry_run<-run_model(c(default_parms_farm,default_parms_ulva,default_parms_run),default_input,input=input_data,parms=c(parms_bantry_alaria,parms_bantry),y0=c(c(NH4=bantry$Ammonium[1],NO3=bantry$Nitrate[1],N_s=100,N_f=100,D=0,Yield=0)))
-names(bantry_run)[names(bantry_run)=='time'][2]<-'time2'
+parms_bantry_harvest<-c(
+  deployment_day=2,
+  harvest_first = 389 ,
+  harvest_freq = 500,
+  harvest_fraction  = 0.95,
+  harvest_method    = 1,
+  light_scheme=4,
+  latitude=51.6,
+  deployment_Nf=10000
+)
+
+
+
+bantry_in<-setup_run_input(input=bantry_input_data)
+bantry_parms<-setup_run_parms(parms=c(parms_bantry_alaria,parms_bantry))
+bantry_harvest_parms<-setup_run_parms(parms=c(parms_bantry_alaria,parms_bantry_harvest))
+  
+bantry_run<-run_MA_model(input=bantry_in,
+                         parameters=bantry_parms,
+                         y0=c(NH4=bantry$Ammonium[1],NO3=bantry$Nitrate[1],N_s=100,N_f=100,D=0,Yield_farm=0, Yield_per_m=0),
+                         output='odeout')
+
+
+bantry_harvest_run<-run_MA_model(input=bantry_in,
+                         parameters=bantry_harvest_parms,
+                         y0=c(NH4=bantry$Ammonium[1],NO3=bantry$Nitrate[1],N_s=0,N_f=0,D=0,Yield_farm=0, Yield_per_m=0),
+                         output='odeout')
+
+#names(bantry_run)[names(bantry_run)=='time'][2]<-'time2'
 
 br<-as.data.frame(bantry_run)
+brh<-as.data.frame(bantry_harvest_run)
 
 library(ggplot2)
 

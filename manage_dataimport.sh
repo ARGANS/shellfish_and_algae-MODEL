@@ -15,24 +15,26 @@ function run {
             ;;
         'run')
             container_id=$( docker ps -q -f name=$CONTAINER_NAME )
-            # docker stop $CONTAINER_NAME || true
-            if [[ -z "$container_id" ]]; then
-                image_id=$( docker images -q $DD_TAG )
-
-                if [[ -z "$image_id" ]]; then
-                    run "build"
-                fi
-
-                docker run \
-                    --rm \
-                    --name $CONTAINER_NAME \
-                    --volume "$PWD/share":/media/share \
-                    --volume "$PWD/$DIR/src/general.py":/opt/general.py \
-                    --volume "$PWD/$DIR/src/main.py":/opt/main.py \
-                    --entrypoint '/usr/local/bin/python' \
-                    -dit $DD_TAG:latest
-            fi
             
+            if [[ ! -z "$container_id" ]]; then
+                docker stop $CONTAINER_NAME || true
+            fi
+
+            image_id=$( docker images -q $DD_TAG )
+
+            if [[ -z "$image_id" ]]; then
+                run "build"
+            fi
+
+            docker run \
+                --rm \
+                --name $CONTAINER_NAME \
+                --volume "$PWD/share":/media/share \
+                --volume "$PWD/$DIR/src/general.py":/opt/general.py \
+                --volume "$PWD/$DIR/src/main.py":/opt/main.py \
+                --entrypoint '/usr/local/bin/python' \
+                -dit $DD_TAG:latest
+
             docker exec -it $CONTAINER_NAME bash 
             ;;
         *)

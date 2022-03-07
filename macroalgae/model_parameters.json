@@ -106,7 +106,9 @@
             "harvest_first"     : 60,
             "harvest_freq"      : 30,
             "harvest_threshold" : 0.2,
-            "harvest_fraction"  : 0.75
+            "harvest_fraction"  : 0.75,
+            "deployment_day"    : 2,
+            "deployment_Nf"     : 1000
         },
         "farm_parameters_description": {
             "y_farm"            : ["width of farm perpendicular to flow direction", ""],
@@ -116,7 +118,9 @@
             "harvest_first"     : ["days from start of run to first harvest", ""],
             "harvest_freq"      : ["days (only used if harvest_method==1)", ""],
             "harvest_threshold" : ["value of light-dependent growth factor (g_E) at which harvest happens (only used if harvest_method==2)", ""],
-            "harvest_fraction"  : ["fraction of total biomass to harvest (only used if harvest_method != 0)", ""]
+            "harvest_fraction"  : ["fraction of total biomass to harvest (only used if harvest_method != 0)", ""],
+            "deployment_day"    : ["day of deployment of seaweed",""],
+            "deployment_Nf"     : ["amount of seaweed deployed", "mg fixed N per m3 "]
         },
         "run_parameters": {
             "harvest_method": 0,
