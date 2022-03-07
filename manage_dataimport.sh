@@ -9,6 +9,7 @@ function run {
     case $command in
         'build')
             docker build \
+		--network host \
                 -t $DD_TAG:v1 -t $DD_TAG:latest \
                 -f $DOCKERFILE ./$DIR
             ;;
