@@ -203,7 +203,7 @@ class ParamData:
 
     def __init__(self, file_name, variable_name, latitude_name='latitude',
                  longitude_name='longitude', time_name='time', depth_name='depth',
-                 date2num=dateToNum, num2date=numToDate):
+                 unitConversion=1, date2num=dateToNum, num2date=numToDate):
 
         self.ds = nc.Dataset(file_name)
         self._variableName = variable_name
@@ -213,6 +213,7 @@ class ParamData:
             'time': time_name,
             'depth': depth_name
         }
+        self._unitConversion = unitConversion
 
         self.date2num = date2num
         self.num2date = num2date
@@ -244,6 +245,9 @@ class ParamData:
 
         output, _ = extractVarSubset(self.ds, variableName, **newKwargs)
 
+        if variableName == self._variableName:
+            output == output * self._unitConversion
+
         # Change the output from numeric values to datetime() if we output time
         if variable == 'time':
             output = np.ma.masked_array([self.num2date(a) for a in output])
@@ -261,18 +265,19 @@ class ParamData:
 
 class AllData:
 
-    def __init__(self, fileNameList, parameterNameList, variableNameList, latitudeNameList, 
-                 longitudeNameList, timeNameList, depthNameList):
+    def __init__(self, fileNameList, parameterNameList, variableNameList, latitudeNameList,
+                 longitudeNameList, timeNameList, depthNameList, unitConversionList):
 
         self.parameterData = {}
         for fileName, parameterName, variableName, latitudeName, longitudeName, timeName, \
-            depthName in zip(fileNameList, parameterNameList, variableNameList, latitudeNameList, \
-            longitudeNameList, timeNameList, depthNameList):
+                depthName, unitConversion in \
+            zip(fileNameList, parameterNameList, variableNameList, latitudeNameList, \
+                longitudeNameList, timeNameList, depthNameList, unitConversionList):
 
             self.parameterData[parameterName] = ParamData(file_name=fileName,
                     variable_name=variableName, latitude_name=latitudeName,
                     longitude_name=longitudeName, time_name=timeName,
-                    depth_name=depthName)
+                    depth_name=depthName, unitConversion=unitConversion)
 
 
     def getTimeSeries(self, latitude, longitude, dateRange, depth, parameters=None):
@@ -331,7 +336,6 @@ class AllData:
                                                 longitude=longitude, time=dateRange)
 
             addData = pd.DataFrame({'date': timeAxis})
-            print(addData.duplicated(['date']).sum())
 
             if data.ndim == 2: # data has depth
                 # Get the MLD at the times in paramTime
@@ -354,7 +358,6 @@ class AllData:
             addData.loc[np.ma.getmaskarray(addParam), [param]] = None
 
             df = pd.merge_ordered(df, addData, on='date', how='left')
-            print(df.duplicated(['date']).sum())
 
         return df
 
@@ -375,22 +378,20 @@ if __name__ == "__main__":
 
     mainpath = 'I:/work-he/apps/safi/data/IBI/'
 
-    dataRef = pd.read_csv('I:/work-he/apps/safi/data/IBI/dataCmd.csv', delimiter=';')
+    dataRef = pd.read_csv('P:\Aquaculture\shellfish_and_algae-MODEL\dataimport\src\dataCmd.csv', delimiter=';')
 
-    # The 'Names' informations should probably be in dataRef, which would make it easier to
-    # define and read.
     paramNames = ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current', 'ocean_mixed_layer_thickness', 'par']
     fileNames = [mainpath + f"merged_files/merged_{param}_{zone}.nc" for param in paramNames]
-    variableNames = [dataRef.loc[(dataRef['Parameter']==param) & (dataRef['Place']==zone)].reset_index()['variable'][0] for param in paramNames]
 
-    nParams = len(paramNames)
-    latitudeNames = ['latitude'] * nParams
-    longitudeNames = ['longitude'] * nParams
-    timeNames = ['time'] * nParams
-    depthNames = ['depth'] * nParams
-    # For par
-    latitudeNames[-1] = 'lat'
-    longitudeNames[-1] = 'lon'
+    #dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][0] for param in paramNames]
+    dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][-1] for param in paramNames]
+
+    variableNames = dataRef.iloc[dataRows]['variable'].tolist()
+    latitudeNames = dataRef.iloc[dataRows]['latName'].fillna('latitude').tolist()
+    longitudeNames = dataRef.iloc[dataRows]['longName'].fillna('longitude').tolist()
+    timeNames = dataRef.iloc[dataRows]['timeName'].fillna('time').tolist()
+    depthNames = dataRef.iloc[dataRows]['depthName'].fillna('depth').tolist()
+    unitConversions = dataRef.iloc[dataRows]['unitFactor'].fillna(1).tolist()
 
     algaeData = AllData(fileNameList=fileNames,
                         parameterNameList=paramNames,
@@ -398,14 +399,16 @@ if __name__ == "__main__":
                         latitudeNameList=latitudeNames,
                         longitudeNameList=longitudeNames,
                         timeNameList=timeNames,
-                        depthNameList=depthNames
+                        depthNameList=depthNames,
+                        unitConversionList=unitConversions
     )
 
     #df = algaeData.getTimeSeriesInMLD(lat, lon, (startDate, endDate), parameters=['Ammonium', 'par'])
     #df = algaeData.getTimeSeriesInMLD(lat, lon, (startDate, endDate), parameters=['Ammonium', 'Nitrate', 'Temperature', 'ocean_mixed_layer_thickness', 'par'])
-    df = algaeData.getTimeSeriesInMLD(lat, lon, (startDate, endDate))
+    #df = algaeData.getTimeSeriesInMLD(lat, lon, (startDate, endDate))
+    df = algaeData.getTimeSeries(lat, lon, (startDate, endDate), 3)
     print(df)
-    df.to_csv(mainpath+'Bantry_data/bantry_MLDaveraged.csv',
+    df.to_csv(mainpath+'Bantry_data/bantry_3m.csv',
               index=False, sep=';')
 
     del algaeData
