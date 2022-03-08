@@ -20,6 +20,7 @@ options(scipen=999)
 knitr::opts_knit$set(root.dir = '../')
 source("../hadley_model_test.R", local = knitr::knit_global())
 
+
 op = function(x, d=0) sprintf(paste0("%1.",d,"f"), x) 
 
 
@@ -144,11 +145,11 @@ The model is driven by nutrient inputs, light and temperature and is sufficientl
 
 
 
-The model presented here is based on the model of @Hadley2015, which follows @Adridge2009 and further @Solidoro1997. The model currency is nitrogen, with 2 inorganic forms, ammonium ($\ammon$) and nitrate ($\nitr$) in water. Algae are able to take up these into a store ($\Ns$) for conversion into fixed nitrogen ($\Nf$), i.e. biomass nitrogen. These 4 nitrogen pools (all with units of mg N m$^{-3}$), plus Detritus, D in g dw m$^{-3}$are the state variables of the model. An additional teschnical state variable , Yield, tracks the quantity of macroalgal material harvested (detailed in Section \@ref(harvest)) 
+The model presented here is based on the model of @Hadley2015, which follows @Aldridge2009 and further @Solidoro1997. The model currency is nitrogen, with 2 inorganic forms, ammonium ($\ammon$) and nitrate ($\nitr$) in water. Algae are able to take up these into a store ($\Ns$) for conversion into fixed nitrogen ($\Nf$), i.e. biomass nitrogen. These 4 nitrogen pools (all with units of mg N m$^{-3}$), plus Detritus, D in g dw m$^{-3}$are the state variables of the model. An additional teschnical state variable , Yield, tracks the quantity of macroalgal material harvested (detailed in Section \@ref(harvest)) 
 
 ### Farm dimensions and nutrient supply {#farm}
 
-A farm (Fig. \@ref(fig:farm)) is described by its horizontal and vertical dimensions. Horizonal dimensions are aligned to a notional flow direction, where $\xfarm$ and $\yfarm$ are the sizes of the farm in the flow direction and perpendicular to the flow direction, respectively. For the current application these would typically be fixed at the size of the grid box (1000m). A farm density term, $\dens$, defines the proportion of the total farm area where seaweed is growing (to account for spacing between lines or cages, plus space for access or the transit of other marine craft through the farm area). Typically this value should be no greater than 40% [@vanderMolen]. In order to maximise nutrient availabilty, macroalgal lines are assumed to extend to the full width of the farm perpendicular to flow ($\yfarm$) with notional spacing between lines in the x direction allowing for a density < 1.
+A farm (Fig. \@ref(fig:farm)) is described by its horizontal and vertical dimensions. Horizonal dimensions are aligned to a notional flow direction, where $\xfarm$ and $\yfarm$ are the sizes of the farm in the flow direction and perpendicular to the flow direction, respectively. For the current application these would normally be fixed at the size of the grid box (1000m). A farm density term, $\dens$, defines the proportion of the total farm area where seaweed is growing (to account for spacing between lines or cages, plus space for access or the transit of other marine craft through the farm area). Typically this value should be no greater than 40% [@vanderMolen2018]. In order to maximise nutrient availabilty, macroalgal lines are assumed to extend to the full width of the farm perpendicular to flow ($\yfarm$) with notional spacing between lines in the x direction allowing for a density < 1.
 
 ![(#fig:farm) Schematic of macroalgal farm](images/farm.png)
 
@@ -165,16 +166,18 @@ The cultivation depth, $\zfarm$ is defined as the distance from the water surfac
 
 Where $\hMA$ is the height of the macroaglae (a fixed, species specific parameter). 
 
-The water within the farm volume, extending to the water surface, is considered to be well mixed in all cases. However, the flow of water through the farm horizontally by advection and via vertical mixing introduces new water (and therefore nutrients), affecting both the available concentration of nutrient to drive macroalgal growth and the resulting effect of such growth on the water concentration. Given input terms of horizonal advective flow, $\flow$, and vertical mixing, $t_z$ (both in length units), an effective volume of influence, $Veff$ can be defined as:
+The water within the farm volume, extending to the water surface, is considered to be well mixed in all cases. However, the flow of water through the farm horizontally by advection and via vertical mixing introduces new water (and therefore nutrients), affecting both the available concentration of nutrient to drive macroalgal growth and the resulting effect of such growth on the water concentration. Given input terms of horizonal advective flow, $\flow$, and vertical mixing term, $\tz$ (both in length units), an effective volume of influence, $Veff$ can be defined as:
 
 ```{=tex}
 \begin{equation}
     \displaystyle
-    \Veff = \yfarm.(\xfarm+\flow).(\zfarm+\tz) (\#eq:VMA)
+    \Veff = \yfarm.(\xfarm+\flow).(\zfarm+\tz) (\#eq:Veff)
 \end{equation}
 ```
 
-The ratio $\frac{\VMA}{\Veff}$ is used to scale the nutrient uptake within the farm to the net effect on concentration within the effective volume of water. Furthermore, as nutrient flow will tend to restore nutrient concentration back to the ambient concentration, the inverse term ($\frac{\Veff}{\VMA}$) can be used to determine the nutrient concentration restoration rate to the farm volume, with a maximum value of 1 (per timestep).
+The ratio $\frac{\VMA}{\Veff}$ is used to scale the nutrient uptake within the farm to the net effect on concentration within the effective volume of water. 
+
+We assume that the water column is well mixed to depth $\tz$.  As nutrient flow will tend to restore nutrient concentration back to the ambient concentration, the ratio of advective flow to farm length in the direction of flow  ($\frac{\flow}{\xfarm}$) can be used to determine the nutrient concentration restoration rate to the farm volume,with a maximum value of 1 (per timestep).
 
 Ammonium and nitrate concentration in the model are a function of the restoration of nutrients to ambient concentration by the input of new water, their biomass-specific uptake by seaweed ($f(\NXx,Q).B$); remineralisation of detrital material, $\rlD$; nitrification of $\ammon$ to $\nitr$ ($\rnN$); and a mortality term, $\dmNf$,  that returns stored nitrogen to the ammonium pool. 
 
@@ -182,14 +185,14 @@ Ammonium and nitrate concentration in the model are a function of the restoratio
 ```{=tex}
 \begin{equation}
     \displaystyle
-    \frac{d\mathrm{NH_4}}{dt}=\min(1,\frac{\Veff}{\VMA}).(\ammonext-\ammon)+(\rlD  + \dmNf - f(\ammon,Q).B - \rnN).\frac{\VMA}{\Veff} (\#eq:NH4dt)
+    \frac{d\mathrm{NH_4}}{dt}=\min(1,\frac{\flow}{\xfarm}).(\ammonext-\ammon)+(\rlD  + \dmNf - f(\ammon,Q).B - \rnN).\frac{\VMA}{\Veff} (\#eq:NH4dt)
 \end{equation}
 ```
 
 ```{=tex}
 \begin{equation}
     \displaystyle 
-    \frac{d\mathrm{NO_3}}{dt}=\min(1,\frac{\Veff}{\VMA}).(\nitrext-\nitr)+(\rnN - f(\nitr,Q).B).\frac{\VMA}{\Veff} (\#eq:NO3dt)
+    \frac{d\mathrm{NO_3}}{dt}=\min(1,\frac{\flow}{\xfarm}).(\nitrext-\nitr)+(\rnN - f(\nitr,Q).B).\frac{\VMA}{\Veff} (\#eq:NO3dt)
 \end{equation}
 ```
 
@@ -219,14 +222,14 @@ Finally, the detrital pool is determined from the inflow of detrital material, t
 ```{=tex}
 \begin{equation}
     \displaystyle 
-    \frac{d\D}{dt}=\min(1,\frac{\Veff}{\VMA}).(\D_{ext}-\D)+ (\dmNf- \rlD).\frac{\VMA}{\Veff} (\#eq:D)
+    \frac{d\D}{dt}=\min(1,\frac{\flow}{\xfarm}).(\D_{ext}-\D)+ (\dmNf- \rlD).\frac{\VMA}{\Veff} (\#eq:D)
 \end{equation}
 ```
 
 
 ### Growth dynamics {#growth}
 
-Uptake from inorganic nutrients into the fixed nitrogen pool, $\Nf$ is controlled by standard Monod / Michaelis Menten kinetics, whereby the uptake is dependent on the maximum specific uptake rate $\VNXx$ per unit biomass, the concentration of $\ammon$/$\nitr$ and the half-saturation constant for the species of interest ($\KNXx$), scaled between minimum and maximum value by the internal nutrient quota, Q:
+Uptake from inorganic nutrients into the fixed nitrogen pool, $\Nf$ is controlled by standard Monod / Michaelis Menten kinetics, whereby the uptake is dependent on the maximum specific uptake rate $\VNXx$ per unit biomass, the concentration of $\ammon$ or $\nitr$ and the half-saturation constant for the species of interest ($\KNXx$), scaled between minimum and maximum value by the internal nutrient quota, Q:
 
 ```{=tex}
 \begin{equation}
@@ -253,7 +256,7 @@ where $\gQ$ scales the maximum growth rate according to the internal nutrient re
 \end{equation}
 ```
 
-The temperature scaling term used by @Hadley2015 only inhibits growth at temperatures below the optimum temperature, $\To$. However, it is well known that macroalgal species growth rate declines also at temperatures above their optimum. Therefore we adapt the scheme of @Martin2002 which has a 'bell curve' temperature dependence.
+The temperature scaling term used by @Hadley2015 only inhibits growth at temperatures below the optimum temperature, $\To$. However, it is well known that macroalgal species growth rate declines also at temperatures above their optimum. Therefore we adapt the scheme of @Martins2002 which has a 'bell curve' temperature dependence.
 
 ```{=tex}
 \begin{equation}
@@ -265,7 +268,7 @@ The temperature scaling term used by @Hadley2015 only inhibits growth at tempera
 
 Where $\Tx=\Tmax$ for $\T>\To$ and $\Tx=\Tmin$ for $\T<\To$.
 
-The light-dependent scaling as described by @Hadley2015 could not be successfully implemented here, possibly due to a reporting error in their paper (see appendix). 
+The light-dependent scaling as described by @Hadley2015 could not be successfully implemented here, possibly due to a reporting error in their paper. We therefore adopt the light scheme of @Zollmann2021, which includes attentuation of light through the water column and due to self-shading by the macroalgae. We further consider the additional length of light path due to solar incidence angle as described in the follow equations. 
 
 The daily maximum angle of incident light is calculated as a function of latitude (L) and ordinal day of the year ($\dord$):
 
@@ -310,17 +313,20 @@ The growth scaling function $\gE$ is then
 
 ## model structure and ins/outs
 
-The model is implemented as a series of differential equations,solved in R using the `deSolve` package [@deSolve] in file `macroalgae_model.R` (see Section \@ref(model) ). The same file also contains functions for creating time-varying forcing functions from input data (Section \@ref(forcings)); and functions for managing harvesting of the macroalgae under various management options \@ref(harvest). 
+The model is implemented as a series of differential equations,solved in R using the `deSolve` package [@Soetaert2010] in file `macroalgae_model.R` (see Section \@ref(model) ). The same file also contains functions for creating time-varying forcing functions from input data (Section \@ref(forcings)); and functions for managing harvesting of the macroalgae under various management options (Section \@ref(harvest)). 
 
-For testing or other individual runs, the model can be initialised and run using the run_MA.R script in the same directory as the model code. When operationalised within the wider modelling environment it will be initialised and run from a pything script which will pass boundary forcings, parameter values and run control settings directly to the model and retrieve outputs. 
+For testing or other individual runs, the model can be initialised and run using the `run_MA.R` script in the same directory as the model code. When operationalised within the wider modelling environment it will be initialised and run from a python script which will pass boundary forcings, parameter values and run control settings directly to the model and retrieve outputs. 
 
 ### Parameter values {#params}
 
-#### Species-specific macroalgal parameters
+#### Macroaglal species-specific parameters
 
-Species-specific algal parameters are listed in Table \@ref(tab:algaeparams).
-```{r algaeparams, echo=FALSE}
+Species-specific algal parameters are listed in Table \@ref(tab:algaeparams). [NB In a future version of this document we will need to provide justification for parameter value selection for each species - final parameter values to be determined]
+
+
+```{r algaeparams, echo=FALSE, message=FALSE}
  source("run_MA.R")
+source("bantry_run.R")
 nicenames<-c("$\\mu$","$\\VNHfour$","$\\VNOthree$","$\\KNHfour$","$\\KNOthree$","$\\Qmax$","$\\Qmin$","$\\NP$","$\\Kc$","$\\To$","$\\Tmin$","$\\Tmax$","$\\Isat$","$\\acs$","$\\dm$","$\\hMA$","$\\wMA$","$\\rl$","$\\rN$")
 descriptions<-c('maximum specific growth rate',
                 'maximum ammonium uptake rate',
@@ -361,8 +367,48 @@ units<-c("$\\perday$",
          "$\\perday$",
          "$\\perday$"         )
 
-algaeparams<-data.frame(parameter=nicenames,description=descriptions,units=units,ulva=as.character(as.numeric(default_parms_ulva)),saccharina=as.character(as.numeric(default_parms_saccharina)))
+algaeparams<-data.frame(parameter=nicenames,description=descriptions,units=units,ulva=as.character(as.numeric(parms_ulva)),saccharina=as.character(as.numeric(parms_saccharina)),alaria=as.character(as.numeric(parms_alaria)))
  knitr::kable(algaeparams, format='latex',escape=FALSE,caption = 'Species specific parameter values for macroalgae, including default values for ulva and alaria ')
+ 
+ 
+```
+
+### Farm parameters {#farmparams}
+
+Parameter values controlling the dimensions of the farm are summarised in Table \@ref(tab:farmoparams)
+
+```{r farmoparams, echo=FALSE}
+  source("run_MA.R")
+
+  farmoparams<-data.frame(
+    parameter=names(unlist(allparams$algae$farm_parameters)), 
+    description=as.character(lapply(allparams$algae$farm_parameters_description, `[[`, 1)),
+    units=as.character(lapply(allparams$algae$farm_parameters_description, `[[`, 2))
+  )
+   knitr::kable(farmoparams,caption = 'Macroalgae farm parameters')
+ 
+ 
+```
+
+
+
+### Harvesting {#harvest}
+
+The modelled seaweed is harvested in order to quantify the potential yield of the farm. This is an important feature of the model as growth is non-linear with biomass, with light inhibition becoming significant at higher biomass density and so the act of harvesting directly affects productivity. Harvesting in implemented in the model by means of an event fuction transferring biomass nitrgen, $\Ns$ to the Yield state variables, triggered by time-dependent root-finding function controlled by the havesting parameters passed to the model (Table \@ref(tab:harvestoptions)). 
+
+Macroalgae harvesting strategies are varied, depending on species, local conditions and also local traditions or norms, as well as the end-use of the produce (energy, food, specific organic molecules etc) [@Lehahn2016]. These vary from 'cut and come again' harvesting at various frequencies to a single annual harvest in spring after planting in autumn, followed by a 'fallow' period over the summer [@Hadley2015; @aitken2014;]. Typically the reason for the latter strategy is the combination of higher temperatures and grazing pressure leading to little capacity for growth in the summer months. The model is set up with both of these harvesting modes as options and the default parameter values for each harvesting mode are listed in Table \@ref(tab:harvestoptions).
+
+```{r harvestoptions, echo=FALSE}
+  source("run_MA.R")
+
+  harvestoptions<-data.frame(
+    parameter=names(unlist(allparams$algae$harvest_parameters$Winter_growth)), 
+    Spring_harvest=as.character(as.numeric(unlist(allparams$algae$harvest_parameters$Winter_growth))),
+    Continuous_harvest=as.character(as.numeric(unlist(allparams$algae$harvest_parameters$CCA))),
+    description=as.character(lapply(allparams$algae$harvest_parameters_description, `[[`, 1))
+    #units=as.character(lapply(allparams$algae$harvest_parameters_description, `[[`, 2))
+  )
+   knitr::kable(harvestoptions,caption = 'Harvest parameters')
  
  
 ```
@@ -370,11 +416,11 @@ algaeparams<-data.frame(parameter=nicenames,description=descriptions,units=units
 
 ### Environmental forcings {#forcings}
 
-Environmental forcings can be time-varying or constant and are passed to the model as vectors (for time-varying) or single values (for constant). The model initialisation then creates interpolating forcing functions using the `stats::approxfun` function, allowing the ODE solver to access forcing values at any point in time. For most forcings the value is linearly interpolated  between daily values, but for advection and vertical mixing focings the values are implemented as constant values for each day [THIS IS STILL TO DO!]. 
+Environmental forcings can be time-varying or constant and are passed to the model as vectors (for time-varying) or single values (for constant). The model initialisation then creates interpolating forcing functions using the `stats::approxfun` function, allowing the ODE solver to access forcing values at any point in time. For most forcings the value is linearly interpolated  between daily values, [but for advection and vertical mixing focings the values are implemented as constant values for each day THIS IS STILL TO DO!]. 
 
 Table \@ref(tab:forcings) summarises the environmetal forcings expected by the model. 
 
-```{r forcings}
+```{r forcings, echo=FALSE}
 forcings<-data.frame(
   forcing = c('PAR',
               'SST',
@@ -402,7 +448,7 @@ forcings<-data.frame(
             '$\\degc$C',
                   '$\\Nconcnunits$',
                   '$\\Nconcnunits$',
-                  '$\\Nconcnunits$',
+                  '$\\mu$M',
                   'm$^{-1}$',
                   'm d$^{-1}$',
                   'm',
@@ -414,22 +460,24 @@ knitr::kable(forcings, format='latex',escape=FALSE,caption = 'Environmental forc
 
 ```
 
+In order for the model to  deliver harvested yields, it must be run for 2 full years. For the single over-winter deployment this is necessary as we need to run the model over a winter (between years 1 and 2) and in the case of continuous harvesting, the first year can be considered a 'spin up' to give a best estimate of output in year 2. Note we do not suggest that it is possible in reality to deploy a line of seaweed and contrinually harvest biomass from it in all or even some European seas. However, this harvesting strategy approaches something like a maximum theroetical capacity for production of a specific species of macroalgae.   
 
+The model can be run with either daily data for specific years or, preferably for our current application, with 2 identical years of climatology data with representative values of the past decade or so. 
 
 #### Photosynthetically active radiation (PAR) {#par}
 
-PAR data is derived from XXX? The nature of this data means that missing values are not uncommon, particularly in winter months. We therefore substitute data based on modelled clear sky PAR calculated according to the scheme of @Gregg1990. The function `modelled_par` in R script `calc_par.R` calculates daily mean par given latitude using the `atmos` package which implemented the @Gregg1990 model. 
+The nature of this data means that missing values are not uncommon, particularly in winter months. We therefore substitute data based on modelled clear sky PAR calculated according to the scheme of @Gregg1990. The function `modelled_par` in R script `calc_par.R` calculates daily mean par given latitude using the `atmos` package which implemented the @Gregg1990 model. 
 
 In order to represent PAR after accounting for cloud cover on days where data is absent, we scale the modelled par by a scaling factor randomly sampled from a normal distribution with the mean and standard deviation calculated from the par in observed data for the same location, normalised to the modelled clear-sky PAR. The function `substitute_par` in `calc_par.R` is used to make this data substitution.
 
-```{r substitute_par}
+```{r substitute_par, messages=FALSE}
 source('calc_par.R')
 substitute_par
 ```
-Fig \@ref(fig:parsubs)
+Fig \@ref(fig:parsubs) show the output of the data substitution, and highlights the excellent agreement between theoretical and observed celar-sky PAR.   
 
-```{r parsubs, echo=FALSE, fig.cap='Bantry Bay par data (red points) with substituted data highlighed (black circles). Modelled clear-sky par shown as solid line'}
-source('bantry_run.R')
+```{r parsubs, echo=FALSE,messages=FALSE, fig.cap='Bantry Bay par data (red points) with substituted data highlighed (black circles). Modelled clear-sky par shown as solid line'}
+#source('bantry_run.R')
 
 plot(bantry$par,xlab='doy',ylab='par / umol/m2/s',pch='.',col='red',cex=2)
 lines(par_GC$par_GC)
@@ -437,19 +485,33 @@ bp<-bantry$par
 bp[which(!is.na(obspar))]<-NA
 points(bp)
 
-
-
 ```
 
-### Harvesting functions and yield calculation {#harvest}
 
-### Model ins and outs {#inouts}
 
-### Run control parameters
+### Model Output {#outs}
+
+By default, the model run outputs a dataframe with 1 row per time point and with all output fields, as well as all input data reproduced, in separate columns. Otherwise, a call to `run_MA_model` with any non-default value of the `output` argument will result in the standard output from the ODE solver being sent. Outputs from the model are summarised in Table \@ref(tab:modelouts).
+
+```{r modelouts, echo=FALSE}
+  
+
+  modelouts<-data.frame(
+    variable=c("model_time","NH4","NO3","N_s","N_f","D","Yield_farm","Yield_per_m","Nf_change","Farm_NO3_demand","Farm_NH4_demand","V_EFF","volscale","Q","B_vol","B_line","g_Q","g_T","g_E","mu_g_EQT","f_NH4","f_NO3"), 
+    description=c("time points of model output","NH4 concentration in effective volume after farm influence","NO3 concentration in effective volume after farm influence","Stored nitrogen","Fixed nitrogen biomass","Detrital N produced by farm","Total harvest yield for the farm","Harvest yield per linear metre","Change in fixed nitrogen pool during timestep","Total farm nitrate demand during timestep","Total farm ammonium demand during timestep","Effective volume of influence of farm","Volume scaling factor i.e. V_EFF/V_MA","Nitrogen quota","Biomass per unit volume","Biomass per linear metre","Nutrient-controlled growth scaling factor","Temperature-controlled growth scaling factor","Ligh-controlled growth scaling factor","Fixed N biomass specific growth rate of macroalgae","Ammonium uptake per unit biomass","Nitrate uptake per unit biomass"),
+    units=c("days","mg N m^{-3}","mg N m^{-3}","mg N m^{-3}","mg N m^{-3}","mg N m^{-3}","g DW","g DW m^{-1}","mg N m^{-3}","mg N","mg N","m^3","","mg N (g DW)^{-1}","g DW m^{-3}","g DW m^{-1}","","","","d^{-1}","mg N (g DW)^{-1} d^{-1}","mg N (g DW)^{-1} d^{-1}")
+  )
+   knitr::kable(modelouts,caption = 'Model output')
+ 
+ 
+```
+
+#### Post-processing
+A post-processing step will be necessary to capture key outputs of the model in the correct format for feeding forward into the nutrient transport model, scenario-driven farm placement, and the digital maps of model output. Specifically, a single seaweed yield data will need to be extracted from harvesting data, which in the case of continuous harvesting will need to be the yield accumulated in the second year of the simulation. Detrital material will be instantaneously remineralised to $\ammon$ for the purposes of the nutrient transport models. Net greehouse gas emissions for the farm could also be calculated in the post-processing step. 
 
 ## Characterising model behaviour
 
-Model behaviour is characterised by considering 4 regime types which challenge the model to work at the extreme cases of nutrient concentration and availabilty: 1) low nutrient, low flow; 2) high nutrient, low flow; 3) low nutrient, high flow and 4) high nutrient high flow. The model is run with default parameter set for ulva and all other parameters set to default values (Section \@ref(params)). Input values are simulated sinusoidal parameters representing annual cycles for PAR, ammonium  and nitrate. Phosphate is kept in excess. Fixed values of the other forcings are used. Common to all runs, PAR varies betweem 200 and 1000 $\mathrm{\mu mol m{^{-3}} s{^{-1}}}$, $\Kd$ is fixed at 0.1 m$^{-1}$ and latitude (used to calculate solar angle) is 50 degrees. The remaining forcings differ between each run and are summarised in Table \@ref(tab:refruns).
+Model behaviour is characterised by considering 4 regime types which challenge the model to work at the extreme cases of nutrient concentration and availabilty: 1) low nutrient, low flow; 2) high nutrient, low flow; 3) low nutrient, high flow and 4) high nutrient high flow. The model is run with default parameter set for ulva and all other parameters set to default values (Section \@ref(params)). Input values are simulated sinusoidal parameters representing annual cycles for PAR, ammonium  and nitrate. Phosphate is kept in excess. Fixed values of the other forcings are used. Common to all runs, PAR varies betweem 200 and 1000 $\mathrm{\mu mol m{^{-3}} s{^{-1}}}$, $\Kd$ is fixed at 0.1 m$^{-1}$ and latitude (used to calculate solar angle) is 50 degrees. The remaining forcings differ between each run and are summarised in Table \@ref(tab:refruns). Reference runs are conducted under each harvesting regime (no harvesting, single harvest in spring and continuous harvest, using the default harvest parameters outlined in Table \@ref(tab:harvestoptions) above).
 
 
 ```{r refruns, echo=FALSE}
@@ -468,6 +530,7 @@ source("run_MA.R")
  
 ```
 
+### No harvest reference runs
 Selected model outputs for each of the four reference runs are presented in Fig. \@ref(fig:refruns2). These demonstrate a number of important characteristics of the model (which are also characteristic of macroalgal growth in reality). Firstly it is clear from panel B (dry weight of biomass in g per metre of rope) that flow rate has a much more significant role to play than concentration in driving total biomass production. This is due to seaweed (particularly ulva's) ability to rapidly take up nutrients into its internal store evan at relatively low concentrations. Therefore, with high flow the seaweed can keep its internal store full (Q approaches $\Qmax$, panel C) while growing through the winter. In the high nutrient high flow environment this can be maintained year-round and productivity is limited only by temperature and light availability (and the intrinsic growth parameters of the seaweed species being modelled). In the low nutrient high flow scenario the macroalgae relies partially on its internal nutrient reserve in the summer and Q therefore reduces, leading to somewhat slower growth. However in the low flow environment, resupply of nutrient strongly limits uptake and growth, with low biomass yields and Q -> $\Qmin$. To first order, flow rate therfore will be the main determinant of yield for a given species and the importance of properly constraining nutrient uptake and assimilation parameters is key for predicting realistic yields. 
 
 ```{r refruns2, echo=FALSE, fig.cap='Reference runs of the model showing a) NH4 concentration in farm outflow, b) nitrate concentration in farm outflow, c) biomass (dry weight) per linear metre and d) nutrient quota, Q of the macroalgal biomass'}
@@ -476,10 +539,10 @@ library(patchwork)
  source("run_MA.R")
 
 
-  lnlf_out<-as.data.frame(reference_run(lnlf))
-  hnlf_out<-as.data.frame(reference_run(hnlf))
-  lnhf_out<-as.data.frame(reference_run(lnhf))
-  hnhf_out<-as.data.frame(reference_run(hnhf))
+  lnlf_out<-as.data.frame(reference_run(lnlf,test_parms_ulva))
+  hnlf_out<-as.data.frame(reference_run(hnlf,test_parms_ulva))
+  lnhf_out<-as.data.frame(reference_run(lnhf,test_parms_ulva))
+  hnhf_out<-as.data.frame(reference_run(hnhf,test_parms_ulva))
   lnlf_out$run<-'lnlf'
   lnhf_out$run<-'lnhf'
   hnlf_out$run<-'hnlf'
@@ -518,23 +581,139 @@ b<-  ggplot(refruns) +
  
 ```
 
+### Reference runs with harvesting
+Results of the reference runs with harvesting are presented in Fig. \@ref(fig:refrunCCA) (continuous harvest) and Fig. \@ref(fig:refrunWinter) (single harvest in spring). 
+
+```{r refrunCCA, echo=FALSE, fig.cap='Reference runs of the model with continuous harvesting implemented showing a) NH4 concentration in farm outflow, b) nitrate concentration in farm outflow, c) biomass (dry weight) per linear metre and d) Yield from harvesting per linear metre'}
+library(ggplot2)
+library(patchwork)
+ source("run_MA.R")
+
+
+lnlf_CCA_out<-as.data.frame(reference_run(lnlf,c(test_parms_ulva,parms_ref_harvest_run_CCA),harvest=TRUE))
+hnlf_CCA_out<-as.data.frame(reference_run(hnlf,c(test_parms_ulva,parms_ref_harvest_run_CCA),harvest=TRUE))
+lnhf_CCA_out<-as.data.frame(reference_run(lnhf,c(test_parms_ulva,parms_ref_harvest_run_CCA),harvest=TRUE))
+hnhf_CCA_out<-as.data.frame(reference_run(hnhf,c(test_parms_ulva,parms_ref_harvest_run_CCA),harvest=TRUE))
+
+  lnlf_CCA_out$run<-'lnlf'
+  lnhf_CCA_out$run<-'lnhf'
+  hnlf_CCA_out$run<-'hnlf'
+  hnhf_CCA_out$run<-'hnhf'
+  
+  refruns<-rbind(lnlf_CCA_out,hnlf_CCA_out,lnhf_CCA_out,hnhf_CCA_out)
+  
+ a<- ggplot(refruns) +
+ aes(x = time, y = NH4, colour = run) +
+ geom_point(shape = "circle", size = 0.7) +
+ scale_color_hue(direction = 1) +
+ theme_minimal()
+b<-  ggplot(refruns) +
+ aes(x = time, y = NO3, colour = run) +
+ geom_point(shape = "circle", size = 0.7) +
+ scale_color_hue(direction = 1) +
+ theme_minimal()
+  c<-  ggplot(refruns) +
+ aes(x = time, y = B_line, colour = run) +
+ geom_point(shape = "circle", size = 0.7) +
+ scale_color_hue(direction = 1) +
+ theme_minimal()  
+ d<-   ggplot(refruns) +
+ aes(x = time, y = Yield_per_m, colour = run) +
+ geom_point(shape = "circle", size = 0.7) +
+ scale_color_hue(direction = 1) +
+ theme_minimal()
+  
+ a+b+c+d
+  
+
+
+
+ 
+ 
+ 
+```
+
+```{r refrunWinter, echo=FALSE, fig.cap='Reference runs of the model with winter growth and late spring harvesting implemented, showing a) NH4 concentration in farm outflow, b) nitrate concentration in farm outflow, c) biomass (dry weight) per linear metre and d) Yield from harvesting per linear metre'}
+library(ggplot2)
+library(patchwork)
+ source("run_MA.R")
+
+
+lnlf_Winter_out<-as.data.frame(reference_run(lnlf,c(test_parms_ulva,parms_ref_harvest_run_winter_growth),harvest=TRUE))
+hnlf_Winter_out<-as.data.frame(reference_run(hnlf,c(test_parms_ulva,parms_ref_harvest_run_winter_growth),harvest=TRUE))
+lnhf_Winter_out<-as.data.frame(reference_run(lnhf,c(test_parms_ulva,parms_ref_harvest_run_winter_growth),harvest=TRUE))
+hnhf_Winter_out<-as.data.frame(reference_run(hnhf,c(test_parms_ulva,parms_ref_harvest_run_winter_growth),harvest=TRUE))
+
+  lnlf_Winter_out$run<-'lnlf'
+  lnhf_Winter_out$run<-'lnhf'
+  hnlf_Winter_out$run<-'hnlf'
+  hnhf_Winter_out$run<-'hnhf'
+  
+  refruns<-rbind(lnlf_Winter_out,hnlf_Winter_out,lnhf_Winter_out,hnhf_Winter_out)
+  
+ a<- ggplot(refruns) +
+ aes(x = time, y = NH4, colour = run) +
+ geom_point(shape = "circle", size = 0.7) +
+ scale_color_hue(direction = 1) +
+ theme_minimal()
+b<-  ggplot(refruns) +
+ aes(x = time, y = NO3, colour = run) +
+ geom_point(shape = "circle", size = 0.7) +
+ scale_color_hue(direction = 1) +
+ theme_minimal()
+  c<-  ggplot(refruns) +
+ aes(x = time, y = B_line, colour = run) +
+ geom_point(shape = "circle", size = 0.7) +
+ scale_color_hue(direction = 1) +
+ theme_minimal()  
+ d<-   ggplot(refruns) +
+ aes(x = time, y = Yield_per_m, colour = run) +
+ geom_point(shape = "circle", size = 0.7) +
+ scale_color_hue(direction = 1) +
+ theme_minimal()
+  
+ a+b+c+d
+  
+
+
+
+ 
+ 
+ 
+```
 
 ## Model validation
 
-Model validation will be carried out in 2 steps. Firstly, the model will be used to reproduce seaweed yeild data from sites around Euro where local environmental data (nutrients, flow, temperature) are available. These sites will capture as great a range of environemntal conditions as possible. The work to find relevant datasets is ongoing. These datasets will be used to perform a validation/tuning exercise to ensure that the model is producing reasonable results when the environmental conditions are well constrained. However there are limited data available and we expect only to be able to find a handfl of sites with some or all of the necessary data. Therefore in a second step, yield-only data, which is somewhat more easily available, will be used along with environmental focings derived from CMEMS via the Argans platform will to drive the model, thereby validating both the model and the environmental data from CMEMS. While we might not expect strong quantitative agreement we would hope for order-of-magnitude level model ability and, importantly, good relative agreement between different sites. This work will be ongoing in the second half of the project (post April).
+Model validation will be carried out in 2 steps. Firstly, the model will be used to reproduce seaweed yeild data from sites around Euro where local environmental data (nutrients, flow, temperature) are available. These sites will capture as great a range of environemntal conditions as possible. The work to find relevant datasets is ongoing. These datasets will be used to perform a validation/tuning exercise to ensure that the model is producing reasonable results when the environmental conditions are well constrained. However there are limited data available and we expect only to be able to find a handfl of sites with some or all of the necessary data. Therefore in a second step, yield-only data, which is somewhat more easily available, will be used along with environmental focings derived from CMEMS via the Argans platform to drive the model, thereby validating both the seaweed model and the use of environmental data from CMEMS. While we might not expect strong quantitative agreement we would hope for order-of-magnitude level model ability and, importantly, good relative agreement between different sites. This work will be ongoing in the second half of the project (post April).
 
-For now, a test run using CMEMS data for Bantry bay is used to demonstrate realistic model behaviour. CMEMS data for 2020-2021 is used to drive the model with a parameter set representative of saccharina sp. The model is driven by modelled water current speed, nutrients, temperature and satellite-retrieved PAR (where data gaps exist, substitution is performed for par data according to Section \@ref(par)). Depth of water mixing ($\tz$) is set to 10m and the light attenuation coefficient is set to 0.1 (d$^{-1}$). Figure \@ref(fig:bantry_run) presents the full output of the model. 
+For now, a test run using CMEMS data for Bantry bay is used to demonstrate realistic model behaviour. CMEMS data for 2020-2021 is used to drive the model with a parameter set representative of alaria sp. The model is driven by CMEMS water current speed, nutrients, temperature and satellite-retrieved PAR (where data gaps exist, substitution is performed for par data according to Section \@ref(par)). Depth of water mixing ($\tz$) is set to 10m and the light attenuation coefficient is set to 0.1 (d$^{-1}$). Figure \@ref(fig:bantryrun) presents the full output of the model. 
 
-```{r bantry_run, echo=FALSE, fig.cap='Bantry bay test model run driven by CMEMS and satelite data'}
+```{r bantryrun, echo=FALSE, fig.cap='Bantry bay test model run driven by CMEMS and satelite data'}
 
 source('bantry_run.R')
-plot(bantry_run,cex.axis=0.5, cex.main=0.6)
+plot_bantry_results(bantry_run)
 
   
 ```
 
+The $\flow$ into the farm is variable throughout the year, with a mean value of `r mean(bantry_run$F_in/1000)` km/d. This makes mean $\Veff$ around 60 times the volume of the macroalgae ($\VMA$). Therefore we can consider this as a high flow environment (!) with a very large effective volume. As such, the farm only has a moderate impact on the ambient nutrient concentration in spite of high productivity. It is interesting to note that without harvesting, where mortality leads to a significant loss of biomass through mortality (and subsequent release of $\ammon$ from $\Ns$) in the summer months, that the farm can act as a net source of ammonium to the water relative to the ambient concentration (i.e. the farm converts nitrate to ammonium). When harvesting is implemented (Figs.  \@ref(fig:bantryCCArun) and \@ref(fig:bantryspringharvestrun)), this does not occur as biomass is always undergoing net growth. 
+```{r bantryCCArun, echo=FALSE, fig.cap='Bantry bay test model run driven by CMEMS and satelite data, with continuous harvesting'}
 
- 
+
+plot_bantry_results(bantry_CCA_run, harvest=TRUE)
+
+  
+```
+
+  The more realistic harvesting scenario, comparable to real-world practice in Bantry bay, is the autumn deployment-spring harvest run, shown in Fig. \@ref(fig:bantryspringharvestrun). Here, the yield of Alaria is `r max(bantry_spring_harvest_run$Yield_per_m)/1000` kg dry weight  per m of line, which equates to roughly `r max(bantry_spring_harvest_run$Yield_per_m)/100` kg wet weight. For comparison, optimal yields of alaria in Bantry Bay are of the order of 20kg wet weight so this is represents reasonable model performance. 
+
+```{r bantryspringharvestrun, echo=FALSE, fig.cap='Bantry bay test model run driven by CMEMS and satelite data, with autumn deployment and spring harvest'}
+
+
+plot_bantry_results(bantry_spring_harvest_run, harvest=TRUE)
+
+  
+```
  
  
 

@@ -339,10 +339,10 @@ reference_run <- function(input_data,nondefault_parms,harvest=FALSE){
 #hnhf_out<-reference_run(hnhf,test_parms_ulva)
 
 
-#lnlf_harvest_out<-reference_run(lnlf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
-#hnlf_harvest_out<-reference_run(hnlf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
-#lnhf_harvest_out<-reference_run(lnhf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
-#rrhnhf_harvest_out<-reference_run(hnhf,c(test_parms_ulva,parms_ref_harvest_run_winter_growth),harvest=TRUE)
+# lnlf_harvest_out<-reference_run(lnlf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
+# hnlf_harvest_out<-reference_run(hnlf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
+# lnhf_harvest_out<-reference_run(lnhf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
+# hnhf_harvest_out<-reference_run(hnhf,c(test_parms_ulva,parms_ref_harvest_run_winter_growth),harvest=TRUE)
 
 
 

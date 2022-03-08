@@ -148,6 +148,7 @@ run_MA_model<-function(input,parameters,y0,output='df'){
   
   if(output=='df'){
     Out.<-as.data.frame(Out)
+    colnames(Out.)[1]<-c('model_time')
     cbind(input,Out.)
   } else {Out}
 }
