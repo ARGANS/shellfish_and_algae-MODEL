@@ -73,7 +73,7 @@ allparams<-fromJSON(file='model_parameters.json')
 
 parms_ulva<-unlist(allparams$algae$species$ulva$parameters)
 parms_saccharina<-unlist(allparams$algae$species$saccharina$parameters)
-parms_porphyra<-unlist(allparams$algae$species$porphyra$parameters)
+parms_alaria<-unlist(allparams$algae$species$alaria$parameters)
 
 default_parms_farm<-unlist(allparams$algae$farm_parameters)
 default_parms_run<-unlist(allparams$algae$run_parameters)
