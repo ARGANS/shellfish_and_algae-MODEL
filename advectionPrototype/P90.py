@@ -5,12 +5,14 @@ import numpy as np
 import netCDF4 as nc
 import matplotlib.pyplot as plt
 import pandas as pd
+from dataread.read_netcdf import extractWithAverage, extractVarSubset
+from saveAsTiff import getMetadata, saveAsTiff
 
 data = 'Nitrate'
 mergedFilePath = 'I:/work-he/apps/safi/data/IBI/merged_files/'
 dataCmdpath = 'I:/work-he/apps/safi/data/IBI/dataCmd.csv'
 depth = 3
-from dataread.read_netcdf import extractWithAverage, extractVarSubset
+
 
 #extract the data value at depth in the merged files (all the daily data merged in one file)
 def getwantedMergeData(data,depth,dataCmdpath,mergedFilepath = 'I:/work-he/apps/safi/data/IBI/merged_files/'):
@@ -26,19 +28,22 @@ def getwantedMergeData(data,depth,dataCmdpath,mergedFilepath = 'I:/work-he/apps/
                 fn = mergedFilepath + f[i]
                 ncDataset = nc.Dataset(fn)
                 break
-    return extractVarSubset(ncDataset, variable, depth=depth)[0]
+    return extractVarSubset(ncDataset, variable, depth=depth)[0], ncDataset
 
 if __name__ == "__main__":
     initialTime = time.time()
-    averageData = getwantedMergeData(data,depth,dataCmdpath)
+    averageData, ds = getwantedMergeData(data,depth,dataCmdpath)
+    print(np.shape(averageData))
     mask = averageData.mask
     maskposition = np.where(mask == True)  # we get the position of the masked data
     averageData[maskposition] = np.nan
     P90nut = np.percentile(averageData, 10, axis=0)#we compute the 10th percentile
+    xsize, ysize, ulx, uly, xres, yres = getMetadata(ds)
 
     finaltime = time.time() - initialTime
     print('running time : ', finaltime, ' seconds')
-
+    saveAsTiff(P90nut, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/IBI/P902020.tiff")
     fig1, ax1 = plt.subplots()
     plt.imshow(P90nut)
     ax1.invert_yaxis()
