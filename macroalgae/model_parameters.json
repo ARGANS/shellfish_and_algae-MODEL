@@ -102,24 +102,35 @@
             "y_farm"            : 1000,
             "density_MA"        : 0.4,
             "x_farm"            : 1000,
-            "z"                 : 2,
-            "harvest_first"     : 60,
-            "harvest_freq"      : 30,
-            "harvest_threshold" : 0.2,
-            "harvest_fraction"  : 0.75,
-            "deployment_day"    : 2,
-            "deployment_Nf"     : 1000
+            "z"                 : 2
         },
         "farm_parameters_description": {
-            "y_farm"            : ["width of farm perpendicular to flow direction", ""],
+            "y_farm"            : ["width of farm perpendicular to flow direction", "m"],
             "density_MA"        : ["fraction of farm area occupied by algae", ""],
-            "x_farm"            : ["farm length in flow direction", ""],
-            "z"                 : ["cultivation depth", "m"],
-            "harvest_first"     : ["days from start of run to first harvest", ""],
-            "harvest_freq"      : ["days (only used if harvest_method==1)", ""],
-            "harvest_threshold" : ["value of light-dependent growth factor (g_E) at which harvest happens (only used if harvest_method==2)", ""],
-            "harvest_fraction"  : ["fraction of total biomass to harvest (only used if harvest_method != 0)", ""],
-            "deployment_day"    : ["day of deployment of seaweed",""],
+            "x_farm"            : ["farm length in flow direction", "m"],
+            "z"                 : ["cultivation depth", "m"]
+        },
+        "harvest_parameters":{
+            "Winter_growth":{
+                "deployment_day"    : 280,
+                "harvest_first"     : 520,
+                "harvest_freq"      : 1000,
+                "harvest_fraction"  : 1,
+                "deployment_Nf"     : 1000
+            },
+            "CCA":{
+                "deployment_day"    : 2,
+                "harvest_first"     : 65,
+                "harvest_freq"      : 50,
+                "harvest_fraction"  : 0.75,
+                "deployment_Nf"     : 10000 
+            }
+        },
+        "harvest_parameters_description":{
+             "harvest_first"     : ["days from start of run to first harvest", "days"],
+            "harvest_freq"      : ["days bewteen first harvest and subsequent harvests", "days"],
+            "harvest_fraction"  : ["fraction of total biomass to harvest at each harvest", ""],
+            "deployment_day"    : ["days from start of run to deployment of seaweed","days"],
             "deployment_Nf"     : ["amount of seaweed deployed", "mg fixed N per m3 "]
         },
         "run_parameters": {
@@ -127,7 +138,7 @@
             "light_scheme": 4
         },
         "run_parameters_description": {
-            "harvest_method": "options: 0.no harvesting, 1.fixed frequency, 2. light-driven",
+            "harvest_method": "options: 0.no harvesting, 1.single winter deployment, 2. cut and come again",
             "light_scheme": "options 1: Zollman self-shading scheme, 2: simple vertical light no self shading, 3: solar angle light no self shading,4: selfshading with solar angle accounted for."
         }
     },

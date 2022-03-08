@@ -75,15 +75,6 @@ setup_solar_angle<-function(latitude, start_day=0, ndays){
 # harvesting conrol functions - when to plant out and harvest the seaweed
 ## =============================================================================
 
-harvest_limit_rootfunc  <- function(t,y,parms,...){
-  with(as.list(c(y, parms)), {
-    I_top<-PAR(t)*exp(-K_d(t)*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
-    I_av <-(I_top/(K_d(t)*z+N_f*a_cs))*(1-exp(-(K_d(t)*z+N_f*a_cs)))          # calclulate the average irradiance throughout theheight of the farm
-    g_E <- I_av/(((I_s)+I_av))
-    yroot<-c(t-deployment_day,g_E-harvest_threshold) 
-    return(yroot) 
-  })
-}
 
 harvest_timed_rootfunc <- function(t,y,parms,...){
   with(as.list(c(y, parms)), {
@@ -151,7 +142,7 @@ run_MA_model<-function(input,parameters,y0,output='df'){
                              y = y0,
                              parms = parms,
                              events=list(func=harvest_eventfunc, root=TRUE),
-                             rootfun=harvest_limit_rootfunc)
+                             rootfun=harvest_timed_rootfunc)
     Out<-Out_limit_harvest
   }
   

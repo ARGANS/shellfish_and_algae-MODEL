@@ -72,11 +72,15 @@ default_input<- data.frame(
 allparams<-fromJSON(file='model_parameters.json')
 
 parms_ulva<-unlist(allparams$algae$species$ulva$parameters)
-parms_sacchaina<-unlist(allparams$algae$species$saccharina$parameters)
+parms_saccharina<-unlist(allparams$algae$species$saccharina$parameters)
 parms_porphyra<-unlist(allparams$algae$species$porphyra$parameters)
 
 default_parms_farm<-unlist(allparams$algae$farm_parameters)
 default_parms_run<-unlist(allparams$algae$run_parameters)
+
+harvest_CCA_run<-unlist(allparams$algae$harvest_parameters$CCA)
+harvest_winter_growth_run<-unlist(allparams$algae$harvest_parameters$`Winter_growth`)
+
 
 
 
@@ -212,8 +216,8 @@ test_parms_ulva <- c(
   r_N     = 0.1     # nitrification rate            / 1/d
 )
 
-## make full defulat parmaeter set --------
-default_parms<-c(default_parms_run,default_parms_farm,parms_ulva)
+## make full defulat parameter set --------
+default_parms<-c(default_parms_run,default_parms_farm,parms_ulva,harvest_winter_growth_run)
 
 setup_run_parms<-function(default_parms.=default_parms, parms){
   #when calling rum_MA_model from R, use this function to overwrite default parameters as needed
@@ -284,15 +288,21 @@ hnlf<-c(
 
 
 ### override default parms for reference harvest runs
-parms_ref_harvest_run<-c(
-  harvest_method=1
+parms_ref_harvest_run_winter_growth<-c(
+  harvest_method=1,
+  harvest_winter_growth_run
 )
 
+### override default parms for reference harvest runs
+parms_ref_harvest_run_CCA<-c(
+  harvest_method=2,
+  harvest_CCA_run
+)
 
 # reference run function ----------------------------------------
 
 
-reference_run <- function(input_data,nondefault_parms){
+reference_run <- function(input_data,nondefault_parms,harvest=FALSE){
   with(as.list(input_data), {
   time<-1:730
   input_frame<- data.frame(
@@ -308,9 +318,11 @@ reference_run <- function(input_data,nondefault_parms){
     t_z    = t_z
   )
   
-  
-  y0   <- c(NH4=input_frame$NH4_in[1],NO3=input_frame$NO3_in[1],N_s=100,N_f=100,D=0,Yield_farm=0,Yield_per_m=0)
-
+  if(harvest==TRUE){
+    y0   <- c(NH4=input_frame$NH4_in[1],NO3=input_frame$NO3_in[1],N_s=0,N_f=0,D=0,Yield_farm=0,Yield_per_m=0)
+  }else{
+    y0   <- c(NH4=input_frame$NH4_in[1],NO3=input_frame$NO3_in[1],N_s=0,N_f=100,D=0,Yield_farm=0,Yield_per_m=0)
+  }
   
   parms.=setup_run_parms(parms=nondefault_parms)
   run_MA_model(input=input_frame,parameters = parms.,y0=y0,output='odeout')
@@ -321,16 +333,16 @@ reference_run <- function(input_data,nondefault_parms){
 
 
 
-lnlf_out<-reference_run(lnlf,test_parms_ulva)
+#lnlf_out<-reference_run(lnlf,test_parms_ulva)
 #hnlf_out<-reference_run(hnlf,test_parms_ulva)
 #lnhf_out<-reference_run(lnhf,test_parms_ulva)
 #hnhf_out<-reference_run(hnhf,test_parms_ulva)
 
 
-#lnlf_harvest_out<-reference_run(lnlf,c(test_parms_ulva,parms_ref_harvest_run))
-#hnlf_harvest_out<-reference_run(hnlf,c(test_parms_ulva,parms_ref_harvest_run))
-#lnhf_harvest_out<-reference_run(lnhf,c(test_parms_ulva,parms_ref_harvest_run))
-hnhf_harvest_out<-reference_run(hnhf,c(test_parms_ulva,parms_ref_harvest_run))
+#lnlf_harvest_out<-reference_run(lnlf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
+#hnlf_harvest_out<-reference_run(hnlf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
+#lnhf_harvest_out<-reference_run(lnhf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
+#rrhnhf_harvest_out<-reference_run(hnhf,c(test_parms_ulva,parms_ref_harvest_run_winter_growth),harvest=TRUE)
 
 
 
