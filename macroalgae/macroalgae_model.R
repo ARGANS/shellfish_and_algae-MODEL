@@ -148,7 +148,7 @@ run_MA_model<-function(input,parameters,y0,output='df'){
   
   if(output=='df'){
     Out.<-as.data.frame(Out)
-    cbind(input_data,Out.)
+    cbind(input,Out.)
   } else {Out}
 }
 
