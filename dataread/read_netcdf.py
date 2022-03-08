@@ -246,7 +246,7 @@ class ParamData:
         output, _ = extractVarSubset(self.ds, variableName, **newKwargs)
 
         if variableName == self._variableName:
-            output == output * self._unitConversion
+            output = output * self._unitConversion
 
         # Change the output from numeric values to datetime() if we output time
         if variable == 'time':
@@ -407,6 +407,8 @@ if __name__ == "__main__":
     #df = algaeData.getTimeSeriesInMLD(lat, lon, (startDate, endDate), parameters=['Ammonium', 'Nitrate', 'Temperature', 'ocean_mixed_layer_thickness', 'par'])
     #df = algaeData.getTimeSeriesInMLD(lat, lon, (startDate, endDate))
     df = algaeData.getTimeSeries(lat, lon, (startDate, endDate), 3)
+    #df = algaeData.getTimeSeries(lat, lon, (startDate, endDate), 3, parameters=['Ammonium'])
+    df['current_intensity'] = np.sqrt(df['northward_Water_current']**2 + df['eastward_Water_current']**2)
     print(df)
     df.to_csv(mainpath+'Bantry_data/bantry_3m.csv',
               index=False, sep=';')
