@@ -32,22 +32,6 @@ def getdataFromMarineCopernicus(dataInfo, dateBeginning, dateEnd, outputDirector
         python -m motuclient (part of the code prosposed by CMEMS)
     """
     if (np.isnan(dataInfo["depth-min"])):
-        print(f'python -m motuclient '
-            f' --motu {dataInfo["motu"]}'
-            f' --service-id {dataInfo["service-id"]}'
-            f' --product-id {dataInfo["product-id"]}'
-            f' --longitude-min {dataInfo["longitude-min"]}'
-            f' --longitude-max {dataInfo["longitude-max"]}'
-            f' --latitude-min {dataInfo["latitude-min"]}'
-            f' --latitude-max {dataInfo["latitude-max"]}'
-            f' --date-min {dateBeginning}'
-            f' --date-max {dateEnd}'
-            f' --depth-min {deepthmin}'
-            f' --depth-max {deepthmax}'
-            f' --variable {dataInfo["variable"]}'
-            f' --out-dir {outputDirectory}'
-            f' --out-name {outputFile}'
-            f' --user "mjaouen" --pwd "Azerty123456"')
         os.system(f'motuclient -h'
             f' --motu {dataInfo["motu"]}'
             f' --service-id {dataInfo["service-id"]}'

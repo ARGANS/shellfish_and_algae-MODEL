@@ -108,6 +108,7 @@ if __name__ == "__main__":
     eastStream[maskposition] = np.nan
     nbrUpStrm[maskposition] = np.nan
     nitrateAverageDayPlus1[maskposition] = np.nan
+    nitrateAverage[maskposition] = np.nan
 
     saveAsTiff(nitrateAverage, xsize, ysize, ulx, uly, xres, yres,
                "I:/work-he/apps/safi/data/IBI/NO3Average16042020.tiff")
