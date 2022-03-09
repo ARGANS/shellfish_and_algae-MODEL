@@ -1,15 +1,15 @@
 ### Seaweed model for EMFF shellfish and algae project
-## Based largely on Hadley et al., 2015 Model (DOI 10.1007/s10811-014-0370-y)
+## Based  on Hadley et al., 2015 Model (DOI 10.1007/s10811-014-0370-y)
 ## Full details of scientific rationale can be found in associated ATBD
 # Authors
 # M. Johnson (Bantry Marine Research Station, Ireland) mjohnson@bmrs.ie,
 # Gilbert Langlois (ARGANS, Brest, France) glanglois@argans.eu
+# Quentin, Simona, Dee...
 
 
 # REQUIRES R>4.1!
 
-# this model contains only the code for building boundary forcing functions and
-# the model equations. Model run is controlled by run_MA.R
+# to control this model using R, refer to run_MA.
 
 
 #### load libraries ######
@@ -27,8 +27,8 @@ boundary_forcings<-function(input_data){
   # as a data frame of daily average values and generates the necessary functions
   # to return interpolated values at any time point within the range
   # (i.e. at whatever temporal resolution is required  by the ODE solver).
-  # The following columns are expected in the data frame. If they are absent a
-  # warning is generated and some default data substituted
+  # The following columns are expected in the data frame. 
+  
   # time (in days, e.g. 1:365),
   # PAR (PAR incident at the sea surface in umol photons m-2 s-2),
   # SST (Sea surface temperature in celcius),
@@ -36,9 +36,8 @@ boundary_forcings<-function(input_data){
   # NH4 (ammonium concentration - SML average - in mg N m-3),
   # K_d (turbidity dependent light attenuation coefficient - in m-1 - derived from turbidity or SPM, satellite or modelled)
   # F_in (net horizontal flow rate into farm cross section A_xz (m/d))
-  # h_z_SML (depth of SML in m)
-  # t_z (vertical turnover of SML in d-1)
-  # theta (anlge of solar incidence degrees)
+  # t_z (vertical turnover of SML in md-1)
+
 
   output = list()
   for (param in names(input_data)) {
