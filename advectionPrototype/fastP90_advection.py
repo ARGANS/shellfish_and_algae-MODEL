@@ -73,7 +73,7 @@ def calcDeficit(nitrateAverageDayPlus1, nitrateAverage, northStream, eastStream,
     nitrateAverageDayPlus1def = copy.deepcopy(nitrateAverageDayPlus1)
     for i in range(len(northStream)):
         for j in range(len(northStream[0])):
-            nitrateAverageDayPlus1[i+int(northStream[i,j]),int(j+eastStream[i,j])] -= nitrateAverage[i,j]*deficitPct
+            nitrateAverageDayPlus1def[i+int(northStream[i,j]),int(j+eastStream[i,j])] -= nitrateAverage[i,j]*deficitPct
     return nitrateAverageDayPlus1def
 
 if __name__ == "__main__":
@@ -89,20 +89,20 @@ if __name__ == "__main__":
     Nmax = len(averageDataEwc)
     mask = averageDataNut.mask
     maskposition = np.where(mask == True)  # we get the position of the masked data
-    generalList = np.zeros((Nmax-1,len(averageDataNut[0]),len(averageDataNut[0][0])))
+    generalList = np.zeros((Nmax,len(averageDataNut[0]),len(averageDataNut[0][0])))
     i = 0
     while i<Nmax-1:
         print(i)
         northStream, eastStream = giveStream(averageDataNwc[i], averageDataEwc[i])
         # we compute the nutriment at day D+1, with a deficit of 10% of day D nutriment
-        nitrateAverageDayPlus1deficit = calcDeficit(averageDataNut[i+1], averageDataNut[i], northStream, eastStream, 0.05)
+        nitrateAverageDayPlus1deficit = calcDeficit(averageDataNut[i+1], averageDataNut[i], northStream, eastStream, 0.1)
         generalList[i] = nitrateAverageDayPlus1deficit
         i+=1
     generalList[maskposition] = np.nan
     P90nut = np.percentile(generalList, 10, axis=0)#we compute the 10th percentile
     xsize, ysize, ulx, uly, xres, yres = getMetadata(ds)
 
-    saveAsTiff(P90nut, xsize, ysize, ulx, uly, xres, yres,"I:/work-he/apps/safi/data/IBI/P90with5pctDeficit3m.tiff")
+    saveAsTiff(P90nut, xsize, ysize, ulx, uly, xres, yres,"I:/work-he/apps/safi/data/IBI/P90with10pctDeficit3m.tiff")
 
     fig1, ax1 = plt.subplots()
     plt.imshow(P90nut)
