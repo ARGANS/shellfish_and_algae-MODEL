@@ -1,25 +1,25 @@
 ### Seaweed model for EMFF shellfish and algae project
-## Based largely on Hadley et al., 2015 Model (DOI 10.1007/s10811-014-0370-y)
+## Based  on Hadley et al., 2015 Model (DOI 10.1007/s10811-014-0370-y)
 ## Full details of scientific rationale can be found in associated ATBD
 # Authors
 # M. Johnson (Bantry Marine Research Station, Ireland) mjohnson@bmrs.ie,
 # Gilbert Langlois (ARGANS, Brest, France) glanglois@argans.eu
+# Quentin, Simona, Dee...
 
 
 # REQUIRES R>4.1!
 
-# this model contains only the code for building boundary forcing functions and
-# the model equations. Model run is controlled by run_MA.R
+# to control this model using R, refer to run_MA.
 
 
 #### load libraries ######
 
 library('deSolve')
 library('rootSolve')
-library('bvpSolve')
-library('deTestSet')
-library('ReacTran')
-library('simecol')
+#library('bvpSolve')
+#library('deTestSet')
+#library('ReacTran')
+#library('simecol')
 library('tidyverse')
 
 boundary_forcings<-function(input_data){
@@ -27,8 +27,8 @@ boundary_forcings<-function(input_data){
   # as a data frame of daily average values and generates the necessary functions
   # to return interpolated values at any time point within the range
   # (i.e. at whatever temporal resolution is required  by the ODE solver).
-  # The following columns are expected in the data frame. If they are absent a
-  # warning is generated and some default data substituted
+  # The following columns are expected in the data frame. 
+  
   # time (in days, e.g. 1:365),
   # PAR (PAR incident at the sea surface in umol photons m-2 s-2),
   # SST (Sea surface temperature in celcius),
@@ -36,9 +36,8 @@ boundary_forcings<-function(input_data){
   # NH4 (ammonium concentration - SML average - in mg N m-3),
   # K_d (turbidity dependent light attenuation coefficient - in m-1 - derived from turbidity or SPM, satellite or modelled)
   # F_in (net horizontal flow rate into farm cross section A_xz (m/d))
-  # h_z_SML (depth of SML in m)
-  # t_z (vertical turnover of SML in d-1)
-  # theta (anlge of solar incidence degrees)
+  # t_z (vertical turnover of SML in md-1)
+
 
   output = list()
   for (param in names(input_data)) {
@@ -206,7 +205,7 @@ MA_model <- function(t,y,parms,...) {
     lambda   <- min(1,(F_in(t)/x_farm)) #
     
     # nutrient controls on growth, relation to biomass ####
-    Q           <- ifelse(N_f>0,Q_min*(1+(N_s/N_f)),0)                                       # Internal nutrient quota of macroalgae                                      # Internal nutrient quota of macroalgae
+    Q           <- ifelse(N_f>0,Q_min*(1+(N_s/N_f)),0)                                       #    Internal nutrient quota of macroalgae                                      
     B           <- N_f/Q_min                                                 # Biomass of dry macroalgae
     g_Q         <- (Q-Q_min)/(Q-K_c)                                         # Growth limitation due to internal nutrient reserves
     # temperature-growth dynamics (from martin and marques 2002) ####
@@ -218,23 +217,23 @@ MA_model <- function(t,y,parms,...) {
     
     # light limitation schemes####
     
-    if(light_scheme==1){
+    if(light_scheme==0){
       #light limits to growth including self-shading - adapted from Zollman et al 2021
       I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
       I_av <-(I_top/(K_d(t)*h_MA+N_f*a_cs))*(1-exp(-(K_d(t)*h_MA+N_f*a_cs)))          # calclulate the average irradiance throughout the height of the farm
       g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
-    } else if (light_scheme==2){
+    } else if (light_scheme==1){
       # simple vertical light no shading
       I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
       I_av <-(I_top/(K_d(t)*h_MA))*(1-exp(-(K_d(t)*h_MA)))          # calclulate the average irradiance throughout the height of the farm
       g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
-    } else if (light_scheme==3){
+    } else if (light_scheme==2){
       #solar angle accounted for no shading
       theta<-get_solar_angle(latitude,t)
       I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sin(theta*pi/180))                                    # calculate incident irradiance at the top of the farm
       I_av <-(I_top/(K_d(t)*h_MA/sin(theta*pi/180)))*(1-exp(-(K_d(t)*h_MA/sin(theta*pi/180))))          # calclulate the average irradiance throughout the height of the farm
       g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
-    } else if (light_scheme==4){
+    } else if (light_scheme==3){
       #solar angle accounted included with shading
       theta<-get_solar_angle(latitude,t)
       sine<-sin(theta*pi/180)

@@ -71,15 +71,15 @@ default_input<- data.frame(
 #load in all parameters from json file
 allparams<-fromJSON(file='model_parameters.json')
 
-parms_ulva<-unlist(allparams$algae$species$ulva$parameters)
-parms_saccharina<-unlist(allparams$algae$species$saccharina$parameters)
-parms_alaria<-unlist(allparams$algae$species$alaria$parameters)
+parms_ulva<-unlist(allparams$species$ulva$parameters)
+parms_saccharina<-unlist(allparams$species$saccharina$parameters)
+parms_alaria<-unlist(allparams$species$alaria$parameters)
 
-default_parms_farm<-unlist(allparams$algae$farm_parameters)
-default_parms_run<-unlist(allparams$algae$run_parameters)
+default_parms_farm<-unlist(allparams$farm$default$parameters)
+default_parms_run<-unlist(allparams$run$default$options)
 
-harvest_CCA_run<-unlist(allparams$algae$harvest_parameters$CCA)
-harvest_winter_growth_run<-unlist(allparams$algae$harvest_parameters$`Winter_growth`)
+harvest_CCA_run<-unlist(allparams$harvest$CCA$parameters)
+harvest_winter_growth_run<-unlist(allparams$harvest$Winter_growth$parameters)
 
 
 
