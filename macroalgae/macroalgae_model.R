@@ -16,10 +16,10 @@
 
 library('deSolve')
 library('rootSolve')
-library('bvpSolve')
-library('deTestSet')
-library('ReacTran')
-library('simecol')
+#library('bvpSolve')
+#library('deTestSet')
+#library('ReacTran')
+#library('simecol')
 library('tidyverse')
 
 boundary_forcings<-function(input_data){
@@ -211,7 +211,7 @@ MA_model <- function(t,y,parms,...) {
     lambda   <- min(1,(F_in(t)/x_farm)) #
     
     # nutrient controls on growth, relation to biomass ####
-    Q           <- ifelse(N_f>0,Q_min*(1+(N_s/N_f)),0)                                       # Internal nutrient quota of macroalgae                                      # Internal nutrient quota of macroalgae
+    Q           <- ifelse(N_f>0,Q_min*(1+(N_s/N_f)),0)                                       #    Internal nutrient quota of macroalgae                                      
     B           <- N_f/Q_min                                                 # Biomass of dry macroalgae
     g_Q         <- (Q-Q_min)/(Q-K_c)                                         # Growth limitation due to internal nutrient reserves
     # temperature-growth dynamics (from martin and marques 2002) ####
@@ -223,23 +223,23 @@ MA_model <- function(t,y,parms,...) {
     
     # light limitation schemes####
     
-    if(light_scheme==1){
+    if(light_scheme==0){
       #light limits to growth including self-shading - adapted from Zollman et al 2021
       I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
       I_av <-(I_top/(K_d(t)*h_MA+N_f*a_cs))*(1-exp(-(K_d(t)*h_MA+N_f*a_cs)))          # calclulate the average irradiance throughout the height of the farm
       g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
-    } else if (light_scheme==2){
+    } else if (light_scheme==1){
       # simple vertical light no shading
       I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
       I_av <-(I_top/(K_d(t)*h_MA))*(1-exp(-(K_d(t)*h_MA)))          # calclulate the average irradiance throughout the height of the farm
       g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
-    } else if (light_scheme==3){
+    } else if (light_scheme==2){
       #solar angle accounted for no shading
       theta<-get_solar_angle(latitude,t)
       I_top<-PAR(t)*exp(-(K_d(t))*(z-h_MA)/sin(theta*pi/180))                                    # calculate incident irradiance at the top of the farm
       I_av <-(I_top/(K_d(t)*h_MA/sin(theta*pi/180)))*(1-exp(-(K_d(t)*h_MA/sin(theta*pi/180))))          # calclulate the average irradiance throughout the height of the farm
       g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
-    } else if (light_scheme==4){
+    } else if (light_scheme==3){
       #solar angle accounted included with shading
       theta<-get_solar_angle(latitude,t)
       sine<-sin(theta*pi/180)
