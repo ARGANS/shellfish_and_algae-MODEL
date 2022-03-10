@@ -8,8 +8,8 @@ zone='IBI'
 deepthmin=0
 deepthmax=20
 
-# outputDirectory = 'I:/work-he/apps/safi/data/IBI/'
-outputDirectory = '/media/share/data/IBI/'
+outputDirectory = 'I:/work-he/apps/safi/data/IBI/'
+#outputDirectory = '/media/share/data/IBI/'
 
 dataFin=pd.read_csv('./dataCmd.csv',';')
 
