@@ -37,17 +37,17 @@ if __name__ == "__main__":
     mask = averageData.mask
     maskposition = np.where(mask == True)  # we get the position of the masked data
     averageData[maskposition] = np.nan
-    P90nut = np.percentile(averageData, 10, axis=0)#we compute the 10th percentile
+    P10nut = np.percentile(averageData, 10, axis=0)#we compute the 10th percentile
     xsize, ysize, ulx, uly, xres, yres = getMetadata(ds)
 
     finaltime = time.time() - initialTime
     print('running time : ', finaltime, ' seconds')
-    saveAsTiff(P90nut, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/IBI/P902020.tiff")
+    saveAsTiff(P10nut, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/IBI/P102020.tiff")
     fig1, ax1 = plt.subplots()
-    plt.imshow(P90nut)
+    plt.imshow(P10nut)
     ax1.invert_yaxis()
-    ax1.set_title('P90 NO3 IBI 2020')
+    ax1.set_title('P10 NO3 IBI 2020')
     plt.clim(0, 8)
     plt.colorbar()
 

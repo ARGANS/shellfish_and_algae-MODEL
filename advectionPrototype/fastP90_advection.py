@@ -95,19 +95,19 @@ if __name__ == "__main__":
         print(i)
         northStream, eastStream = giveStream(averageDataNwc[i], averageDataEwc[i])
         # we compute the nutriment at day D+1, with a deficit of 10% of day D nutriment
-        nitrateAverageDayPlus1deficit = calcDeficit(averageDataNut[i+1], averageDataNut[i], northStream, eastStream, 0.1)
+        nitrateAverageDayPlus1deficit = calcDeficit(averageDataNut[i+1], averageDataNut[i], northStream, eastStream, 0.2)
         generalList[i] = nitrateAverageDayPlus1deficit
         i+=1
     generalList[maskposition] = np.nan
-    P90nut = np.percentile(generalList, 10, axis=0)#we compute the 10th percentile
+    P10nut = np.percentile(generalList, 10, axis=0)#we compute the 10th percentile
     xsize, ysize, ulx, uly, xres, yres = getMetadata(ds)
 
-    saveAsTiff(P90nut, xsize, ysize, ulx, uly, xres, yres,"I:/work-he/apps/safi/data/IBI/P90with10pctDeficit3m.tiff")
+    saveAsTiff(P10nut, xsize, ysize, ulx, uly, xres, yres,"I:/work-he/apps/safi/data/IBI/P10with20pctDeficit3m.tiff")
 
     fig1, ax1 = plt.subplots()
-    plt.imshow(P90nut)
+    plt.imshow(P10nut)
     ax1.invert_yaxis()
-    ax1.set_title('P90 NO3 IBI 2020')
+    ax1.set_title('P10 NO3 IBI 2020')
     plt.clim(0, 8)
     plt.colorbar()
     plt.show()

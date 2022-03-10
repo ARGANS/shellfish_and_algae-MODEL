@@ -32,7 +32,7 @@ def getdataFromMarineCopernicus(dataInfo, dateBeginning, dateEnd, outputDirector
         python -m motuclient (part of the code prosposed by CMEMS)
     """
     if (np.isnan(dataInfo["depth-min"])):
-        os.system(f'motuclient -h'
+        os.system(f'python -m motuclient'
             f' --motu {dataInfo["motu"]}'
             f' --service-id {dataInfo["service-id"]}'
             f' --product-id {dataInfo["product-id"]}'
@@ -50,7 +50,7 @@ def getdataFromMarineCopernicus(dataInfo, dateBeginning, dateEnd, outputDirector
     else:
         deepthmin = str(deepthmin)
         deepthmax = str(deepthmax)
-        os.system(f'python -m motuclient '
+        os.system(f'python -m motuclient'
             f' --motu {dataInfo["motu"]}'
             f' --service-id {dataInfo["service-id"]}'
             f' --product-id {dataInfo["product-id"]}'
