@@ -29,6 +29,7 @@ function run {
             docker run \
                 --rm \
                 --name $CONTAINER_NAME \
+                --add-host=ftp.hermes.acri.fr:5.252.148.37 \
                 --volume "$PWD/share":/media/share \
                 --volume "$PWD/$DIR/src/general.py":/opt/general.py \
                 --volume "$PWD/$DIR/src/main.py":/opt/main.py \
