@@ -4,45 +4,54 @@ source('run_MA.R')
 source('calc_par.R')
 library(atmos)
 
+#latitude at bantry
+bantrylat<-51.6
 
-
-bantry<-read.csv('bantry_data/bantry_MLDaveraged.csv',sep = ';')
+#bantry_old<-read.csv('bantry_data/bantry_MLDaveraged.csv',sep = ';')
 
 
 #the new data will already have unit conversion done..
-#bantry<-read.csv('bantry_data/bantry_3m.csv',sep = ';')
+bantry<-read.csv('bantry_data/bantry_3m.csv',sep = ';')
 
 #quick hack substitute missing values
 bantry$Ammonium[is.na(bantry$Ammonium)]<-0.4
 bantry$Nitrate[is.na(bantry$Nitrate)]<-8
+bantry$Temperature[is.na(bantry$Temperature)]<-8
 
 
-
-convert_umolN_to_mgm3<-function(data_in){
-  rmm_N<-14 #gmol
-  mmol_m3<-data_in #(1mmol m^(-3) = 1umol l-1)
-  mg_m3<-data_in*14
-  mg_m3
-}
-
-convert_photonflux<-function(data_in){
-  #converts from molm-2d-1 to umolm-2s-1
-  data_in*1e6/(3600*24)
-}
-
-bantry$Ammonium<-convert_umolN_to_mgm3(bantry$Ammonium)
-bantry$Nitrate<-convert_umolN_to_mgm3(bantry$Nitrate)
-bantry$F_in<-sqrt(bantry$northward_Water_current^2 + bantry$eastward_Water_current^2)*3600*24 #take 'hypotenuse of N and E flow and convert from m/s to m/day
+#convert_umolN_to_mgm3<-function(data_in){
+#   rmm_N<-14 #gmol
+#   mmol_m3<-data_in #(1mmol m^(-3) = 1umol l-1)
+#   mg_m3<-data_in*14
+#   mg_m3
+# }
+# 
+# convert_photonflux<-function(data_in){
+#   #converts from molm-2d-1 to umolm-2s-1
+#   data_in*1e6/(3600*24)
+# }
+# 
+# bantry$Ammonium<-convert_umolN_to_mgm3(bantry$Ammonium)
+# bantry$Nitrate<-convert_umolN_to_mgm3(bantry$Nitrate)
+# bantry$F_in<-sqrt(bantry$northward_Water_current^2 + bantry$eastward_Water_current^2)*3600*24 #take 'hypotenuse of N and E flow and convert from m/s to m/day
+bantry$F_in<-bantry$current_intensity
 bantry$F_in[is.na(bantry$F_in)]<-2500
 
-bantry$par<-convert_photonflux(bantry$par) 
+#bantry$par<-convert_photonflux(bantry$par) 
 
 ##used for par substitution documentation only
 obspar<-bantry$par
 ##
-par_GC<-read.csv('bantry_data/bantry_par_theoretical.csv')
+#par_GC<-read.csv('bantry_data/bantry_par_theoretical.csv')
+#PARsub<-par_GC$par_GC
 
-bantry$par[1:365]<-substitute_par(bantry$par[1:365],par_GC$par_GC)
+
+PARsub<-get_simulated_PAR_by_latitdue(bantrylat)
+
+
+
+
+bantry$par[1:365]<-substitute_par(bantry$par[1:365],PARsub)
 bantry$par[366:396]<-bantry$par[1:31]
 
 #make a 2year input data
@@ -88,8 +97,8 @@ parms_bantry_alaria <- c(
 )
 
 parms_bantry<-c(
-  light_scheme=4,
-  latitude=51.6
+  light_scheme=3,
+  latitude=bantrylat
 
 )
 
@@ -201,3 +210,220 @@ plot_bantry_results<-function(x.,harvest=FALSE){
 
 
 #plot(bantry_run$time,bantry_run$B,xlab='day of year',ylab='Dry Weight of Macroalgae /g')
+
+
+
+
+
+###### experimenting with rootsolve on weekly mean values. 
+
+
+
+
+#add a date column
+library(dplyr)
+library(lubridate)
+b2y$date<-as.Date("2020-12-31")+(1:nrow(b2y))
+
+
+b2ym<- b2y %>% group_by(month=floor_date(date,"month")) %>% 
+  summarize(Ammonium=mean(Ammonium,na.rm=TRUE),
+            Nitrate=mean(Nitrate,na.rm=TRUE),
+            Temperature=mean(Temperature,na.rm=TRUE),
+            par=mean(par,na.rm=TRUE),
+            F_in=mean(F_in,na.rm=TRUE)
+            )
+
+bym<-as.data.frame(b2ym)[1:12,]  
+
+bym$month<-c(1:12)
+
+
+
+
+MA_model_steady <- function(t,y,parms,...) {
+  #New model version diverges from Hadley model in its spatial structure. Hadley et al model runs notionally per unit volume of water, with flow through of water in volume units. In the old version of the model implemented here this was adapted for a flow-through and vertical water flux in m/d. A major shortcoming of the old version is the resupply of nutrients via the labmda term, which cannot be greater than 1 and therefore the total input of nutrient can only be enough per timestep to restore nutrient back to ambient levels. At a timestep of 1 day this is not sufficient given the significant drawdown of nutrients by the seaweed and the model is limited then by the lambda term (the way the Hadley model is structured values of labmda>1 when F_in > farm volume increase nutrient concentration above ambient which does not make sense). In this new version of the model, advection and vertical mixing lengths give an effective volume over which nutrient concentration change is calculated, thereby allowing for a realistic throughput of nutrient and output of meaningful delta-C.
+  
+  #parameters expected: ####
+  # Farm location:
+  #  latitude (degrees)
+  # Farm dimensions: 
+  #  x_farm (m), 
+  #  y_farm (m),
+  #  z_farm (m)
+  # MA dimensions: 
+  #  h_MA (m), 
+  #  w_MA (m), 
+  #  density_MA (fraction - 0 to 1)
+  # Growth parameters: 
+  #  Q_min (mg N per g dry weight), 
+  #  K_c (mg N per g dry weight), 
+  #  T_O (degrees celcius), 
+  #  T_max (degrees celcius), 
+  #  T_min (degrees celcius), 
+  #  V_NH4 (mg N per g dry weight per day), 
+  #  V_NO3 (mg N per g dry weight per day), 
+  #  K_NH4 (mg N per m^3), 
+  #  K_N03 (mg N per m^3), 
+  #  a_cs  (m^2 per mg N), 
+  #  I_s,  (micromol photons per m^2 per s)
+  #  mu,  1/d
+  #  r_L, 1/d
+  #  r_N, 1/d
+  #  d_m, 1/d
+  # MA properties: 
+  #  N_to_P, molar ratio (unitless),
+  
+  #time varying inputs: 
+  # K_d, 1/m 
+  # SST, degrees celcius
+  # NO3_in, mg N per m^3
+  # NH4_in, mg N per m^3
+  # PO4_in, mmol P per m^3 (i.e. uM)
+  # D_in,  mg N per m^3
+  
+  
+  with(as.list(c(y, parms)), {
+    
+    #dimensions ####
+    #farm dimensions are defined by input parms x_farm, y_farm (both 1000m i.e. grid square dimensions by default) and z_farm (depth to bottom of macroalgae)
+    #Macroalgae are grown on notional 'lines' running the full width of y_farm (perpendicular to notional flow in x direction). The 'spacing' of the lines is determined by input parm density_MA. The total volume occupied by macroalgae is calculated as y_farm*x_farm*density_MA*h_MA
+    V_MA<-y_farm*x_farm*density_MA*h_MA
+    # The effective volume of water that the V_MA is interacting with (concentration-dependent drawdown of nutrients) is 
+    V_EFF<-y_farm*(x_farm+F_in)*(z+t_z)
+    # therefore nutrient change in the outflow of the farm (to depth z+t_z) is scaled to V_MA/V_EFF of the local nutrient change (See dNH4 and dNO3 terms)
+    
+    lambda   <- min(1,(F_in/x_farm)) #
+    
+    # nutrient controls on growth, relation to biomass ####
+    Q           <- ifelse(N_f>0,Q_min*(1+(N_s/N_f)),0)                                       #    Internal nutrient quota of macroalgae                                      
+    B           <- N_f/Q_min                                                 # Biomass of dry macroalgae
+    g_Q         <- (Q-Q_min)/(Q-K_c)                                         # Growth limitation due to internal nutrient reserves
+    # temperature-growth dynamics (from martin and marques 2002) ####
+    if(SST>T_O)
+    {T_x<-T_max}
+    else
+    {T_x<-T_min}
+    g_T<-exp(-2.3*((SST-T_O)/(T_x-T_O))^2)
+    
+    # light limitation schemes####
+    
+    if(light_scheme==0){
+      #light limits to growth including self-shading - adapted from Zollman et al 2021
+      I_top<-PAR*exp(-(K_d)*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
+      I_av <-(I_top/(K_d*h_MA+N_f*a_cs))*(1-exp(-(K_d*h_MA+N_f*a_cs)))          # calclulate the average irradiance throughout the height of the farm
+      g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
+    } else if (light_scheme==1){
+      # simple vertical light no shading
+      I_top<-PAR*exp(-(K_d)*(z-h_MA))                                    # calculate incident irradiance at the top of the farm
+      I_av <-(I_top/(K_d*h_MA))*(1-exp(-(K_d*h_MA)))          # calclulate the average irradiance throughout the height of the farm
+      g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
+    } else if (light_scheme==2){
+      #solar angle accounted for no shading
+      theta<-get_solar_angle(latitude,doy=180)
+      I_top<-PAR*exp(-(K_d)*(z-h_MA)/sin(theta*pi/180))                                    # calculate incident irradiance at the top of the farm
+      I_av <-(I_top/(K_d*h_MA/sin(theta*pi/180)))*(1-exp(-(K_d*h_MA/sin(theta*pi/180))))          # calclulate the average irradiance throughout the height of the farm
+      g_E <- I_av/(((I_s)+I_av))                                          # light limitation scaling function
+    } else if (light_scheme==3){
+      #solar angle accounted included with shading
+      theta<-get_solar_angle(latitude,doy=180)
+      sine<-sin(theta*pi/180)
+      I_top<-PAR*exp(-(K_d)*(z-h_MA)/sine)
+      I_av <-(I_top / ((K_d*h_MA/sine)   +   (N_f*a_cs/(sine))))*(1-exp(-(  (K_d*h_MA/sine)  +   (N_f*a_cs/(sine))   )))
+      g_E <- I_av/(((I_s)+I_av)) 
+    } 
+    
+    
+    # growth function (uptake of nutrient from internal reserves) ####
+    
+    mu_g_EQT    <- mu*g_E*g_Q*g_T                                            # Growth function for macroalgae
+    
+    
+    # uptake of nutrients from the water ####
+    
+    f_NH4       <- ((V_NH4*NH4)/(K_NH4+NH4))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NH4
+    f_NO3       <- ((V_NO3*NO3)/(K_NO3+NO3))*((Q_max-Q)/(Q_max-Q_min))          # uptake rate of NO3.
+    
+    # amount of nutrient removed per m3 
+    NO3_removed <- (f_NO3*B)-(r_N*NH4)
+    NH4_removed <- (f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s)
+    
+    #How much phosphate is available for growth
+    PO4_tot<-PO4_in*V_EFF/V_MA
+    #convert N:P from mol/mol to mg/mol
+    N_to_P<-N_to_P*14
+    
+    #capture change in N_f for harvest function
+    Nf_change<-min(mu_g_EQT*N_f,PO4_tot*N_to_P)-(d_m*N_f)
+    
+    
+    #model state variables ####
+    dNH4        <- min(1,lambda)*(NH4_in-NH4) -((f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s))*V_MA/V_EFF  # change in NH4 with time
+    
+    dNO3        <- min(1,lambda)*(NO3_in-NO3) -((f_NO3*B)-(r_N*NH4))*V_MA/V_EFF           # change in NO3 with time 
+    
+    dN_s        <- (f_NH4+f_NO3)*B-min(mu_g_EQT*N_f,PO4_tot*N_to_P)-(d_m*N_s)                          # change in internal nitrogen store - eq 5 in Hadley
+    
+    dN_f        <- min(mu_g_EQT*N_f,PO4_tot*N_to_P)-(d_m*N_f)                                    # change in fixed nitrogen (i.e. biomass nitrogen) - eq 6 in Hadley
+    
+    dD          <- min(1,lambda)*(D_in-D) + (d_m*N_f - r_L*D)*V_MA/V_EFF                 # change in detritus with time
+    
+    
+
+    
+    
+    output<-list(c(dNH4, dNO3,dN_s,dN_f,dD),
+                 Nf_change = Nf_change,
+                 Farm_NO3_demand = NO3_removed*V_MA,
+                 Farm_NH4_demand = NH4_removed*V_MA,
+                 V_EFF = V_EFF,
+                 volscale=V_EFF/V_MA,
+                 Q         = Q,
+                 B_vol  = B,
+                 B_line = B*h_MA*w_MA,
+                 g_Q       = g_Q,
+                 g_T       = g_T,
+                 g_E       = g_E,
+                 mu_g_EQT  = mu_g_EQT,
+                 f_NH4     = f_NH4,
+                 f_NO3     = f_NO3
+    )
+  }) 
+}
+
+bantry_monthly_input_data<-data.frame(
+  time=bym$month,
+  PAR=bym$par,
+  SST=bym$Temperature,
+  NH4_in=bym$Ammonium,
+  NO3_in=bym$Nitrate,
+  PO4_in=1000,
+  K_d=0.1,
+  F_in=bym$F_in,
+  t_z = 10,
+  D_in=0
+)
+
+
+run_steady_state<-function(parms,...){
+  #taking monthly input data frame of "PAR"    "SST"    "NH4_in" "NO3_in" "PO4_in" "K_d"    "F_in"   "t_z"    "D_in"  
+  # calculate the steady state solution to the model and output values for each month
+
+   out<-steady(y=c(NH4=1,NO3=10,N_s=10000,N_f=10000,D=100),
+               time=c(0,Inf),
+               func=MA_model_steady,
+               parms=parms,
+               method='runsteady',
+               positive=TRUE)
+   #make a neat array of results - if steady != 1 then steady state has failed...
+   unlist(c(out[1:15],steady=attr(out,'steady')))
+   
+  
+}
+
+
+
+steady(y=c(NH4=1,NO3=10,N_s=10000,N_f=10000,D=100),time=c(0,Inf),func=MA_model_steady,parms=c(default_parms,unlist(bantry_monthly_input_data[1,2:10])),method='runsteady',positive=TRUE)
+
+run_steady_state(parms=c(default_parms,unlist(bantry_monthly_input_data[1,2:10])))
+

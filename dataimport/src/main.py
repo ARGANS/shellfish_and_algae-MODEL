@@ -1,7 +1,7 @@
 from general import readcsv, giveDateslist, getData
 import pandas as pd
 
-wantedData=['Temperature','Nitrate','Ammonium','Phosphate','Salinity','northward_Water_current','eastward_Water_current']
+wantedData=['par']
 dateBeginning = '2020-11-15 00:00:00'
 dateEnd = '2020-11-22 00:00:00'
 zone='IBI'

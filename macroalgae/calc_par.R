@@ -33,15 +33,26 @@ modelled_par<-function(rlat){
 
 generate_par_table<-function(){
   #generate table of par data for each day for every latitude 0-90 and write it out as a csv
-  latitudes<-0:90
+  latitudes<-seq(0,90,0.1)
   x<-sapply(latitudes,modelled_par)
-  write.table(x=x,file = 'PARTable.csv',row.names=FALSE, col.names=FALSE,sep=',')
+  write.table(x=t(x),file = 'PARTable.csv',row.names=FALSE, col.names=FALSE,sep=',')
   return('done')
 }
 
 
 # uncomment line below to generate new partable (note this takes a good few minutes)
-# generate_par_table()
+#generate_par_table()
+
+get_simulated_PAR_by_latitdue<-function(latitude){
+  #for a given latitude read columns from PARTABLE and interpolate to give a year of simulated PAR
+  PARTABLE<-read.csv('PARTable.csv',header = FALSE)
+  #latitude in partable is column number minus 1. 
+  # get the year of PAR for integrer lat below and above bantry lat
+  lowerlat<-PARTABLE[,(floor(latitude)+1)]
+  upperlat<-PARTABLE[,(ceiling(latitude)+1)]
+  PARsub<-lowerlat+(upperlat-lowerlat)*(latitude-floor(latitude))
+  PARsub
+}
 
 substitute_par<-function(observed_par,modelled_par){
   #function to subsitute where PAR values are missing - modelled par is clear-sky so use scaling factor to give representative par value
