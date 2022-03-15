@@ -69,7 +69,7 @@ default_input<- data.frame(
 # MA properties: N_to_P
 
 #load in all parameters from json file
-allparams<-fromJSON(file='model_parameters.json')
+allparams<-fromJSON(file='macroalgae_model_parameters.json')
 
 parms_ulva<-unlist(allparams$species$default$ulva$parameters)
 parms_saccharina<-unlist(allparams$species$default$saccharina$parameters)
