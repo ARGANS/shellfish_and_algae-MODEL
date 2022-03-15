@@ -107,26 +107,22 @@ harvest_eventfunc <- function(t, y, parms,...){
 run_MA_model<-function(input,parameters,y0,output='df'){
   #function can be called from R or python, sets up boundary forcing functions from input data and executes the model function, returns a neat data frame of output values
 
-  run_length<-max(input$time)
-  times=seq(1,run_length,by=1)
-  
   #create boundary forcings
   input_functions = boundary_forcings(input)
   parms = c(parameters, input_functions)
 
   if(parms['harvest_method']==0){
     #no harvesting
-    Out<-ode(times = times,
+    Out<-ode(times = input$time,
              func=MA_model,
              y=y0,
              parms=parms)
+
     
   } else if(parms['harvest_method']==1){
     
     #harvest at set frequency
-    
-    
-    Out_timed_harvest <- ode(times = times,
+    Out_timed_harvest <- ode(times = input$time,
                              func = MA_model,
                              y = y0,
                              parms = parms,
@@ -136,7 +132,7 @@ run_MA_model<-function(input,parameters,y0,output='df'){
     
   } else if(parms['harvest_method']==2){
     
-    Out_limit_harvest <- ode(times = times,
+    Out_limit_harvest <- ode(times = input$time,
                              func = MA_model,
                              y = y0,
                              parms = parms,
@@ -146,9 +142,7 @@ run_MA_model<-function(input,parameters,y0,output='df'){
   }
   
   if(output=='df'){
-    Out.<-as.data.frame(Out)
-    colnames(Out.)[1]<-c('model_time')
-    cbind(input,Out.)
+    return(as.data.frame(Out))
   } else {Out}
 }
 
@@ -165,7 +159,7 @@ MA_model <- function(t,y,parms,...) {
   # Farm dimensions: 
   #  x_farm (m), 
   #  y_farm (m),
-  #  z_farm (m)
+  #  z (m)
   # MA dimensions: 
   #  h_MA (m), 
   #  w_MA (m), 
