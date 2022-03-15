@@ -353,8 +353,7 @@ MA_model_steady <- function(t,y,parms,...) {
     #convert N:P from mol/mol to mg/mol
     N_to_P<-N_to_P*14
     
-    #capture change in N_f for harvest function
-    Nf_change<-min(mu_g_EQT*N_f,PO4_tot*N_to_P)-(d_m*N_f)
+
     
     
     #model state variables ####
@@ -417,13 +416,22 @@ run_steady_state<-function(parms,...){
                positive=TRUE)
    #make a neat array of results - if steady != 1 then steady state has failed...
    unlist(c(out[1:15],steady=attr(out,'steady')))
-   
   
 }
 
+run_monthly_steady_state<-function(month, parms,...){
+  #get a steady state solution for any month (1-12) in the input data 
+  x<-run_steady_state(parms=c(parms,unlist(bantry_monthly_input_data[month,2:10])))
+  x
+}
 
 
-steady(y=c(NH4=1,NO3=10,N_s=10000,N_f=10000,D=100),time=c(0,Inf),func=MA_model_steady,parms=c(default_parms,unlist(bantry_monthly_input_data[1,2:10])),method='runsteady',positive=TRUE)
+#example uses
+#steady(y=c(NH4=1,NO3=10,N_s=10000,N_f=10000,D=100),time=c(0,Inf),func=MA_model_steady,parms=c(default_parms,unlist(bantry_monthly_input_data[1,2:10])),method='runsteady',positive=TRUE)
+#run_steady_state(parms=c(default_parms,unlist(bantry_monthly_input_data[1,2:10])))
 
-run_steady_state(parms=c(default_parms,unlist(bantry_monthly_input_data[1,2:10])))
+monthly_bantry<-cbind(data.frame(month=factor(month.abb,levels=month.abb),as.data.frame(t(sapply(seq(1:12),run_monthly_steady_state,parms=default_parms)))))
 
+plot_monthly_data<-function(x){
+  ggplot(x,aes(x=month,y=B_line/1000))+geom_col()
+}
