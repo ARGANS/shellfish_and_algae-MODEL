@@ -71,15 +71,15 @@ default_input<- data.frame(
 #load in all parameters from json file
 allparams<-fromJSON(file='model_parameters.json')
 
-parms_ulva<-unlist(allparams$species$ulva$parameters)
-parms_saccharina<-unlist(allparams$species$saccharina$parameters)
-parms_alaria<-unlist(allparams$species$alaria$parameters)
+parms_ulva<-unlist(allparams$species$default$ulva$parameters)
+parms_saccharina<-unlist(allparams$species$default$saccharina$parameters)
+parms_alaria<-unlist(allparams$species$default$alaria$parameters)
 
-default_parms_farm<-unlist(allparams$farm$default$parameters)
-default_parms_run<-unlist(allparams$run$default$options)
+default_parms_farm<-unlist(allparams$farm$defaults$default$parameters)
+default_parms_run<-unlist(allparams$run$defaults$default$options)
 
-harvest_CCA_run<-unlist(allparams$harvest$CCA$parameters)
-harvest_winter_growth_run<-unlist(allparams$harvest$Winter_growth$parameters)
+harvest_CCA_run<-unlist(allparams$harvest$defaults$CCA$parameters)
+harvest_winter_growth_run<-unlist(allparams$harvest$defaults$Winter_growth$parameters)
 
 
 
@@ -339,7 +339,7 @@ reference_run <- function(input_data,nondefault_parms,harvest=FALSE){
 #hnhf_out<-reference_run(hnhf,test_parms_ulva)
 
 
-# lnlf_harvest_out<-reference_run(lnlf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
+#lnlf_harvest_out<-reference_run(lnlf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
 # hnlf_harvest_out<-reference_run(hnlf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
 # lnhf_harvest_out<-reference_run(lnhf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
 # hnhf_harvest_out<-reference_run(hnhf,c(test_parms_ulva,parms_ref_harvest_run_winter_growth),harvest=TRUE)
