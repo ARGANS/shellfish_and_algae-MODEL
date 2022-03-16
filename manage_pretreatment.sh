@@ -29,7 +29,8 @@ function run {
             docker run \
                 --rm \
                 --name $CONTAINER_NAME \
-                --volume "$PWD/share":/media/share \
+                --volume "/profils/mjaouen/share/data":/media/share/data \
+                --volume "$HOME/share/data_merged":/media/share/data_merged \
                 --entrypoint '/usr/local/bin/python' \
                 -dit $DD_TAG:latest
 

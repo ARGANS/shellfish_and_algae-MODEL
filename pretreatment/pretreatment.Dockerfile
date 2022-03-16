@@ -11,13 +11,17 @@ COPY ./src ./
 RUN python -m pip install --upgrade pip
 # install GDAL
 #RUN apt-get update && apt-get install -y build-essential binutils libproj-dev gdal-bin libgdal-dev python3-gdal python-dev nano && \
-    pip install GDAL==$(gdal-config --version)
+#    pip install GDAL==$(gdal-config --version)
 #RUN python -m pip --no-cache-dir install -r requirements.txt
 
-RUN aptitude install nco
+#RUN apt install aptitude
+#RUN aptitude install nco
+RUN apt update
+RUN apt -y install nco
 
 RUN mkdir -p /media/share && \
-    mkdir -p /media/share/data/IBI/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature}
+    mkdir -p /media/share/data/IBI/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature} && \
+    mkdir -p /media/share/data_merged/IBI/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature}
 
 
 # RUN chmod +x ./main.sh
