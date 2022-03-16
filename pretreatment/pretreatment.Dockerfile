@@ -7,6 +7,7 @@ ARG WORK_DIR="/opt"
 
 WORKDIR $WORK_DIR
 COPY ./src ./
+RUN chmod u+x concatenate_copernicus.sh
 
 RUN python -m pip install --upgrade pip
 # install GDAL
@@ -23,8 +24,8 @@ RUN mkdir -p /media/share && \
     mkdir -p /media/share/data/IBI/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature} && \
     mkdir -p /media/share/data_merged/IBI/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature}
 
+# Install utilities for convenience
+RUN apt-get install -y vim
+RUN apt-get install -y netcdf-bin
 
-# RUN chmod +x ./main.sh
-# CMD ["./main.sh"]
-# CMD ["bash"]
 ENTRYPOINT ["/usr/bin/bash"]
