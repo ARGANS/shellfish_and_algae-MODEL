@@ -17,7 +17,7 @@ function start_container {
         docker run \
             --rm \
             --name $CONTAINER_NAME \
-            --volume "$PWD/share":/media/share \
+            --volume "$HOME/share/data_merged":/media/share/data_merged \
             --entrypoint '/bin/bash' \
             -dit $MA_TAG:latest
     fi
@@ -29,8 +29,10 @@ function run {
     case $command in
         'build')
             docker build \
+                --network host \
                 -t $MA_TAG:v1 -t $MA_TAG:latest \
-                -f $DOCKERFILE ./$DIR
+                -f $DOCKERFILE ./
+                #-f $DOCKERFILE ./$DIR
             ;;
         'shell')
             start_container

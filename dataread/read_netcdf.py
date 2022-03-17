@@ -373,15 +373,17 @@ if __name__ == "__main__":
     lon = -9.897116
     zone = 'IBI'
 
-    startDate = datetime.datetime(2020, 1, 1, 12)
-    endDate = datetime.datetime(2021, 1, 31, 12)
+    startDate = datetime.datetime(2021, 1, 1, 12)
+    endDate = datetime.datetime(2022, 1, 31, 12)
 
-    mainpath = 'I:/work-he/apps/safi/data/IBI/'
+    mainpath = '/media/share/data_merged/'
 
-    dataRef = pd.read_csv('P:\Aquaculture\shellfish_and_algae-MODEL\dataimport\src\dataCmd.csv', delimiter=';')
+    #dataRef = pd.read_csv('/profils/qjutard/shellfish_and_algae-MODEL/dataimport/src/dataCmd.csv', delimiter=';')
+    dataRef = pd.read_csv('./dataCmd.csv', delimiter=';')
 
-    paramNames = ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current', 'ocean_mixed_layer_thickness', 'par']
-    fileNames = [mainpath + f"merged_files/merged_{param}_{zone}.nc" for param in paramNames]
+    #paramNames = ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current', 'ocean_mixed_layer_thickness', 'par']
+    paramNames = ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
+    fileNames = [mainpath + f"{zone}/{param}/{zone}_{param}_merged.nc" for param in paramNames]
 
     #dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][0] for param in paramNames]
     dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][-1] for param in paramNames]
@@ -410,7 +412,7 @@ if __name__ == "__main__":
     #df = algaeData.getTimeSeries(lat, lon, (startDate, endDate), 3, parameters=['Ammonium'])
     df['current_intensity'] = np.sqrt(df['northward_Water_current']**2 + df['eastward_Water_current']**2)
     print(df)
-    df.to_csv(mainpath+'Bantry_data/bantry_3m.csv',
-              index=False, sep=';')
+    #df.to_csv(mainpath+'Bantry_data/bantry_3m.csv',
+    #          index=False, sep=';')
 
     del algaeData
