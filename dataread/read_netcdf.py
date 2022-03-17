@@ -221,6 +221,8 @@ class ParamData:
 
     def getVariable(self, variable=None, **kwargs):
         # **kwargs may contain latitude, longitude, time, and depth arguments.
+        # These arguments are also accepted with the '_index' suffix to slice
+        # the dimensions by their indices.
         # The value of the arguments can be anything that is accepted by
         # extractVarSubset()
         # The time argument should be specified with datetime.datetime()
@@ -241,7 +243,13 @@ class ParamData:
             else:
                 kwargs['time'] = self.date2num(kwargs['time'])
 
-        newKwargs = {self._dimNames[dim]: kwargs[dim] for dim in kwargs.keys()}
+        newKwargs = {}
+        for dim in kwargs.keys():
+            if dim.endswith("_index"):
+                newArgName = self._dimNames[dim[:-6]] + "_index"
+            else:
+                newArgName = self._dimNames[dim]
+            newKwargs[newArgName] = kwargs[dim]
 
         output, _ = extractVarSubset(self.ds, variableName, **newKwargs)
 

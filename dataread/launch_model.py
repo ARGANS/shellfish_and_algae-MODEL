@@ -49,7 +49,7 @@ class MA_model:
 
         # Using a converter between R data.frame and python pd.DataFrame
         with localconverter(robjects.default_converter + pandas2ri.converter):
-            out = self._model.run_MA_model(input = dataToR,
+            out = self._model.run_MA_model(input = input_data,
                                            parameters = parms_with_lat,
                                            y0 = self._y0)
 
