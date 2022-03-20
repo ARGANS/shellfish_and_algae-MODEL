@@ -14,8 +14,8 @@ bantrylat<-51.6
 bantry<-read.csv('bantry_data/bantry_3m.csv',sep = ';')
 
 #quick hack substitute missing values
-bantry$Ammonium[is.na(bantry$Ammonium)]<-0.4
-bantry$Nitrate[is.na(bantry$Nitrate)]<-8
+bantry$Ammonium[is.na(bantry$Ammonium)]<-4
+bantry$Nitrate[is.na(bantry$Nitrate)]<-80
 bantry$Temperature[is.na(bantry$Temperature)]<-8
 
 
@@ -114,20 +114,23 @@ bantry_continuousharvest_parms<-setup_run_parms(parms=c(parms_bantry_alaria,parm
 
 bantry_run<-run_MA_model(input=bantry_in,
                          parameters=bantry_parms,
-                         y0=c(NH4=bantry$Ammonium[1],NO3=bantry$Nitrate[1],N_s=100,N_f=100,D=0,Yield_farm=0, Yield_per_m=0)
+                         y0=c(NH4=bantry_in$NH4_in[1],NO3=bantry_in$NO3_in[1],N_s=100,N_f=100,D=0,Yield_farm=0, Yield_per_m=0)
                          )
 
 
 bantry_spring_harvest_run<-run_MA_model(input=bantry_in,
                          parameters=bantry_springharvest_parms,
-                         y0=c(NH4=bantry$Ammonium[1],NO3=bantry$Nitrate[1],N_s=0,N_f=0,D=0,Yield_farm=0, Yield_per_m=0)
+                         y0=c(NH4=bantry_in$NH4_in[1],NO3=bantry_in$NO3_in[1],N_s=0,N_f=0,D=0,Yield_farm=0, Yield_per_m=0)
                          )
 
 bantry_CCA_run<-run_MA_model(input=bantry_in,
                                         parameters=bantry_continuousharvest_parms,
-                                        y0=c(NH4=bantry$Ammonium[1],NO3=bantry$Nitrate[1],N_s=0,N_f=0,D=0,Yield_farm=0, Yield_per_m=0)
+                                        y0=c(NH4=bantry_in$NH4_in[1],NO3=bantry_in$NO3_in[1],N_s=0,N_f=0,D=0,Yield_farm=0, Yield_per_m=0)
 )
 
+write.csv(bantry_run,'bantry_data/bantry_run.csv')
+write.csv(bantry_spring_harvest_run,'bantry_data/bantry_spring_harvest_run.csv')
+write.csv(bantry_CCA_run,'bantry_data/bantry_CCA_run.csv')
 
 #names(bantry_run)[names(bantry_run)=='time'][2]<-'time2'
 library(reshape2)
@@ -135,7 +138,7 @@ library(ggplot2)
 library(patchwork)
 plot_bantry_results<-function(x.,harvest=FALSE){
   
-  
+  x.<-cbind(bantry_in,x.)
   #x. is output of run_MA_model
   #melt it to give overlayable plots as needed
   TS<-5 #text size control
@@ -372,7 +375,6 @@ MA_model_steady <- function(t,y,parms,...) {
     
     
     output<-list(c(dNH4, dNO3,dN_s,dN_f,dD),
-                 Nf_change = Nf_change,
                  Farm_NO3_demand = NO3_removed*V_MA,
                  Farm_NH4_demand = NH4_removed*V_MA,
                  V_EFF = V_EFF,

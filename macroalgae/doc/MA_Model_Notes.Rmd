@@ -78,13 +78,14 @@ op = function(x, d=0) sprintf(paste0("%1.",d,"f"), x)
 \newcommand{\D}{\mathrm{D}}
 \newcommand{\rl}{r_{L}}
 \newcommand{\Kd}{K_{d}}
-\newcommand{\rlD}{\rl.\D}
+\newcommand{\rlD}{\rl\cdot\D}
 \newcommand{\rN}{r_{N}}
-\newcommand{\rnN}{\rN.\ammon}
+\newcommand{\rnN}{\rN\cdot\ammon}
 
 \newcommand{\dm}{d_{M}}
 
-\newcommand{\dmNf}{\dm.\Nf}
+\newcommand{\dmNf}{\dm\cdot\Nf}
+\newcommand{\dmNs}{\dm\cdot\Ns}
 \newcommand{\VNXx}{V_{\NXx}}
 
 \newcommand{\VNHfour}{V_{\ammon}}
@@ -96,12 +97,14 @@ op = function(x, d=0) sprintf(paste0("%1.",d,"f"), x)
 
 \newcommand{\KNXx}{K_{\NXx}}
 \newcommand{\Q}{Q}
+\newcommand{\B}{B}
 
 \newcommand{\Qmax}{\Q_{\mathrm{max}}}
 \newcommand{\Qmin}{\Q_{\mathrm{min}}}
 \newcommand{\gE}{g_{E}}
 \newcommand{\gQ}{g_{Q}}
 \newcommand{\gT}{g_{T}}
+\newcommand{\gEQT}{g(E,Q,T)}
 \newcommand{\Kc}{K_{c}}
 \newcommand{\T}{\mathrm{T}}
 \newcommand{\To}{\T_\mathrm{o}}
@@ -160,7 +163,7 @@ The cultivation depth, $\zfarm$ is defined as the distance from the water surfac
 ```{=tex}
 \begin{equation}
     \displaystyle
-    \VMA=\yfarm.\xfarm.\dens.\hMA (\#eq:VMA)
+    \VMA=\yfarm\cdot\xfarm\cdot\dens\cdot\hMA (\#eq:VMA)
 \end{equation}
 ```
 
@@ -171,7 +174,7 @@ The water within the farm volume, extending to the water surface, is considered 
 ```{=tex}
 \begin{equation}
     \displaystyle
-    \Veff = \yfarm.(\xfarm+\flow).(\zfarm+\tz) (\#eq:Veff)
+    \Veff = \yfarm\cdot(\xfarm+\flow)\cdot(\zfarm+\tz) (\#eq:Veff)
 \end{equation}
 ```
 
@@ -179,30 +182,29 @@ The ratio $\frac{\VMA}{\Veff}$ is used to scale the nutrient uptake within the f
 
 We assume that the water column is well mixed to depth $\tz$.  As nutrient flow will tend to restore nutrient concentration back to the ambient concentration, the ratio of advective flow to farm length in the direction of flow  ($\frac{\flow}{\xfarm}$) can be used to determine the nutrient concentration restoration rate to the farm volume,with a maximum value of 1 (per timestep).
 
-Ammonium and nitrate concentration in the model are a function of the restoration of nutrients to ambient concentration by the input of new water, their biomass-specific uptake by seaweed ($f(\NXx,Q).B$); remineralisation of detrital material, $\rlD$; nitrification of $\ammon$ to $\nitr$ ($\rnN$); and a mortality term, $\dmNf$,  that returns stored nitrogen to the ammonium pool. 
+Ammonium and nitrate concentration in the model are a function of the restoration of nutrients to ambient concentration by the input of new water, their biomass-specific uptake by seaweed ($f(\NXx,Q)\cdot\B$); remineralisation of detrital material, $\rlD$; nitrification of $\ammon$ to $\nitr$ ($\rnN$); and mortality terms, $\dmNs$, which returns stored nitrogen to the ammonium pool and  $\dmNf$,  which produces detrital material, D. 
 
 
 ```{=tex}
 \begin{equation}
     \displaystyle
-    \frac{d\mathrm{NH_4}}{dt}=\min(1,\frac{\flow}{\xfarm}).(\ammonext-\ammon)+(\rlD  + \dmNf - f(\ammon,Q).B - \rnN).\frac{\VMA}{\Veff} (\#eq:NH4dt)
+    \frac{d\mathrm{NH_4}}{dt}=\min(1,\frac{\flow}{\xfarm})\cdot(\ammonext-\ammon)+(\rlD  + \dmNs - f(\ammon,Q)\cdot\B - \rnN)\cdot\frac{\VMA}{\Veff} (\#eq:NH4dt)
 \end{equation}
 ```
 
 ```{=tex}
 \begin{equation}
     \displaystyle 
-    \frac{d\mathrm{NO_3}}{dt}=\min(1,\frac{\flow}{\xfarm}).(\nitrext-\nitr)+(\rnN - f(\nitr,Q).B).\frac{\VMA}{\Veff} (\#eq:NO3dt)
+    \frac{d\mathrm{NO_3}}{dt}=\min(1,\frac{\flow}{\xfarm})\cdot(\nitrext-\nitr)+(\rnN - f(\nitr,Q)\cdot\B)\cdot\frac{\VMA}{\Veff} (\#eq:NO3dt)
 \end{equation}
 ```
 
-
-The pool of internal nitrogen stored by the macroalgae, $\Ns$ is controlled by the uptake of $\ammon$ and $\nitr$ into the store, the light, temperature and nutrient dependent growth rate (i.e. the uptake from stored inorganic N to fixed biomass N ($\Nf$)) and the mortality term. 
+In the above equations, B is the drw weight macroalgal biomass in grams per cubic meter, calculated as $\B=\frac{\Nf}{\Qmin}$. The pool of internal nitrogen stored by the macroalgae, $\Ns$ is controlled by the uptake of $\ammon$ and $\nitr$ into the store, the light, temperature and nutrient dependent growth rate (i.e. the uptake from stored inorganic N to fixed biomass N ($\Nf$)) and the mortality term. 
 
 ```{=tex}
 \begin{equation}
     \displaystyle 
-    \frac{d\Ns}{dt}=(f(\ammon,Q)+f(\nitr,Q)).B-min(\mu.g(E,Q,T).\Ns,\phos_{\Veff}.\NP)-\dmNf (\#eq:Ns)
+    \frac{d\Ns}{dt}=(f(\ammon,Q)+f(\nitr,Q)).B-min(\mu\cdot\gEQT\cdot\Ns,\phos_{\Veff}\cdot\NP)-\dmNs (\#eq:Ns)
 \end{equation}
 ```
 
@@ -213,7 +215,7 @@ Fixed (biomass) nitrogen, $\Nf$ is then:
 ```{=tex}
 \begin{equation}
     \displaystyle 
-    \frac{d\mathrm{N_f}}{dt}=min(\mu.g(E,Q,T).\Ns,\phos.\NP)-\dmNf (\#eq:Nf)
+    \frac{d\mathrm{N_f}}{dt}=min(\mu\cdot\gEQT\cdot\Ns,\phos\cdot\NP)-\dmNf (\#eq:Nf)
 \end{equation}
 ```
 
@@ -222,7 +224,7 @@ Finally, the detrital pool is determined from the inflow of detrital material, t
 ```{=tex}
 \begin{equation}
     \displaystyle 
-    \frac{d\D}{dt}=\min(1,\frac{\flow}{\xfarm}).(\D_{ext}-\D)+ (\dmNf- \rlD).\frac{\VMA}{\Veff} (\#eq:D)
+    \frac{d\D}{dt}=\min(1,\frac{\flow}{\xfarm})\cdot(\D_{ext}-\D)+ (\dmNf- \rlD)\cdot\frac{\VMA}{\Veff} (\#eq:D)
 \end{equation}
 ```
 
@@ -234,7 +236,7 @@ Uptake from inorganic nutrients into the fixed nitrogen pool, $\Nf$ is controlle
 ```{=tex}
 \begin{equation}
     \displaystyle 
-    f_\NXx = \frac{\VNXx.\NXx}{\KNXx+\NXx}.\frac{\Qmax-\Q}{\Qmax-\Qmin}
+    f_\NXx = \frac{\VNXx\cdot\NXx}{\KNXx+\NXx}\cdot\frac{\Qmax-\Q}{\Qmax-\Qmin}
 \end{equation}
 ```
 
@@ -243,7 +245,7 @@ Nitrogen is fixed from the internal nutrient pool to the fixed nitrogen pool thr
 ```{=tex}
 \begin{equation}
     \displaystyle 
-    \mu.g(E,Q,T) = \mu.\gE.\gQ.\gT
+    \mu\cdot\gEQT = \mu\cdot\gE\cdot\gQ\cdot\gT
 \end{equation}
 ```
 
@@ -275,7 +277,7 @@ The daily maximum angle of incident light is calculated as a function of latitud
 ```{=tex}
 \begin{equation}
     \displaystyle 
-    \theta = 90-L-23.45 cos(\frac{360}{365}.(\dord+10))
+    \theta = 90-L-23.45 cos(\frac{360}{365}\cdot(\dord+10))
 \end{equation}
 ```
 
@@ -284,7 +286,7 @@ The light intensity at the top of the macroalgae is then calculated as:
 ```{=tex}
 \begin{equation}
     \displaystyle 
-    \Itop = \Isurf.e^{(-\Kd.\frac{\zfarm-\hMA}{sin(\theta)})}
+    \Itop = \Isurf\cdot{}e^{(-\Kd\cdot\frac{\zfarm-\hMA}{sin(\theta)})}
 \end{equation}
 ```
 
@@ -293,7 +295,7 @@ and the mean irradiance throughout the height of the macroalgae, accounting for 
 ```{=tex}
 \begin{equation}
     \displaystyle 
-    \Iavg = \frac{\Itop}{\frac{\Kd.\hMA}{\sin(\theta)}+\frac{\Nf.\acs}{(\sin(\theta))}}.(1-e^{-(\frac{\Kd.\hMA}{\sin(\theta)}+\frac{\Nf.\acs}{(\sin(\theta))})}
+    \Iavg = \frac{\Itop}{\frac{\Kd\cdot\hMA}{\sin(\theta)}+\frac{\Nf\cdot\acs}{(\sin(\theta))}}\cdot(1-e^{-(\frac{\Kd\cdot\hMA}{\sin(\theta)}+\frac{\Nf\cdot\acs}{(\sin(\theta))})}
 \end{equation}
 ```
 
@@ -379,11 +381,12 @@ Parameter values controlling the dimensions of the farm are summarised in Table 
 
 ```{r farmoparams, echo=FALSE}
   source("run_MA.R")
-
+  parms<-allparams$farm$defaults$default$parameters
+  descs<-allparams$farm$parameters_descriptions
   farmoparams<-data.frame(
-    parameter=names(unlist(allparams$algae$farm_parameters)), 
-    description=as.character(lapply(allparams$algae$farm_parameters_description, `[[`, 1)),
-    units=as.character(lapply(allparams$algae$farm_parameters_description, `[[`, 2))
+    parameter=names(unlist(parms)), 
+    description=as.character(lapply(descs, `[[`, 1)),
+    units=as.character(lapply(descs, `[[`, 2))
   )
    knitr::kable(farmoparams,caption = 'Macroalgae farm parameters')
  
@@ -480,7 +483,7 @@ Fig \@ref(fig:parsubs) show the output of the data substitution, and highlights 
 #source('bantry_run.R')
 
 plot(bantry$par,xlab='doy',ylab='par / umol/m2/s',pch='.',col='red',cex=2)
-lines(par_GC$par_GC)
+lines(PARsub)
 bp<-bantry$par
 bp[which(!is.na(obspar))]<-NA
 points(bp)
