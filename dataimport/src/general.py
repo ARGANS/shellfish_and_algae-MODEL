@@ -204,9 +204,9 @@ def giveDateslist(dateBeginning, dateEnd):
     datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
     datetimeEnd = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
 
-    ndays = (datetimeEnd - datetimeBeginning).days
+    nmonth = ((dateEnd.Year - dateBeginning.Year) * 12) + dateEnd.Month - dateBeginning.Month
 
-    begList = [(datetimeBeginning + datetime.timedelta(days=i)) for i in range(ndays)]
-    endList = [(datetimeBeginning + datetime.timedelta(days=i)) for i in range(1, ndays+1)]
+    begList = [(datetimeBeginning + datetime.timedelta(months=i)) for i in range(nmonth)]
+    endList = [(datetimeBeginning + datetime.timedelta(months=i)) for i in range(1, nmonth+1)]
 
     return begList, endList
