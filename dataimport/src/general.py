@@ -8,6 +8,7 @@ import os
 import numpy as np
 import pandas as pd
 import datetime
+from dateutil.relativedelta import *
 
 #read the csv where we listed the location of the different data
 def readcsv(file='./dataCmd.csv'):
@@ -155,7 +156,7 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
         if wantedDataLine.iloc[0]["daily"] == 1:
             begDate = splitDate(dateBeginning)
             endDate = splitDate(dateEnd)
-            filename = wantedData + zone + dataFin.iloc[j]["fileType"] + dateBeginning.strftime("%Y-%m-%d")
+            filename = wantedData + zone + dataFin.iloc[j]["type"] + dataFin.iloc[j]["fileType"] + dateBeginning.strftime("%Y-%m")
         else:
             filename = wantedData + zone + dataFin.iloc[j]["fileType"]
         outputFile = giveFile(filename, dataFin.iloc[j]["fileType"])
@@ -204,9 +205,9 @@ def giveDateslist(dateBeginning, dateEnd):
     datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
     datetimeEnd = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
 
-    nmonth = ((dateEnd.Year - dateBeginning.Year) * 12) + dateEnd.Month - dateBeginning.Month
+    nmonth = ((datetimeEnd.year - datetimeBeginning.year) * 12) + datetimeEnd.month - datetimeBeginning.month
 
-    begList = [(datetimeBeginning + datetime.timedelta(months=i)) for i in range(nmonth)]
-    endList = [(datetimeBeginning + datetime.timedelta(months=i)) for i in range(1, nmonth+1)]
+    begList = [(datetimeBeginning + relativedelta(months=i)) for i in range(nmonth)]
+    endList = [(datetimeBeginning + relativedelta(months=i)) for i in range(1, nmonth+1)]
 
     return begList, endList
