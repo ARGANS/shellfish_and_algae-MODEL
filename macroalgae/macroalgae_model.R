@@ -199,10 +199,10 @@ MA_model <- function(t,y,parms,...) {
     #Macroalgae are grown on notional 'lines' running the full width of y_farm (perpendicular to notional flow in x direction). The 'spacing' of the lines is determined by input parm density_MA. The total volume occupied by macroalgae is calculated as y_farm*x_farm*density_MA*h_MA
     V_MA<-y_farm*x_farm*density_MA*h_MA
     # The effective volume of water that the V_MA is interacting with (concentration-dependent drawdown of nutrients) is 
-    V_EFF<-y_farm*(x_farm+F_in(t))*(z+t_z(t))
+    V_EFF<-y_farm*x_farm*t_z(t)
     # therefore nutrient change in the outflow of the farm (to depth z+t_z) is scaled to V_MA/V_EFF of the local nutrient change (See dNH4 and dNO3 terms)
     
-    lambda   <- min(1,(F_in(t)/x_farm)) #
+    lambda   <- (F_in(t)/x_farm) #
     
     # nutrient controls on growth, relation to biomass ####
     Q           <- ifelse(N_f>0,Q_min*(1+(N_s/N_f)),0)                                       #    Internal nutrient quota of macroalgae                                      

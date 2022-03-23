@@ -283,7 +283,7 @@ hnlf<-c(
   PO4_mean=50,
   PO4_magn=30,
   F_in=0,
-  t_z=0
+  t_z=5
 )
 
 
@@ -333,10 +333,10 @@ reference_run <- function(input_data,nondefault_parms,harvest=FALSE){
 
 
 
-#lnlf_out<-reference_run(lnlf,test_parms_ulva)
-#hnlf_out<-reference_run(hnlf,test_parms_ulva)
-#lnhf_out<-reference_run(lnhf,test_parms_ulva)
-#hnhf_out<-reference_run(hnhf,test_parms_ulva)
+lnlf_out<-reference_run(lnlf,test_parms_ulva)
+hnlf_out<-reference_run(hnlf,test_parms_ulva)
+lnhf_out<-reference_run(lnhf,test_parms_ulva)
+hnhf_out<-reference_run(hnhf,test_parms_ulva)
 
 
 #lnlf_harvest_out<-reference_run(lnlf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
