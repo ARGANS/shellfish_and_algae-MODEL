@@ -95,28 +95,28 @@ if __name__ =="__main__":
         'time': [(date - bantryData['date'][0]).days + 1 for date in bantryData['date']],
         'SST': 15,
         'PAR': bantryData['par'],
-        'NH4_in': bantryData['Ammonium'],
-        'NO3_in': bantryData['Nitrate'],
-        'PO4_in': 50,
+        'NH4_ext': bantryData['Ammonium'],
+        'NO3_ext': bantryData['Nitrate'],
+        'PO4_ext': 50,
         'K_d': 0.1,
         'F_in': 100,
         'h_z_SML': 30,
-        't_z': 0,
-        'D_in': 0.1
+        't_z': 10,
+        'D_ext': 0.1
     })
 
     dataToR = pd.DataFrame({
         'time': [0, 1],
         'SST': 15,
         'PAR': bantryData['par'][100],
-        'NH4_in': bantryData['Ammonium'][100],
-        'NO3_in': bantryData['Nitrate'][100],
-        'PO4_in': 50,
+        'NH4_ext': bantryData['Ammonium'][100],
+        'NO3_ext': bantryData['Nitrate'][100],
+        'PO4_ext': 50,
         'K_d': 0.1,
         'F_in': 100,
         'h_z_SML': 30,
-        't_z': 0,
-        'D_in': 0.1
+        't_z': 10,
+        'D_ext': 0.1
     })
 
     y0 = pd.DataFrame({"NH4": [0],

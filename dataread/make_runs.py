@@ -31,14 +31,14 @@ def yearly_runs(data, latitudes, longitude, startDate, endDate, mask, model):
                 'time': [(date - df['date'][0]).days + 1 for date in df['date']],
                 'SST': df['Temperature'],
                 'PAR': 500,
-                'NH4_in': df['Ammonium'],
-                'NO3_in': df['Nitrate'],
-                'PO4_in': 50,
+                'NH4_ext': df['Ammonium'],
+                'NO3_ext': df['Nitrate'],
+                'PO4_ext': 50,
                 'K_d': 0.1,
                 'F_in': np.sqrt(df['northward_Water_current']**2 + df['eastward_Water_current']**2),
                 'h_z_SML': 30,
-                't_z': 0,
-                'D_in': 0.1
+                't_z': 10,
+                'D_ext': 0.1
                 })
 
             t0 = time.time()
@@ -121,15 +121,21 @@ if __name__=="__main__":
     ### get the copernicus grid and mask
 
     sim_area = {
-        'longitude': (-4, -3.5),
-        'latitude': (48.5, 49),
+        #'longitude': (-4, -3.5),
+        #'latitude': (48.5, 49),
+        'longitude': (-180, 180),
+        'latitude': (-90, 90),
         'time_index': 0,
         'depth': 3
     }
 
     longitudes, _ = algaeData.parameterData['Temperature'].getVariable('longitude', **sim_area)
     latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **sim_area)
-    mask = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0].mask
+    mask1 = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0].mask
+    mask2 = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0].mask
+    mask3 = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0].mask
+
+    mask = np.logical_or(mask2, mask3)
 
     startDate = datetime.datetime(2021, 1, 1, 12)
     endDate = datetime.datetime(2022, 1, 1, 12)
@@ -192,7 +198,8 @@ if __name__=="__main__":
                                        latitude = sim_area['latitude'],
                                        depth = sim_area['depth'],
                                        time = (startTime, endTime),
-                                       averagingDims = ('time',)
+                                       averagingDims = ('time',),
+                                       weighted = False
                                        )
 
         for i, lat in enumerate(latitudes):
@@ -201,20 +208,21 @@ if __name__=="__main__":
                 if mask[i, j]:
                     continue
                 n_cells += 1
+                #print(f"        longitude: {lon}")
 
                 # This translation should be done somewhere else ?
                 dataToR = pd.DataFrame({
                     'time': [(startTime - initTime).days, (endTime - initTime).days],
                     'SST': data['Temperature'][i,j],
                     'PAR': 500,
-                    'NH4_in': data['Ammonium'][i,j],
-                    'NO3_in': data['Nitrate'][i,j],
-                    'PO4_in': 50,
+                    'NH4_ext': data['Ammonium'][i,j],
+                    'NO3_ext': data['Nitrate'][i,j],
+                    'PO4_ext': 50,
                     'K_d': 0.1,
                     'F_in': np.sqrt(data['northward_Water_current'][i,j]**2 + data['eastward_Water_current'][i,j]**2),
                     'h_z_SML': 30,
-                    't_z': 0,
-                    'D_in': 0.1
+                    't_z': 10,
+                    'D_ext': 0.1
                     })
 
                 # run the month
