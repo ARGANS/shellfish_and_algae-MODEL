@@ -18,6 +18,7 @@ function start_container {
             --rm \
             --name $CONTAINER_NAME \
             --volume "$HOME/share/data_merged":/media/share/data_merged \
+            --volume "$HOME/share/results":/media/share/results \
             --entrypoint '/bin/bash' \
             -dit $MA_TAG:latest
     fi
@@ -40,8 +41,23 @@ function run {
             ;;
         'execute')
             start_container
-            docker exec -it $CONTAINER_NAME bash -c "Rscript sensitivity_study.R"
-            docker cp $CONTAINER_NAME:/opt/Rplots.pdf ~/Documents
+            docker exec -itd $CONTAINER_NAME bash -c "python make_runs.py"
+            #docker cp $CONTAINER_NAME:/opt/Rplots.pdf ~/Documents
+            ;;
+        'stop')
+            local container_id=$( docker ps -q -f name=$CONTAINER_NAME )
+            if [[ ! -z "$container_id" ]]; then
+                docker stop $CONTAINER_NAME || true
+            fi
+            ;;
+        'update')
+            local container_id=$( docker ps -q -f name=$CONTAINER_NAME )
+            docker cp dataread/. ${container_id}:/opt/
+            docker cp macroalgae/. ${container_id}:/opt/
+            docker cp dataimport/src/dataCmd.csv ${container_id}:/opt/dataCmd.csv
+            #COPY dataread ./
+            #COPY macroalgae ./
+            #COPY dataimport/src/dataCmd.csv ./dataCmd.csv
             ;;
         *)
             echo 'todo help';;
