@@ -22,7 +22,7 @@ library('rootSolve')
 #library('simecol')
 library('tidyverse')
 
-boundary_forcings<-function(input_data){
+boundary_forcings<-function(input_data, method='linear'){
   # This function takes input environmental data for an individual grid square
   # as a data frame of daily average values and generates the necessary functions
   # to return interpolated values at any time point within the range
@@ -41,7 +41,7 @@ boundary_forcings<-function(input_data){
 
   output = list()
   for (param in names(input_data)) {
-    output[[param]] = approxfun(x=input_data$time, y=input_data[,param], method='linear', rule=2)
+    output[[param]] = approxfun(x=input_data$time, y=input_data[,param], method=method, rule=2)
   }
   
   return(output)
@@ -108,8 +108,14 @@ run_MA_model<-function(input,parameters,y0,output='df'){
   #function can be called from R or python, sets up boundary forcing functions from input data and executes the model function, returns a neat data frame of output values
 
   #create boundary forcings
-  input_functions = boundary_forcings(input)
+  input_functions = boundary_forcings(input, "constant")
   parms = c(parameters, input_functions)
+
+  if (!is.numeric(y0)) {
+    y0_names = names(y0)
+    y0 = as.numeric(y0)
+    names(y0) = y0_names
+  }
 
   if(parms['harvest_method']==0){
     #no harvesting
