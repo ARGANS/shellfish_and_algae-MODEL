@@ -309,6 +309,30 @@ MA_model <- function(t,y,parms,...) {
   }) 
 }
 
+
+
+
+
+
+run_steady_state<-function(parms,...){
+  
+  out<-steady(y=c(NH4=1,NO3=10,N_s=100000,N_f=100000,D=100),
+              time=c(0,Inf),
+              func=MA_model_steady,
+              parms=parms,
+              method='runsteady',
+              positive=TRUE)
+  #make a neat array of results - if steady != 1 then steady state has failed...
+  unlist(c(out[1:15],steady=attr(out,'steady')))
+  
+}
+
+
+
+
+
+
+
 MA_model_steady <- function(t,y,parms,...) {
   
   
