@@ -50,13 +50,13 @@ default_input<- data.frame(
   time   = time,
   PAR    = PAR_mean + (PAR_magn*sin(2*pi*(time-91)/365)),
   SST    = SST_mean + (SST_magn*sin(2*pi*(time+180)/365)),
-  NH4_in = NH4_mean + (NH4_magn*sin(2*pi*(time+91)/365)),
-  NO3_in = NO3_mean + (NO3_magn*sin(2*pi*(time+91)/365)),
-  PO4_in = PO4_mean + (PO4_magn*sin(2*pi*(time+91)/365)),
+  NH4_ext = NH4_mean + (NH4_magn*sin(2*pi*(time+91)/365)),
+  NO3_ext = NO3_mean + (NO3_magn*sin(2*pi*(time+91)/365)),
+  PO4_ext = PO4_mean + (PO4_magn*sin(2*pi*(time+91)/365)),
   K_d    = 0.1,
   F_in   = 100,
   t_z    = 10,
-  D_in   = 0
+  D_ext   = 0
 )
 
 
@@ -283,7 +283,7 @@ hnlf<-c(
   PO4_mean=50,
   PO4_magn=30,
   F_in=0,
-  t_z=0
+  t_z=5
 )
 
 
@@ -309,19 +309,19 @@ reference_run <- function(input_data,nondefault_parms,harvest=FALSE){
     time   = time,
     PAR    = 400 + (300*sin(2*pi*(time-91)/365)),
     SST    = 13 + (4*sin(2*pi*(time+180)/365)),
-    NH4_in = NH4_mean + (NH4_magn*sin(2*pi*(time+91)/365)),
-    NO3_in = NO3_mean + (NO3_magn*sin(2*pi*(time+91)/365)),
-    PO4_in = PO4_mean + (PO4_magn*sin(2*pi*(time+91)/365)),
+    NH4_ext = NH4_mean + (NH4_magn*sin(2*pi*(time+91)/365)),
+    NO3_ext = NO3_mean + (NO3_magn*sin(2*pi*(time+91)/365)),
+    PO4_ext = PO4_mean + (PO4_magn*sin(2*pi*(time+91)/365)),
     K_d    = 0.1,
     F_in   = F_in,
-    D_in   = 0.1,
+    D_ext   = 0.1,
     t_z    = t_z
   )
   
   if(harvest==TRUE){
-    y0   <- c(NH4=input_frame$NH4_in[1],NO3=input_frame$NO3_in[1],N_s=0,N_f=0,D=0,Yield_farm=0,Yield_per_m=0)
+    y0   <- c(NH4=input_frame$NH4_ext[1],NO3=input_frame$NO3_ext[1],N_s=0,N_f=0,D=0,Yield_farm=0,Yield_per_m=0)
   }else{
-    y0   <- c(NH4=input_frame$NH4_in[1],NO3=input_frame$NO3_in[1],N_s=0,N_f=100,D=0,Yield_farm=0,Yield_per_m=0)
+    y0   <- c(NH4=input_frame$NH4_ext[1],NO3=input_frame$NO3_ext[1],N_s=0,N_f=100,D=0,Yield_farm=0,Yield_per_m=0)
   }
   
   parms.=setup_run_parms(parms=nondefault_parms)
@@ -339,57 +339,9 @@ reference_run <- function(input_data,nondefault_parms,harvest=FALSE){
 #hnhf_out<-reference_run(hnhf,test_parms_ulva)
 
 
-#lnlf_harvest_out<-reference_run(lnlf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
-# hnlf_harvest_out<-reference_run(hnlf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
-# lnhf_harvest_out<-reference_run(lnhf,c(test_parms_ulva,parms_ref_harvest_run),harvest=TRUE)
-# hnhf_harvest_out<-reference_run(hnhf,c(test_parms_ulva,parms_ref_harvest_run_winter_growth),harvest=TRUE)
 
 
 
 
 
 
-
-# # Main function: run_model-------------------------------------------
-# 
-# run_model<-function(default_parms,default_input,parms=NULL,input=NULL,y0){
-#   
-#   run_length<-max(input_data$time)
-#   times=seq(1,run_length,by=1)
-#   # use default input where no values provided
-#   input_functions = boundary_forcings(input_data) #create boundary forcings
-#   parms = c(parms, input_functions)
-#   parms<-replace(default_parms,names(parms),parms) #parameters use defaults where no parmater provided in run config
-#   if(parms['harvest_method']==0){
-#     #no harvesting
-#     Out<-ode(times = times,
-#              func=MA_model,
-#              y=y0,
-#              parms=parms)
-# 
-#   } else if(parms['harvest_method']==1){
-# 
-#     #harvest at set frequency
-# 
-# 
-#     Out_timed_harvest <- ode(times = times,
-#                              func = MA_model,
-#                              y = y0,
-#                              parms = parms,
-#                              event=list(func=harvest_eventfunc, root=TRUE),
-#                              rootfun=harvest_timed_rootfunc)
-#     Out<-Out_timed_harvest
-# 
-#   } else if(parms['harvest_method']==2){
-# 
-#     Out_limit_harvest <- ode(times = times,
-#                              func = MA_model,
-#                              y = y0,
-#                              parms = parms,
-#                              events=list(func=harvest_eventfunc, root=TRUE),
-#                              rootfun=harvest_limit_rootfunc)
-#     Out<-Out_limit_harvest
-#   }
-#   #cbind(input_data,Out)
-#   Out
-# }
