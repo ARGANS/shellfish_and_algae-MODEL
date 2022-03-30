@@ -71,7 +71,6 @@ def extractVarSubset(ncDataset, variable, **kwargs):
     #          order.
 
     dimensions = ncDataset[variable].get_dims()
-    #sliceList = [slice(None) for _ in range(len(dimensions))]
     sliceList = [slice(None)] * len(dimensions)
     for iDim, dim in enumerate(dimensions):
         if dim.name in kwargs:
@@ -101,7 +100,7 @@ def extractVarSubset(ncDataset, variable, **kwargs):
     dimRemains = [type(a) is slice for a in sliceList]
     remainingDims = tuple(dim.name for i,dim in enumerate(dimensions) if dimRemains[i])
 
-    return ncDataset[variable][sliceList], remainingDims
+    return ncDataset[variable][tuple(sliceList)], remainingDims
 
 
 def weightsForAverage(sortedDim, leftLimit, rightLimit):
