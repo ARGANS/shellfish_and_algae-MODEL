@@ -1,5 +1,5 @@
-import gdal
-import osr
+from osgeo import gdal
+from osgeo import osr
 import numpy as np
 import netCDF4 as nc
 import os
