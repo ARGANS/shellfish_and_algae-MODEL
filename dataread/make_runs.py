@@ -3,6 +3,7 @@ import numpy as np
 from read_netcdf import *
 from launch_model import *
 import time
+from scipy.integrate import odeint
 
 
 def yearly_runs(data, latitudes, longitude, startDate, endDate, mask, model):
@@ -82,70 +83,11 @@ def yearly_runs(data, latitudes, longitude, startDate, endDate, mask, model):
         )
 
 
-if __name__=="__main__":
+def monthly_simulations(data, latitudes, longitude, startDate, endDate, mask, model):
+    ### Create the necdf output
+    ds = nc.Dataset("/media/share/results/monthly_simulations_test.nc", 'w', format='NETCDF4')
 
-    zone = "IBI"
-
-    mainpath = '/media/share/data_merged/'
-
-    #dataRef = pd.read_csv('/profils/qjutard/shellfish_and_algae-MODEL/dataimport/src/dataCmd.csv', delimiter=';')
-    dataRef = pd.read_csv('./dataCmd.csv', delimiter=';')
-
-    ### Initialize the netcdf reading interface
-
-    #paramNames = ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current', 'ocean_mixed_layer_thickness', 'par']
-    paramNames = ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
-    fileNames = [mainpath + f"{zone}/{param}/{zone}_{param}_merged.nc" for param in paramNames]
-
-    #dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][0] for param in paramNames]
-    dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][-1] for param in paramNames]
-
-    variableNames = dataRef.iloc[dataRows]['variable'].tolist()
-    latitudeNames = dataRef.iloc[dataRows]['latName'].fillna('latitude').tolist()
-    longitudeNames = dataRef.iloc[dataRows]['longName'].fillna('longitude').tolist()
-    timeNames = dataRef.iloc[dataRows]['timeName'].fillna('time').tolist()
-    depthNames = dataRef.iloc[dataRows]['depthName'].fillna('depth').tolist()
-    unitConversions = dataRef.iloc[dataRows]['unitFactor'].fillna(1).tolist()
-
-    algaeData = AllData(fileNameList=fileNames,
-                        parameterNameList=paramNames,
-                        variableNameList=variableNames,
-                        latitudeNameList=latitudeNames,
-                        longitudeNameList=longitudeNames,
-                        timeNameList=timeNames,
-                        depthNameList=depthNames,
-                        unitConversionList=unitConversions
-    )
-
-
-    ### get the copernicus grid and mask
-
-    sim_area = {
-        #'longitude': (-4, -3.5),
-        #'latitude': (48.5, 49),
-        'longitude': (-180, 180),
-        'latitude': (-90, 90),
-        'time_index': 0,
-        'depth': 3
-    }
-
-    longitudes, _ = algaeData.parameterData['Temperature'].getVariable('longitude', **sim_area)
-    latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **sim_area)
-    mask1 = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0].mask
-    mask2 = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0].mask
-    mask3 = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0].mask
-
-    mask = np.logical_or(mask2, mask3)
-
-    startDate = datetime.datetime(2021, 1, 1, 12)
-    endDate = datetime.datetime(2022, 1, 1, 12)
-
-    model = MA_model("macroalgae_model.R", "macroalgae_model_parameters.json")
-
-
-    ds = nc.Dataset("/media/share/results/monthly_simulations.nc", 'w', format='NETCDF4')
-
-    months = ds.createDimension('time', 12)
+    months = ds.createDimension('time', None)
     lat = ds.createDimension('latitude', len(latitudes))
     lon = ds.createDimension('longitude', len(longitudes))
 
@@ -154,6 +96,8 @@ if __name__=="__main__":
 
     lats[:] = latitudes
     lons[:] = longitudes
+
+
 
     for name in ["NH4", "NO3", "N_s", "N_f", "D", "Yield", "Yield_per_m"]:
         var = ds.createVariable(name, 'f4', ('time', 'latitude', 'longitude',))
@@ -233,7 +177,7 @@ if __name__=="__main__":
 
                 y0_array[i,j] = model_res[["NH4", "NO3", "N_s", "N_f", "D", "Yield", "Yield_per_m"]]
 
-        ds = nc.Dataset("/media/share/results/monthly_simulations.nc", 'a')
+        ds = nc.Dataset("/media/share/results/monthly_simulations_test.nc", 'a')
         for name, values in results.items():
             ds[name][month-1,:,:] = values
         ds.close()
@@ -242,4 +186,74 @@ if __name__=="__main__":
     print(f"Total time: {total_time}" +
           f"Time per cell per month: {total_time/n_cells}"
     )
+
+
+
+if __name__=="__main__":
+
+    zone = "IBI"
+
+    mainpath = '/media/share/data_merged/'
+
+    #dataRef = pd.read_csv('/profils/qjutard/shellfish_and_algae-MODEL/dataimport/src/dataCmd.csv', delimiter=';')
+    dataRef = pd.read_csv('./dataCmd.csv', delimiter=';')
+
+    ### Initialize the netcdf reading interface
+
+    #paramNames = ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current', 'ocean_mixed_layer_thickness', 'par']
+    paramNames = ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
+    fileNames = [mainpath + f"{zone}/{param}/{zone}_{param}_merged.nc" for param in paramNames]
+
+    #dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][0] for param in paramNames]
+    dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][-1] for param in paramNames]
+
+    variableNames = dataRef.iloc[dataRows]['variable'].tolist()
+    latitudeNames = dataRef.iloc[dataRows]['latName'].fillna('latitude').tolist()
+    longitudeNames = dataRef.iloc[dataRows]['longName'].fillna('longitude').tolist()
+    timeNames = dataRef.iloc[dataRows]['timeName'].fillna('time').tolist()
+    depthNames = dataRef.iloc[dataRows]['depthName'].fillna('depth').tolist()
+    unitConversions = dataRef.iloc[dataRows]['unitFactor'].fillna(1).tolist()
+
+    algaeData = AllData(fileNameList=fileNames,
+                        parameterNameList=paramNames,
+                        variableNameList=variableNames,
+                        latitudeNameList=latitudeNames,
+                        longitudeNameList=longitudeNames,
+                        timeNameList=timeNames,
+                        depthNameList=depthNames,
+                        unitConversionList=unitConversions
+    )
+
+
+    ### get the copernicus grid and mask
+
+    sim_area = {
+        'longitude': (-4, -3.5),
+        'latitude': (48.5, 49),
+        #'longitude': (-180, 180),
+        #'latitude': (-90, 90),
+        'time_index': 0,
+        'depth': 3
+    }
+
+    longitudes, _ = algaeData.parameterData['Temperature'].getVariable('longitude', **sim_area)
+    latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **sim_area)
+    mask1 = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0].mask
+    mask2 = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0].mask
+    mask3 = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0].mask
+
+    mask = np.logical_or(mask1, np.logical_or(mask2, mask3))
+
+    startDate = datetime.datetime(2021, 1, 1, 12)
+    endDate = datetime.datetime(2022, 1, 1, 12)
+
+    model = MA_model_scipy("macroalgae_model.R", "macroalgae_model_parameters.json")
+
+    for i, lat in enumerate(latitudes):
+        print(f"Latitude: {lat}")
+        for j, lon in enumerate(longitudes):
+            print(f"    Longitude: {lon}")
+            if mask[i, j]:
+                continue
+
 

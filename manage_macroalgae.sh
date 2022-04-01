@@ -21,6 +21,8 @@ function start_container {
             --volume "$HOME/share/results":/media/share/results \
             --entrypoint '/bin/bash' \
             -dit $MA_TAG:latest
+
+        run "update"
     fi
 }
 
@@ -55,9 +57,6 @@ function run {
             docker cp dataread/. ${container_id}:/opt/
             docker cp macroalgae/. ${container_id}:/opt/
             docker cp dataimport/src/dataCmd.csv ${container_id}:/opt/dataCmd.csv
-            #COPY dataread ./
-            #COPY macroalgae ./
-            #COPY dataimport/src/dataCmd.csv ./dataCmd.csv
             ;;
         *)
             echo 'todo help';;
