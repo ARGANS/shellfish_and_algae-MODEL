@@ -3,7 +3,9 @@ import numpy as np
 from read_netcdf import *
 from launch_model import *
 import time
-from scipy.integrate import odeint
+from scipy.integrate import solve_ivp
+from scipy.interpolate import interp1d
+import multiprocessing as mp
 
 
 def yearly_runs(data, latitudes, longitude, startDate, endDate, mask, model):
@@ -188,6 +190,38 @@ def monthly_simulations(data, latitudes, longitude, startDate, endDate, mask, mo
     )
 
 
+def initialize_result(filename:str, times, latitudes, longitudes, 
+                      variableNames:list):
+    """Initializes a netcdf file at filename with a time, latitude, and
+    longitude dimension. Corresponding variables are created with the values
+    in times, latitudes, longitudes. These also defin the size of the
+    dimensions.
+    Variables are also created from the names stored in variableNames with
+    dimensions (time, latitude, longitude).
+    """
+
+    ds = nc.Dataset(filename, 'w', format='NETCDF4')
+
+    days = ds.createDimension('time', len(times))
+    lat = ds.createDimension('latitude', len(latitudes))
+    lon = ds.createDimension('longitude', len(longitudes))
+
+    tims = ds.createVariable('time', 'f4', ('time',))
+    lats = ds.createVariable('latitude', 'f4', ('latitude',))
+    lons = ds.createVariable('longitude', 'f4', ('longitude',))
+
+    tims[:] = times
+    lats[:] = latitudes
+    lons[:] = longitudes
+
+    for name in variableNames:
+        var = ds.createVariable(name, 'f4', ('time', 'latitude', 'longitude',))
+
+    ds.close()
+
+
+def run_scenario_a(filename:str, inputData:AllData):
+
 
 if __name__=="__main__":
 
@@ -236,18 +270,37 @@ if __name__=="__main__":
         'depth': 3
     }
 
+    startDate = datetime.datetime(2021, 1, 1, 12)
+    endDate = datetime.datetime(2022, 1, 1, 12)
+
     longitudes, _ = algaeData.parameterData['Temperature'].getVariable('longitude', **sim_area)
     latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **sim_area)
+    times, _ = algaeData.parameterData['Temperature'].getVariable('time', time=(startDate, endDate), rawTime=True)
+
     mask1 = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0].mask
     mask2 = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0].mask
     mask3 = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0].mask
 
     mask = np.logical_or(mask1, np.logical_or(mask2, mask3))
 
-    startDate = datetime.datetime(2021, 1, 1, 12)
-    endDate = datetime.datetime(2022, 1, 1, 12)
+    model = MA_model_scipy("macroalgae_model_parameters.json")
 
-    model = MA_model_scipy("macroalgae_model.R", "macroalgae_model_parameters.json")
+    ### Create dataset
+    initialize_result("/media/share/results/complete_simulations_test.nc", times, latitudes, longitudes)
+
+
+    pool = mp.Pool(mp.cpu_count())
+
+
+
+    n_cells = 0
+    t0 = time.time()
+    y0 = np.array([0, 0, 0, 1000, 0])
+    interpKind = "nearest"
+    t_reading = 0
+    t_input = 0
+    t_computing = 0
+    t_writing = 0
 
     for i, lat in enumerate(latitudes):
         print(f"Latitude: {lat}")
@@ -256,4 +309,52 @@ if __name__=="__main__":
             if mask[i, j]:
                 continue
 
+            n_cells += 1
 
+            t1 = time.time()
+
+            input_data = algaeData.getTimeSeries(lat, lon, (startDate, endDate), 3)
+
+            t_reading += time.time() - t1
+            t1 = time.time()
+
+            time_axis = [(date - input_data['date'][0]).days for date in input_data['date']]
+            data_fun = {
+                'SST': interp1d(time_axis, input_data['Temperature'], kind=interpKind, assume_sorted=True),
+                'PAR': lambda _ : 500,
+                'NH4_ext': interp1d(time_axis, input_data['Ammonium'], kind=interpKind, assume_sorted=True),
+                'NO3_ext': interp1d(time_axis, input_data['Nitrate'], kind=interpKind, assume_sorted=True),
+                'PO4_ext': lambda _ : 50,
+                'K_d': lambda _ : 0.1,
+                'F_in': interp1d(time_axis, np.sqrt(input_data['northward_Water_current']**2 + input_data['eastward_Water_current']**2), kind=interpKind, assume_sorted=True),
+                'h_z_SML': lambda _ : 30,
+                't_z': lambda _ : 10,
+                'D_ext': lambda _ : 0.1
+            }
+
+            t_input += time.time() - t1
+            t1 = time.time()
+
+            result = solve_ivp(MA_model_scipy.derivative, (0, time_axis[-1]), y0, args=(data_fun, lat, model),
+                            jac=MA_model_scipy.jacobian, t_eval=time_axis,
+                            #rtol=0.05, atol=[0.5, 0.5, 100, 100, 0.04], method='BDF')
+                            atol=[0.5, 0.5, 100, 100, 0.04], method='BDF')
+                            #rtol=0.05, method='BDF')
+            t_computing += time.time() - t1
+            t1 = time.time()
+            if not result.success:
+                print(result.message)
+
+            ds = nc.Dataset("/media/share/results/complete_simulations_test.nc", 'a')
+            for k, name in enumerate(model.names):
+                ds[name][:,i,j] = result.y[k,:]
+            ds.close()
+
+            t_writing += time.time() - t1
+
+    print(f"Time per cell: {(time.time() - t0)/n_cells}\n"+
+          f"Reading: {t_reading/n_cells}\n" +
+          f"Compiling inputs: {t_input/n_cells}\n" +
+          f"Computing: {t_computing/n_cells}\n" +
+          f"Writing: {t_writing/n_cells}\n"
+    )

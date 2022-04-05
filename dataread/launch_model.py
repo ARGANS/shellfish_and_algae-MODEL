@@ -10,7 +10,7 @@ import time
 from scipy.integrate import odeint
 from scipy.integrate import solve_ivp
 from types import SimpleNamespace
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
 from read_netcdf import *
@@ -65,34 +65,19 @@ class MA_model:
 
 
 class MA_model_scipy:
-    def __init__(self, model_path, parms_path):
-
-        # Opens model_path to read the run_MA_model function
-        with open(model_path, 'r') as f:
-            body = f.read()
-            self._model = STAP(body, "MA_model_const")
-            self._jacobian = STAP(body, "MA_model_jacobian")
+    def __init__(self, parms_path):
 
         ### This section will need an update to use the input json rather than defaults json
         with open(parms_path, 'r') as f:
             parms = json.loads(f.read())
 
-        param_lists = []
-        self._parameters2 = {}
+        self._parameters = {}
         for _,section in parms.items():
             # just take the first option for each section for now
             first_default = section['defaults'][next(iter(section['defaults']))]
 
-            param_lists.append(robjects.ListVector(first_default['parameters']))
-            param_lists.append(robjects.ListVector(first_default['options']))
-
-            self._parameters2.update(first_default['parameters'])
-            self._parameters2.update(first_default['options'])
-
-        # get the R concatenator function
-        self._conc = robjects.r('c')
-        # concatenate all parameter lists
-        self._parameters = self._conc(*param_lists)
+            self._parameters.update(first_default['parameters'])
+            self._parameters.update(first_default['options'])
 
         self.names = ["NH4", "NO3", "N_s", "N_f", "D"]
 
@@ -105,33 +90,24 @@ class MA_model_scipy:
 
 
     @staticmethod
-    def derivative(t: float, y: np.array, data: pd.DataFrame, latitude: float,
-                   startDate: datetime.datetime, self):
+    def derivative(t: float, y: np.array, data:dict, latitude: float, self):
+        """
+        data is a dict of functions giving the value of the data at time t.
+        """
 
-        t1 = time.time()
-        #yToR = pd.Series(y, index=self.names) # 0.07
         yToR = dict(zip(self.names, y)) # 0.001
 
-        iData = iNearest(t, data['time'], "closest") # 0.04
+        #t1 = time.time()
 
-        
-        dataToR = data.iloc[iData] # 0.08
-        self.time_reading += time.time() - t1
+        dataToR = {name:fun(t) for name,fun in data.items()}
+
+        #self.time_reading += time.time() - t1
 
         t1 = time.time()
-        """
-        with localconverter(robjects.default_converter + pandas2ri.converter):
-            out = self._model.MA_model_const(t = t,
-                                             y = yToR,
-                                             parms = self._parameters,
-                                             data = dataToR,
-                                             latitude = latitude
-                                             )
-        """
         out = self.hadley(t, yToR, dataToR, latitude)
-        self.time_computing += time.time() - t1
+        #self.time_computing += time.time() - t1
 
-        self.n_calls += 1
+        #self.n_calls += 1
 
         return out
 
@@ -142,7 +118,7 @@ class MA_model_scipy:
             y and data must be subscriptable by names (dict, pd.Series,...)
         """
 
-        p = SimpleNamespace(**self._parameters2)
+        p = SimpleNamespace(**self._parameters)
 
         V_MA = p.y_farm * p.x_farm * p.density_MA * p.h_MA
         V_INT = p.y_farm * p.x_farm * data['t_z']
@@ -194,29 +170,18 @@ class MA_model_scipy:
 
 
     @staticmethod
-    def jacobian(t: float, y: np.array, data: pd.DataFrame, latitude: float, 
-                 startDate: datetime.datetime, self):
-        t1 = time.time()
+    def jacobian(t: float, y: np.array, data: dict, latitude: float, self):
+        #t1 = time.time()
         yToR = dict(zip(self.names, y))
 
-        iData = iNearest(t, data['time'], "closest")
-        dataToR = data.iloc[iData]
-        self.time_reading_J += time.time() - t1
+        dataToR = {name:fun(t) for name,fun in data.items()}
+        #self.time_reading_J += time.time() - t1
 
-        t1 = time.time()
-        """
-        with localconverter(robjects.default_converter + pandas2ri.converter):
-            out = self._jacobian.MA_model_jacobian(t = t,
-                                                   y = yToR,
-                                                   parms = self._parameters,
-                                                   data = dataToR,
-                                                   latitude = latitude
-                                                   )
-        """
+        #t1 = time.time()
         out = self.hadley_J(t, yToR, dataToR, latitude)
-        self.time_computing_J += time.time() - t1
+        #self.time_computing_J += time.time() - t1
 
-        self.n_calls_J += 1
+        #self.n_calls_J += 1
 
         return out
 
@@ -228,7 +193,7 @@ class MA_model_scipy:
             y and data must be subscriptable by names (dict, pd.Series,...)
         """
 
-        p = SimpleNamespace(**self._parameters2)
+        p = SimpleNamespace(**self._parameters)
 
         V_MA = p.y_farm * p.x_farm * p.density_MA * p.h_MA
         V_INT = p.y_farm * p.x_farm * data['t_z']
@@ -405,8 +370,6 @@ if __name__ =="__main__":
     startDate = datetime.datetime(2021, 1, 1, 12)
     endDate = datetime.datetime(2022, 1, 1, 12)
 
-    model = MA_model_scipy("macroalgae_model.R", "macroalgae_model_parameters.json")
-
     input_data = algaeData.getTimeSeries(51.5874, -9.8971, (startDate, endDate), 3)
     data = pd.DataFrame({
                 'time': [(date - input_data['date'][0]).days for date in input_data['date']],
@@ -421,53 +384,48 @@ if __name__ =="__main__":
                 't_z': 10,
                 'D_ext': 0.1
                     })
-    print(data)
+
+    time_axis = [(date - input_data['date'][0]).days for date in input_data['date']]
+    interpKind = "nearest"
+    data_fun = {
+        'SST': interp1d(time_axis, input_data['Temperature'], kind=interpKind, assume_sorted=True),
+        'PAR': lambda _ : 500,
+        'NH4_ext': interp1d(time_axis, input_data['Ammonium'], kind=interpKind, assume_sorted=True),
+        'NO3_ext': interp1d(time_axis, input_data['Nitrate'], kind=interpKind, assume_sorted=True),
+        'PO4_ext': lambda _ : 50,
+        'K_d': lambda _ : 0.1,
+        'F_in': interp1d(time_axis, np.sqrt(input_data['northward_Water_current']**2 + input_data['eastward_Water_current']**2), kind=interpKind, assume_sorted=True),
+        'h_z_SML': lambda _ : 30,
+        't_z': lambda _ : 10,
+        'D_ext': lambda _ : 0.1
+    }
 
     y0 = np.array([0, 0, 0, 1000, 0])
 
-    #dy0 = MA_model_scipy.derivative(y0, 0, data, 49, startDate, model)
-    #J0 = MA_model_scipy.jacobian(y0, 0, data, 49, startDate, model)
-    #print(dy0)
-    #print(J0)
 
-    model = MA_model_scipy("macroalgae_model.R", "macroalgae_model_parameters.json")
+    model = MA_model_scipy("macroalgae_model_parameters.json")
 
     n_runs = 1
     t0 = time.time()
 
     for _ in range(n_runs):
-        result = solve_ivp(MA_model_scipy.derivative, (0, 365), y0, args=(data, 51.5874, startDate, model),
-                           rtol=0.05, atol=[0.7, 0.7, 500, 500, 0.05], method='BDF')
-
-    print(f"One run: {(time.time() - t0)/n_runs}\n" +
-          f"Reading: {model.time_reading}\n" +
-          f"Computing: {model.time_computing}\n" +
-          f"N of calls: {model.n_calls} ({(model.time_reading+model.time_computing)/(model.n_calls or 1)} per call)\n"
-          )
+        result_J = solve_ivp(MA_model_scipy.derivative, (0, 364), y0, args=(data_fun, 51.5874, model),
+                            jac=MA_model_scipy.jacobian, t_eval=time_axis,
+                            rtol=0.05, atol=[0.5, 0.5, 100, 100, 0.05], method='BDF')
     
-    #print(result[:, 3])
+    print(result_J.status)
 
-
-    t0 = time.time()
-
-    model = MA_model_scipy("macroalgae_model.R", "macroalgae_model_parameters.json")
-
-    result_J = solve_ivp(MA_model_scipy.derivative, (0, 365), y0, args=(data, 51.5874, startDate, model),
-                         jac=MA_model_scipy.jacobian,
-                         rtol=0.05, atol=[0.7, 0.7, 100, 100, 0.5], method='BDF')
-
-    print(f"One run with jacobian: {time.time() - t0}\n" +
-          f"Reading: {model.time_reading}\n" +
-          f"Computing: {model.time_computing}\n" +
-          f"N of calls: {model.n_calls} ({(model.time_reading+model.time_computing)/model.n_calls} per call)\n" +
-          f"Reading jacobian: {model.time_reading_J}\n" +
-          f"Computing jacobian: {model.time_computing_J}\n" +
-          f"N of calls jacobian: {model.n_calls_J} ({(model.time_reading_J+model.time_computing_J)/(model.n_calls_J or 1)} per call)"
+    print(f"One run with jacobian: {(time.time() - t0)/n_runs}\n" +
+          f"Reading: {(model.time_reading)/n_runs}\n" +
+          f"Computing: {(model.time_computing)/n_runs}\n" +
+          f"N of calls: {model.n_calls/n_runs} ({(model.time_reading+model.time_computing)/(model.n_calls or 1)} per call)\n" +
+          f"Reading jacobian: {model.time_reading_J/n_runs}\n" +
+          f"Computing jacobian: {model.time_computing_J/n_runs}\n" +
+          f"N of calls jacobian: {model.n_calls_J/n_runs} ({(model.time_reading_J+model.time_computing_J)/(model.n_calls_J or 1)} per call)"
            )
 
-    plt.plot(result.t, result.y[3,:])
-    plt.plot(result_J.t, result_J.y[3,:])
-    plt.savefig('/media/share/results/foo.png')
+    #plt.plot(result_J.t, result_J.y[3,:])
+    #plt.savefig('/media/share/results/foo.png')
 
     # Used to detect possible errors in the Jacobian
     """

@@ -218,7 +218,8 @@ class ParamData:
         self.num2date = num2date
 
 
-    def getVariable(self, variable=None, averagingDims=None, weighted=True, **kwargs):
+    def getVariable(self, variable=None, averagingDims=None, weighted=True,
+                    rawTime=False, **kwargs):
         """Extract a variable from the netCDF dataset, by default the function
         gets the variable of interest.
 
@@ -235,6 +236,9 @@ class ParamData:
             If a value has been specified for averagingDims, then this specifies
             whether the average should be computed with weights proportional to
             the spacing between cell centers.
+        rawTime: False
+            If True, the time variable is returned as written and not converted
+            to a datetime.datetime()
         **kwargs:
             May contain latitude, longitude, time, and depth arguments.
             These arguments are also accepted with the '_index' suffix to slice
@@ -277,7 +281,7 @@ class ParamData:
             output = output * self._unitConversion
 
         # Change the output from numeric values to datetime() if we output time
-        if variable == 'time':
+        if variable == 'time' and not rawTime:
             output = np.ma.masked_array([self.num2date(a) for a in output])
 
         # TODO: ensure that the remaining dimensions are always output in the
