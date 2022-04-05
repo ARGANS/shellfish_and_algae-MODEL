@@ -10,7 +10,7 @@ import time
 from scipy.integrate import odeint
 from scipy.integrate import solve_ivp
 from types import SimpleNamespace
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
 from read_netcdf import *
@@ -96,18 +96,28 @@ class MA_model_scipy:
         """
 
         yToR = dict(zip(self.names, y)) # 0.001
-
         #t1 = time.time()
-
         dataToR = {name:fun(t) for name,fun in data.items()}
-
         #self.time_reading += time.time() - t1
-
-        t1 = time.time()
+        #t1 = time.time()
         out = self.hadley(t, yToR, dataToR, latitude)
         #self.time_computing += time.time() - t1
 
         #self.n_calls += 1
+
+        return out
+    
+    @staticmethod
+    def derivative_fast(t: float, y: np.array, data:dict, latitude: float, self):
+        """
+        data is a dict of functions giving the value of the data at time t.
+
+        same as derivative(). Used when data can be passed directly to hadley()
+        """
+
+        yToR = dict(zip(self.names, y)) # 0.001
+
+        out = self.hadley(t, yToR, data, latitude)
 
         return out
 
@@ -182,6 +192,16 @@ class MA_model_scipy:
         #self.time_computing_J += time.time() - t1
 
         #self.n_calls_J += 1
+
+        return out
+
+    @staticmethod
+    def jacobian_fast(t: float, y: np.array, data: dict, latitude: float, self):
+        """Same as jacobian when data can be directly passed tp hadley_J
+        """
+        yToR = dict(zip(self.names, y))
+
+        out = self.hadley_J(t, yToR, data, latitude)
 
         return out
 
@@ -303,36 +323,6 @@ if __name__ =="__main__":
         'D_ext': 0.1
     })
 
-    dataToR = pd.DataFrame({
-        'time': [0, 1],
-        'SST': 15,
-        'PAR': bantryData['par'][100],
-        'NH4_ext': bantryData['Ammonium'][100],
-        'NO3_ext': bantryData['Nitrate'][100],
-        'PO4_ext': 50,
-        'K_d': 0.1,
-        'F_in': 100,
-        'h_z_SML': 30,
-        't_z': 10,
-        'D_ext': 0.1
-    })
-
-    y0 = pd.DataFrame({"NH4": [0],
-                       "NO3": 0,
-                       "N_s": 1,
-                       "N_f": 1,
-                       "D": 0,
-                       "Yield": 0,
-                       "Yield_per_m": 0})
-
-    model = MA_model("macroalgae_model.R", "macroalgae_model_parameters.json")
-
-    print(dataToR)
-
-    out = model.apply_on(dataToR, 51., y0)
-
-    print(out)
-
 
     zone = "IBI"
 
@@ -371,19 +361,6 @@ if __name__ =="__main__":
     endDate = datetime.datetime(2022, 1, 1, 12)
 
     input_data = algaeData.getTimeSeries(51.5874, -9.8971, (startDate, endDate), 3)
-    data = pd.DataFrame({
-                'time': [(date - input_data['date'][0]).days for date in input_data['date']],
-                'SST': input_data['Temperature'],
-                'PAR': 500,
-                'NH4_ext': input_data['Ammonium'],
-                'NO3_ext': input_data['Nitrate'],
-                'PO4_ext': 50,
-                'K_d': 0.1,
-                'F_in': np.sqrt(input_data['northward_Water_current']**2 + input_data['eastward_Water_current']**2),
-                'h_z_SML': 30,
-                't_z': 10,
-                'D_ext': 0.1
-                    })
 
     time_axis = [(date - input_data['date'][0]).days for date in input_data['date']]
     interpKind = "nearest"
@@ -400,7 +377,7 @@ if __name__ =="__main__":
         'D_ext': lambda _ : 0.1
     }
 
-    y0 = np.array([0, 0, 0, 1000, 0])
+    y0 = np.array([0, 0, 0, 1000., 0])
 
 
     model = MA_model_scipy("macroalgae_model_parameters.json")
@@ -411,9 +388,9 @@ if __name__ =="__main__":
     for _ in range(n_runs):
         result_J = solve_ivp(MA_model_scipy.derivative, (0, 364), y0, args=(data_fun, 51.5874, model),
                             jac=MA_model_scipy.jacobian, t_eval=time_axis,
-                            rtol=0.05, atol=[0.5, 0.5, 100, 100, 0.05], method='BDF')
-    
-    print(result_J.status)
+                            rtol=0.05, method='BDF')
+    if not result_J.success:
+        print(result_J.message)
 
     print(f"One run with jacobian: {(time.time() - t0)/n_runs}\n" +
           f"Reading: {(model.time_reading)/n_runs}\n" +
@@ -424,7 +401,54 @@ if __name__ =="__main__":
           f"N of calls jacobian: {model.n_calls_J/n_runs} ({(model.time_reading_J+model.time_computing_J)/(model.n_calls_J or 1)} per call)"
            )
 
+    t_m = np.array([0])
+    result_m = np.expand_dims(y0, 1)
+    initTime = datetime.datetime(2021, 1, 1, 0)
+    t0 = time.time()
+    for _ in range(n_runs):
+        for month in range(1,13):
+            #print(f"MONTH: {month}")
+            startTime = datetime.datetime(2021, month, 1, 0)
+            if month == 12:
+                endTime = datetime.datetime(2022, 1, 1, 0)
+            else:
+                endTime = datetime.datetime(2021, month+1, 1, 0)
+
+            data, dims = algaeData.getData(longitude = -9.8971,
+                                       latitude = 51.5874,
+                                       depth = 3,
+                                       time = (startTime, endTime)#,
+                                       #averagingDims = ('time',),
+                                       #weighted = False
+                                        )
+            data_in = {
+                    'SST': np.average(data['Temperature']),
+                    'PAR': 500,
+                    'NH4_ext': np.average(data['Ammonium']),
+                    'NO3_ext': np.average(data['Nitrate']),
+                    'PO4_ext': 50,
+                    'K_d': 0.1,
+                    'F_in': np.average(np.sqrt(data['northward_Water_current']**2 + data['eastward_Water_current']**2)),
+                    'h_z_SML': 30,
+                    't_z': 10,
+                    'D_ext': 0.1
+                }
+            
+            days_start = (startTime - initTime).days
+            days_end = (endTime - initTime).days
+            out_m = solve_ivp(MA_model_scipy.derivative_fast, (days_start, days_end), y0, args=(data_in, 51.5874, model),
+                                jac=MA_model_scipy.jacobian_fast, #t_eval=[n_days],
+                                rtol=0.05, method='BDF')
+
+            result_m = np.concatenate((result_m, out_m.y), 1)
+            t_m = np.concatenate((t_m, out_m.t))
+
+            y0 = np.squeeze(out_m.y[:,-1])
+
+    print(f"One run, monthly averaged: {(time.time() - t0)/n_runs}\n")
+
     #plt.plot(result_J.t, result_J.y[3,:])
+    #plt.plot(t_m, result_m[3,:])
     #plt.savefig('/media/share/results/foo.png')
 
     # Used to detect possible errors in the Jacobian
