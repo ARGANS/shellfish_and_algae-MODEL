@@ -5,6 +5,7 @@ ARG WORK_DIR="/opt"
 WORKDIR $WORK_DIR
 RUN mkdir -p /media/share && \
     mkdir -p /media/share/data_merged/IBI/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature}
+RUN mkdir /media/share/results
 COPY dataread ./
 COPY macroalgae ./
 COPY dataimport/src/dataCmd.csv ./dataCmd.csv

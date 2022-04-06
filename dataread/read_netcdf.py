@@ -71,7 +71,6 @@ def extractVarSubset(ncDataset, variable, **kwargs):
     #          order.
 
     dimensions = ncDataset[variable].get_dims()
-    #sliceList = [slice(None) for _ in range(len(dimensions))]
     sliceList = [slice(None)] * len(dimensions)
     for iDim, dim in enumerate(dimensions):
         if dim.name in kwargs:
@@ -101,7 +100,7 @@ def extractVarSubset(ncDataset, variable, **kwargs):
     dimRemains = [type(a) is slice for a in sliceList]
     remainingDims = tuple(dim.name for i,dim in enumerate(dimensions) if dimRemains[i])
 
-    return ncDataset[variable][sliceList], remainingDims
+    return ncDataset[variable][tuple(sliceList)], remainingDims
 
 
 def weightsForAverage(sortedDim, leftLimit, rightLimit):
@@ -219,17 +218,36 @@ class ParamData:
         self.num2date = num2date
 
 
-    def getVariable(self, variable=None, **kwargs):
-        # **kwargs may contain latitude, longitude, time, and depth arguments.
-        # These arguments are also accepted with the '_index' suffix to slice
-        # the dimensions by their indices.
-        # The value of the arguments can be anything that is accepted by
-        # extractVarSubset()
-        # The time argument should be specified with datetime.datetime()
-        # object(s).
-        # variable can be None to extract the interest variable from self.ds or
-        # any variable name. If variable is one of latitude/longitude/time/depth
-        # then the name is transparently altered to fit ds.
+    def getVariable(self, variable=None, averagingDims=None, weighted=True,
+                    rawTime=False, **kwargs):
+        """Extract a variable from the netCDF dataset, by default the function
+        gets the variable of interest.
+
+        Parameters
+        ----------
+        variable: str
+            Can be None to extract the interest variable from self.ds or
+            any variable name. If variable is one of latitude, longitude, time,
+            or depth then the name is transparently altered to fit ds.
+        averagingDims: tuple[str]
+            If specified then the function will average the result over the
+            specified dimension(s)
+        weighted: bool
+            If a value has been specified for averagingDims, then this specifies
+            whether the average should be computed with weights proportional to
+            the spacing between cell centers.
+        rawTime: False
+            If True, the time variable is returned as written and not converted
+            to a datetime.datetime()
+        **kwargs:
+            May contain latitude, longitude, time, and depth arguments.
+            These arguments are also accepted with the '_index' suffix to slice
+            the dimensions by their indices.
+            The value of the arguments can be anything that is accepted by
+            extractVarSubset()
+            The time argument should be specified with datetime.datetime()
+            object(s).
+        """
 
         if variable is None:
             variableName = self._variableName
@@ -251,19 +269,25 @@ class ParamData:
                 newArgName = self._dimNames[dim]
             newKwargs[newArgName] = kwargs[dim]
 
-        output, _ = extractVarSubset(self.ds, variableName, **newKwargs)
+        if averagingDims is None:
+            output, dims = extractVarSubset(self.ds, variableName, **newKwargs)
+        else:
+            averagingDimsNames = tuple(self._dimNames[dim] for dim in averagingDims)
+            output, dims = extractWithAverage(self.ds, variableName, averagingDimsNames,
+                                              weighted=weighted, **newKwargs)
+
 
         if variableName == self._variableName:
             output = output * self._unitConversion
 
         # Change the output from numeric values to datetime() if we output time
-        if variable == 'time':
+        if variable == 'time' and not rawTime:
             output = np.ma.masked_array([self.num2date(a) for a in output])
 
         # TODO: ensure that the remaining dimensions are always output in the
         # same order, notably (time, depth)
 
-        return output
+        return output, dims
 
 
     def __del__(self):
@@ -288,6 +312,55 @@ class AllData:
                     depth_name=depthName, unitConversion=unitConversion)
 
 
+    def getData(self, parameters=None, averagingDims=None, weighted=True, **kwargs):
+        """Extracts the data for any number of specified parameters, with
+        optional averaging.
+
+        Parameters
+        ----------
+        parameters: list[str]
+            Any number of parameter names, as they have been specified in
+            parameterNameList. If None, then all parameters are returned.
+        averagingDims: tuple[str]
+            If specified then the function will average the results over the
+            specified dimension(s)
+        weighted: bool
+            If a value has been specified for averagingDims, then this specifies
+            whether the averages should be computed with weights proportional to
+            the spacing between cell centers.
+        **kwargs:
+            May contain latitude, longitude, time, and depth arguments.
+            These arguments are also accepted with the '_index' suffix to slice
+            the dimensions by their indices.
+            The value of the arguments can be anything that is accepted by
+            extractVarSubset()
+            The time argument should be specified with datetime.datetime()
+            object(s).
+
+        Returns
+        -------
+        values: dict
+            Dictionary with the parameter names as keys, containing masked
+            numpy arrays with the data
+        remainingDims: tuple[str]
+            The names of the dimensions remaining in the arrays contained in
+            values.
+        """
+
+        if parameters is None:
+            parameters = self.parameterData.keys()
+
+        values = {}
+
+        for param in parameters:
+            data, dims = self.parameterData[param].getVariable(averagingDims=averagingDims,
+                                                               weighted=weighted, **kwargs)
+            values[param] = data
+
+        # TODO: check that all remainingDims are the same
+        return values, dims
+
+
     def getTimeSeries(self, latitude, longitude, dateRange, depth, parameters=None):
         # Gets the time series of parameters at the given coordinates and
         # within the dateRange.
@@ -301,9 +374,9 @@ class AllData:
         df['date'] = [dateRange[0] + datetime.timedelta(days=days) for days in range(nDays)]
 
         for param in parameters:
-            data = self.parameterData[param].getVariable(latitude=latitude, longitude=longitude,
+            data, _ = self.parameterData[param].getVariable(latitude=latitude, longitude=longitude,
                                                 time=dateRange, depth=depth)
-            timeAxis = self.parameterData[param].getVariable(variable='time', latitude=latitude, 
+            timeAxis, _ = self.parameterData[param].getVariable(variable='time', latitude=latitude,
                                                 longitude=longitude, time=dateRange, depth=depth)
 
             addData = pd.DataFrame({'date': timeAxis, param:data})
@@ -338,9 +411,9 @@ class AllData:
 
         for param in paramNames:
             print(param)
-            data = self.parameterData[param].getVariable(latitude=latitude, longitude=longitude,
+            data, _ = self.parameterData[param].getVariable(latitude=latitude, longitude=longitude,
                                                 time=dateRange)
-            timeAxis = self.parameterData[param].getVariable(variable='time', latitude=latitude,
+            timeAxis, _ = self.parameterData[param].getVariable(variable='time', latitude=latitude,
                                                 longitude=longitude, time=dateRange)
 
             addData = pd.DataFrame({'date': timeAxis})
@@ -351,7 +424,7 @@ class AllData:
                 notnaMLD = np.array(paramMLD.notna())
 
                 # Get the depth axis of param
-                depthAxis = self.parameterData[param].getVariable(variable='depth',
+                depthAxis, _ = self.parameterData[param].getVariable(variable='depth',
                                             latitude=latitude, longitude=longitude, time=dateRange)
 
                 # Compute the weighted average

@@ -31,6 +31,7 @@ function run {
                 --name $CONTAINER_NAME \
                 --volume "/profils/mjaouen/share/data":/media/share/data \
                 --volume "$HOME/share/data_merged":/media/share/data_merged \
+                --volume "$HOME/share/results":/media/share/results \
                 --entrypoint '/usr/local/bin/python' \
                 -dit $DD_TAG:latest
 
