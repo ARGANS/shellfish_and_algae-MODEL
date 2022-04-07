@@ -27,7 +27,6 @@ op = function(x, d=0) sprintf(paste0("%1.",d,"f"), x)
 ```
 
 ```{=tex}
-
 \newcommand{\version}{0.1[DRAFT]}
 
 
@@ -47,9 +46,10 @@ op = function(x, d=0) sprintf(paste0("%1.",d,"f"), x)
 % flow and effective volume %
 
 \newcommand{\flow}{F_{in}}
-\newcommand{\tz}{t_z}
+\newcommand{\tz}{z_{mix}}
 
 \newcommand{\Veff}{V_{EFF}}
+\newcommand{\Vint}{V_{INT}}
 
 \newcommand{\SMLD}{h_{SML}}
 
@@ -174,13 +174,25 @@ The water within the farm volume, extending to the water surface, is considered 
 ```{=tex}
 \begin{equation}
     \displaystyle
-    \Veff = \yfarm\cdot(\xfarm+\flow)\cdot(\zfarm+\tz) (\#eq:Veff)
+    \Veff = \yfarm\cdot(\xfarm+\flow\cdot{}dt)\cdot(\tz) (\#eq:Veff)
 \end{equation}
 ```
 
-The ratio $\frac{\VMA}{\Veff}$ is used to scale the nutrient uptake within the farm to the net effect on concentration within the effective volume of water. 
+The effect of horizontal advection is addressed separately from vertical mixing in the model (see Equations \@ref(eq:NH4dt) and \@ref(eq:NO3dt) for advection term), so it is further necessary to define a second characteristic volume, which is the volume of water that the farm is interacting with due to vertical mixing, neglecting advection, $\Vint$.
 
-We assume that the water column is well mixed to depth $\tz$.  As nutrient flow will tend to restore nutrient concentration back to the ambient concentration, the ratio of advective flow to farm length in the direction of flow  ($\frac{\flow}{\xfarm}$) can be used to determine the nutrient concentration restoration rate to the farm volume,with a maximum value of 1 (per timestep).
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \Vint = \yfarm\cdot\xfarm\cdot\tz (\#eq:Vint)
+\end{equation}
+```
+
+
+
+The ratio $\frac{\VMA}{\Vint}$ is used to scale the nutrient uptake within the farm to the net effect on concentration within the interacting volume. The further effect of 
+
+We assume that the water column is well mixed to depth $\tz$ in water advected into the farm areas as well as within the farm itsself.  As nutrient flow will tend to restore nutrient concentration back to the ambient concentration, the ratio of advective flow  to farm length in the direction of flow  ($\frac{\flow\cdot{}dt}{\xfarm}$) can be used to determine the nutrient concentration restoration to the farm volume.
 
 Ammonium and nitrate concentration in the model are a function of the restoration of nutrients to ambient concentration by the input of new water, their biomass-specific uptake by seaweed ($f(\NXx,Q)\cdot\B$); remineralisation of detrital material, $\rlD$; nitrification of $\ammon$ to $\nitr$ ($\rnN$); and mortality terms, $\dmNs$, which returns stored nitrogen to the ammonium pool and  $\dmNf$,  which produces detrital material, D. 
 
@@ -188,18 +200,18 @@ Ammonium and nitrate concentration in the model are a function of the restoratio
 ```{=tex}
 \begin{equation}
     \displaystyle
-    \frac{d\mathrm{NH_4}}{dt}=\min(1,\frac{\flow}{\xfarm})\cdot(\ammonext-\ammon)+(\rlD  + \dmNs - f(\ammon,Q)\cdot\B - \rnN)\cdot\frac{\VMA}{\Veff} (\#eq:NH4dt)
+    \frac{d\mathrm{NH_4}}{dt}=\frac{\flow\cdot{}dt}{\xfarm}\cdot(\ammonext-\ammon)+(\rlD  + \dmNs - f(\ammon,Q)\cdot\B - \rnN)\cdot\frac{\VMA}{\Vint} (\#eq:NH4dt)
 \end{equation}
 ```
 
 ```{=tex}
 \begin{equation}
     \displaystyle 
-    \frac{d\mathrm{NO_3}}{dt}=\min(1,\frac{\flow}{\xfarm})\cdot(\nitrext-\nitr)+(\rnN - f(\nitr,Q)\cdot\B)\cdot\frac{\VMA}{\Veff} (\#eq:NO3dt)
+    \frac{d\mathrm{NO_3}}{dt}=\frac{\flow\cdot{}dt}{\xfarm}\cdot(\nitrext-\nitr)+(\rnN - f(\nitr,Q)\cdot\B)\cdot\frac{\VMA}{\Vint} (\#eq:NO3dt)
 \end{equation}
 ```
 
-In the above equations, B is the drw weight macroalgal biomass in grams per cubic meter, calculated as $\B=\frac{\Nf}{\Qmin}$. The pool of internal nitrogen stored by the macroalgae, $\Ns$ is controlled by the uptake of $\ammon$ and $\nitr$ into the store, the light, temperature and nutrient dependent growth rate (i.e. the uptake from stored inorganic N to fixed biomass N ($\Nf$)) and the mortality term. 
+In the above equations, B is the dry weight macroalgal biomass in grams per cubic meter, calculated as $\B=\frac{\Nf}{\Qmin}$. The pool of internal nitrogen stored by the macroalgae, $\Ns$ is controlled by the uptake of $\ammon$ and $\nitr$ into the store, the light, temperature and nutrient dependent growth rate (i.e. the uptake from stored inorganic N to fixed biomass N ($\Nf$)) and the mortality term. 
 
 ```{=tex}
 \begin{equation}
@@ -215,7 +227,7 @@ Fixed (biomass) nitrogen, $\Nf$ is then:
 ```{=tex}
 \begin{equation}
     \displaystyle 
-    \frac{d\mathrm{N_f}}{dt}=min(\mu\cdot\gEQT\cdot\Ns,\phos\cdot\NP)-\dmNf (\#eq:Nf)
+    \frac{d\mathrm{N_f}}{dt}=min(\mu\cdot\gEQT\cdot\Ns,\phos_{\Veff}\cdot\NP)-\dmNf (\#eq:Nf)
 \end{equation}
 ```
 
@@ -224,7 +236,7 @@ Finally, the detrital pool is determined from the inflow of detrital material, t
 ```{=tex}
 \begin{equation}
     \displaystyle 
-    \frac{d\D}{dt}=\min(1,\frac{\flow}{\xfarm})\cdot(\D_{ext}-\D)+ (\dmNf- \rlD)\cdot\frac{\VMA}{\Veff} (\#eq:D)
+    \frac{d\D}{dt}=\frac{\flow\cdot{}dt}{\xfarm}\cdot(\D_{ext}-\D)+ (\dmNf- \rlD)\cdot\frac{\VMA}{\Vint} (\#eq:D)
 \end{equation}
 ```
 
@@ -534,7 +546,7 @@ source("run_MA.R")
 ```
 
 ### No harvest reference runs
-Selected model outputs for each of the four reference runs are presented in Fig. \@ref(fig:refruns2). These demonstrate a number of important characteristics of the model (which are also characteristic of macroalgal growth in reality). Firstly it is clear from panel B (dry weight of biomass in g per metre of rope) that flow rate has a much more significant role to play than concentration in driving total biomass production. This is due to seaweed (particularly ulva's) ability to rapidly take up nutrients into its internal store evan at relatively low concentrations. Therefore, with high flow the seaweed can keep its internal store full (Q approaches $\Qmax$, panel C) while growing through the winter. In the high nutrient high flow environment this can be maintained year-round and productivity is limited only by temperature and light availability (and the intrinsic growth parameters of the seaweed species being modelled). In the low nutrient high flow scenario the macroalgae relies partially on its internal nutrient reserve in the summer and Q therefore reduces, leading to somewhat slower growth. However in the low flow environment, resupply of nutrient strongly limits uptake and growth, with low biomass yields and Q -> $\Qmin$. To first order, flow rate therfore will be the main determinant of yield for a given species and the importance of properly constraining nutrient uptake and assimilation parameters is key for predicting realistic yields. 
+Selected model outputs for each of the four reference runs are presented in Fig. \@ref(fig:refruns2). These demonstrate a number of important characteristics of the model (which are also characteristic of macroalgal growth in reality). Firstly it is clear from panel B (dry weight of biomass in g per metre of rope) that flow rate has a more significant role to play than concentration in driving total biomass production. This is due to seaweed (particularly ulva's) ability to rapidly take up nutrients into its internal store evan at relatively low concentrations.  In the high nutrient high flow environment this can be maintained year-round and productivity is limited only by temperature and light availability (and the intrinsic growth parameters of the seaweed species being modelled). In the low nutrient high flow scenario the macroalgae relies partially on its internal nutrient reserve in the summer and Q therefore reduces, leading to somewhat slower growth. However in the low flow environment, resupply of nutrient strongly limits uptake and growth, with low biomass yields and Q -> $\Qmin$. To first order, flow rate therefore will be the main determinant of yield for a given species and the importance of properly constraining nutrient uptake and assimilation parameters is key for predicting realistic yields. 
 
 ```{r refruns2, echo=FALSE, fig.cap='Reference runs of the model showing a) NH4 concentration in farm outflow, b) nitrate concentration in farm outflow, c) biomass (dry weight) per linear metre and d) nutrient quota, Q of the macroalgal biomass'}
 library(ggplot2)
@@ -719,7 +731,19 @@ plot_bantry_results(bantry_spring_harvest_run, harvest=TRUE)
 ```
  
  
+## Steady state model runs
 
+The growth-yield model runs presented above rely on time-varying environmental forcings to drive growth through a seasonal cycle. This mode of operation allows the modelling of harvest yield for specific grid squares, however the computing resource required to solve the model (order of 2-3 seconds) means that it is not tractable to solve the model for 3 species and >10^5 grid cells in the 'carrying capacity' scenario (potential amount of seaweed that could be grown in every grid square independent of farms in other squares) required by the funder. 
+
+Carrying capacity in population ecology is typically evaluated by considering the steady state solution to a model describing population dynamics in response to resource use. We can take this approach by solving the macroalgal model described above for steady state using the `rootSolve` package. The model is solved once for each month using averaged environmental focings. Solving for steady state 12 times is many times faster than running the model for 24 months in time-varying model. Figure \@ref(fig:bantrysteadystate) shows the biomass (per linear metre) predicted by a steady state run of the model using the Bantry Bay input data. 
+
+```{r bantrysteadystate, echo=FALSE, fig.cap=paste('Bantry bay steady state run showing carrying capacity of biomass in kg per linear metre for a farm of standard density of',default_parms_farm['density_MA'])}
+
+
+plot_monthly_data(monthly_bantry)
+
+  
+```
 
 
 # References
