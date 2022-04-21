@@ -4,6 +4,7 @@ import os
 import pprint
 
 wantedData=['par']
+# TODO use a environment variables
 dateBeginning = '2020-11-15 00:00:00'
 dateEnd = '2020-11-22 00:00:00'
 zone='IBI'
