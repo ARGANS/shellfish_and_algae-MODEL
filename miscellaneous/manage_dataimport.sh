@@ -1,13 +1,12 @@
 DIR='../dataimport'
 DD_TAG='aquaculture/dataimport'
-DOCKERFILE="$DIR/prod.dataimport.Dockerfile"
 CONTAINER_NAME='ac-dataimport'
 
 SHARED_VOLUME_NAME='ac_share'
 
-# output_dir='I:/work-he/apps/safi/data/IBI/'
 zone='IBI'
 year=2020
+# output_dir='I:/work-he/apps/safi/data/IBI/'
 output_dir='/media/share/data/IBI/'
 deepthmin=0
 deepthmax=20
@@ -19,8 +18,14 @@ function run {
         'build')
             docker build \
                 --network host \
+                -t aquaculture/base:v1 -t aquaculture/base:latest \
+                -f $DIR/base.Dockerfile \
+                $DIR
+            docker build \
+                --network host \
                 -t $DD_TAG:v1 -t $DD_TAG:latest \
-                -f $DOCKERFILE $DIR
+                -f $DIR/runtime.Dockerfile \
+                $DIR
             ;;
         'run')
             container_id=$( docker ps -q -f name=$CONTAINER_NAME )
@@ -37,7 +42,8 @@ function run {
 
             docker volume create --name $SHARED_VOLUME_NAME
 
-            # add -d to start a container in detached mode
+            # use -d to start a container in detached mode
+            # use --entrypoint=/bin/bash \ to override the command
             docker run \
                 --rm \
                 --name $CONTAINER_NAME \
