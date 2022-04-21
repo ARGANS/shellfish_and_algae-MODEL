@@ -1,5 +1,6 @@
 import ftplib
 import math
+from pprint import pprint
 
 from owslib.wcs import WebCoverageService
 from owslib.wfs import WebFeatureService
@@ -147,6 +148,10 @@ def givedatesForClimatCoper(begDate, endDate):
         days = [str(days) for days in range(1,32)]
     return years, months, days
 
+def validate(value, cls):
+    if isinstance(value, cls):
+        return value
+    return None
 
 def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, dateBeginning=None, dateEnd=None):
     # we select the lines that contains the data on the right zone
@@ -156,7 +161,7 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
         if wantedDataLine.iloc[0]["daily"] == 1:
             begDate = splitDate(dateBeginning)
             endDate = splitDate(dateEnd)
-            filename = wantedData + zone + dataFin.iloc[j]["type"] + dataFin.iloc[j]["fileType"] + dateBeginning.strftime("%Y-%m")
+            filename = wantedData + zone + (validate(dataFin.iloc[j].get("type"), str) or '')  + dataFin.iloc[j]["fileType"] + dateBeginning.strftime("%Y-%m")
         else:
             filename = wantedData + zone + dataFin.iloc[j]["fileType"]
         outputFile = giveFile(filename, dataFin.iloc[j]["fileType"])

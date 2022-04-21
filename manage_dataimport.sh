@@ -3,6 +3,9 @@ DD_TAG='aquaculture/datadownload'
 DOCKERFILE="./$DIR/dataimport.Dockerfile"
 CONTAINER_NAME='aquacontainer'
 
+# output_dir='I:/work-he/apps/safi/data/IBI/'
+output_dir='/media/share/data/IBI/'
+
 function run {
     local command="$1"
 
@@ -31,9 +34,9 @@ function run {
                 --name $CONTAINER_NAME \
                 --add-host=ftp.hermes.acri.fr:5.252.148.37 \
                 --volume "$PWD/share":/media/share \
-                --volume "$PWD/$DIR/src/general.py":/opt/general.py \
-                --volume "$PWD/$DIR/src/main.py":/opt/main.py \
+                --volume "$PWD/$DIR/src/.":"/opt/." \
                 --entrypoint '/usr/local/bin/python' \
+                -e OUTPUT_DIR="$output_dir" \
                 -dit $DD_TAG:latest
 
             docker exec -it $CONTAINER_NAME bash 
