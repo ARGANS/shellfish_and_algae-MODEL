@@ -6,7 +6,7 @@ SHARED_VOLUME_NAME='ac_share'
 
 ## Properties of scripts used to load datasets:
 zone='IBI'
-year=2020
+year=2021
 # output_dir='I:/work-he/apps/safi/data/IBI/'
 output_dir='/media/share/data/IBI/'
 deepthmin=0
