@@ -1,7 +1,6 @@
 from general import readcsv, giveDateslist, getData
 import pandas as pd
 import os
-import pprint
 
 wantedData=['Temperature']
 dateBeginning = '2021-01-01 00:00:00'
@@ -16,12 +15,8 @@ frequency = 2
 outputDirectory = '/media/share/data/IBI/'
 
 dataFin=pd.read_csv('./dataCmd.csv',';')
-# print('dataFin')
-# pprint.pprint(dataFin)
 
 datesList=giveDateslist(dateBeginning,dateEnd)
-# print('datesList')
-# pprint.pprint(datesList)
 
 for dat in wantedData:
     DataLine = dataFin.loc[dataFin["Parameter"] == dat]
