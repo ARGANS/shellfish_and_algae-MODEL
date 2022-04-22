@@ -11,7 +11,7 @@ deepthmax = int(os.getenv('AC_DEPTHMAX'))
 
 wantedData = ['Temperature', 'Nitrate', 'Ammonium', 'eastward_Water_current', 'northward_Water_current']
 
-dateBeginning = f'{year}-12-30 00:00:00'
+dateBeginning = f'{year}-11-01 00:00:00'
 dateEnd = f'{year}-12-31 23:59:59'
 
 
