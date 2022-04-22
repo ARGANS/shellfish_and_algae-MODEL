@@ -156,9 +156,9 @@ def validate(value, cls):
         return value
     return None
 
-def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, dateBeginning=None, dateEnd=None):
+def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, dateBeginning=None, dateEnd=None, frequency=1):
     # we select the lines that contains the data on the right zone
-    wantedDataLine = dataFin.loc[(dataFin["Parameter"] == wantedData) & (dataFin["Place"] == zone)]
+    wantedDataLine = dataFin.loc[(dataFin["Parameter"] == wantedData) & (dataFin["Place"] == zone) & (dataFin["daily"] == frequency)]
     for j in wantedDataLine.index.values:
         servicetype = dataFin.iloc[j]["source"]
         if wantedDataLine.iloc[0]["daily"] == 1:

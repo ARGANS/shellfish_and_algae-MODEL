@@ -92,7 +92,7 @@ wantedDataLine = dataFin.loc[(dataFin["Parameter"] == dataName) & (dataFin["Plac
 data = wantedDataLine.iloc[-1]["variable"] #we find the data name in the dataset
 ldate = []
 
-#we get the
+#we get the data
 for r, d, f in os.walk(path):
         fn=path+f[0]
         ds = nc.Dataset(fn)
