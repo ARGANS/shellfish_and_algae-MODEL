@@ -1,4 +1,4 @@
-DIR='../dataimport'
+DIR='./dataimport'
 DD_TAG='aquaculture/dataimport'
 CONTAINER_NAME='ac-dataimport'
 
@@ -56,9 +56,13 @@ function run {
                 -e AC_DEPTHMAX="$deepthmax" \
                 -it $DD_TAG:latest
             ;;
+        
+        'ls')
+            sudo ls -al /var/lib/docker/volumes/ac_share/_data/$2
+            ;;
         *)
             echo 'todo';;
     esac
 }
 
-run "$1"
+run "$1" "$2"

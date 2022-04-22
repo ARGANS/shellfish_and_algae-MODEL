@@ -88,19 +88,22 @@ def getdataFromFtp(dataFin, outputDirectory):
 
     # force UTF-8 encoding
     ftp_server.encoding = "utf-8"
+    try:
+        print(f'FTP {"/" + dataFin["product-id"]}')
+        ftp_server.cwd('/' + dataFin["product-id"])
+        filelist = ftp_server.nlst()
 
-    ftp_server.cwd('/'+dataFin["product-id"])
-    filelist = ftp_server.nlst()
-
-    ftp_server.dir()
-    # os.mkdir(path)
-    #we read all the file in the ftp directory
-    for filename in filelist:
-        print(filename)
-        fileDirect = outputDirectory + filename
-        #we download the file
-        with open(fileDirect, "wb") as file:
-            ftp_server.retrbinary(f"RETR {filename}", file.write)
+        ftp_server.dir()
+        # os.mkdir(path)
+        #we read all the file in the ftp directory
+        for filename in filelist:
+            print(filename)
+            fileDirect = outputDirectory + filename
+            #we download the file
+            with open(fileDirect, "wb") as file:
+                ftp_server.retrbinary(f"RETR {filename}", file.write)
+    except Exception as exc:
+        print(f'Exception {exc} // {exc.__class__}')
 
 def getdataWCS(url,layer,requestbbox,file, version,format='GeoTIFF'):
     wcs = WebCoverageService(url, version=version, timeout=320)

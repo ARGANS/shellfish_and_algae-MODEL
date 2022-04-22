@@ -1,27 +1,35 @@
 import os
 from general import readcsv, giveDateslist, getData
 import pandas as pd
-import pprint
+from pprint import pprint
 
-year = os.getenv('AC_YEAR')
+year = int(os.getenv('AC_YEAR'))
 zone = os.getenv('AC_ZONE')
 outputDirectory = os.getenv('AC_OUTPUT_DIR')
 deepthmin = int(os.getenv('AC_DEPTHMIN'))
 deepthmax = int(os.getenv('AC_DEPTHMAX'))
 
-#  TODO
-wantedData=['par']
+wantedData = ['Temperature', 'Nitrate', 'Ammonium', 'eastward_Water_current', 'northward_Water_current']
 
-dateBeginning = f'{year}-01-01 00:00:00'
-dateEnd = f'{year}-01-01 00:00:00'
+dateBeginning = f'{year}-12-30 00:00:00'
+dateEnd = f'{year}-12-31 23:59:59'
 
 
 print(f'{year} {zone} {deepthmin} {deepthmax}')
 dataFin = pd.read_csv('./dataCmd.csv',';')
+datesList = giveDateslist(dateBeginning, dateEnd)
 
 print('dataFin')
-pprint.pprint(dataFin)
-
-datesList = giveDateslist(dateBeginning, dateEnd)
+pprint(dataFin)
 print('datesList')
-pprint.pprint(datesList)
+pprint(datesList)
+for dat in wantedData:
+    dataOutputDirectory = outputDirectory + dat + '/'
+    dataLine = dataFin.loc[dataFin["Parameter"] == dat]
+    print(f'dataLine {dataOutputDirectory}')
+    pprint(dataLine)
+    if dataLine.iloc[0]["daily"] == 1:
+        for (dateBeg, dateE) in zip(datesList[0], datesList[1]):
+            getData(dat, zone, dataFin, deepthmin, deepthmax,  dataOutputDirectory, dateBeg, dateE)
+    else:
+        getData(dat, zone, dataFin, deepthmin, deepthmax, dataOutputDirectory)
