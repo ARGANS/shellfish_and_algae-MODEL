@@ -4,16 +4,16 @@ import os
 import pprint
 
 wantedData=['Temperature']
-dateBeginning = '2020-11-15 00:00:00'
-dateEnd = '2020-12-22 00:00:00'
+dateBeginning = '2021-01-01 00:00:00'
+dateEnd = '2022-01-01 00:00:00'
 zone='IBI'
 deepthmin=0
 deepthmax=20
 outputDirectory = os.getenv('OUTPUT_DIR')
 frequency = 2
 
-outputDirectory = 'I:/work-he/apps/safi/data/IBI/'
-#outputDirectory = '/media/share/data/IBI/'
+#outputDirectory = 'I:/work-he/apps/safi/data/IBI/'
+outputDirectory = '/media/share/data/IBI/'
 
 dataFin=pd.read_csv('./dataCmd.csv',';')
 # print('dataFin')

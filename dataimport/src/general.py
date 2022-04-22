@@ -161,10 +161,14 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
     wantedDataLine = dataFin.loc[(dataFin["Parameter"] == wantedData) & (dataFin["Place"] == zone) & (dataFin["daily"] == frequency)]
     for j in wantedDataLine.index.values:
         servicetype = dataFin.iloc[j]["source"]
-        if wantedDataLine.iloc[0]["daily"] == 1:
+        if wantedDataLine.iloc[0]["daily"] ==1:
             begDate = splitDate(dateBeginning)
             endDate = splitDate(dateEnd)
             filename = wantedData + zone + (validate(dataFin.iloc[j].get("type"), str) or '')  + dataFin.iloc[j]["fileType"] + dateBeginning.strftime("%Y-%m")
+        elif wantedDataLine.iloc[0]["daily"] ==2:
+                    begDate = splitDate(dateBeginning)
+                    endDate = splitDate(dateEnd)
+                    filename = wantedData + zone + (validate(dataFin.iloc[j].get("type"), str) or '')  + dataFin.iloc[j]["fileType"]+ 'Monthly' + dateBeginning.strftime("%Y-%m")
         else:
             filename = wantedData + zone + dataFin.iloc[j]["fileType"]
         outputFile = giveFile(filename, dataFin.iloc[j]["fileType"])
