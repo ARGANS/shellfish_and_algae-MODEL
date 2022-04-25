@@ -13,11 +13,11 @@ wantedData = ['Temperature', 'Nitrate', 'Ammonium', 'eastward_Water_current', 'n
 
 dateBeginning = f'{year}-01-01 00:00:00'
 dateEnd = f'{year + 1}-01-01 00:00:00'
-
+frequency = 2
 
 print(f'{year} {zone} {deepthmin} {deepthmax}')
 dataFin = pd.read_csv('./dataCmd.csv',';')
-datesList = giveDateslist(dateBeginning, dateEnd)
+datesList = giveDateslist(dateBeginning, dateEnd, frequency)
 
 print('dataFin')
 pprint(dataFin)
@@ -28,8 +28,7 @@ for dat in wantedData:
     dataLine = dataFin.loc[dataFin["Parameter"] == dat]
     print(f'dataLine {dataOutputDirectory}')
     pprint(dataLine)
-    if dataLine.iloc[0]["daily"] == 1:
-        for (dateBeg, dateE) in zip(datesList[0], datesList[1]):
-            getData(dat, zone, dataFin, deepthmin, deepthmax,  dataOutputDirectory, dateBeg, dateE)
+    if dataLine.iloc[0]["daily"] > 0:
+        getData(dat, zone, dataFin, deepthmin, deepthmax,  dataOutputDirectory, datesList[0], datesList[1],frequency)
     else:
         getData(dat, zone, dataFin, deepthmin, deepthmax, dataOutputDirectory)

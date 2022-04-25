@@ -2,7 +2,7 @@ DIR='./dataimport'
 DD_TAG='aquaculture/dataimport'
 CONTAINER_NAME='ac-dataimport'
 
-SHARED_VOLUME_NAME='ac_share'
+SHARED_VOLUME_NAME='ac-share_year'
 
 ## Properties of scripts used to load datasets:
 zone='IBI'
