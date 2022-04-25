@@ -2,7 +2,7 @@ DIR='./dataimport'
 DD_TAG='aquaculture/dataimport'
 CONTAINER_NAME='ac-dataimport'
 
-SHARED_VOLUME_NAME='ac-share_year'
+SHARED_VOLUME_NAME='ac_share'
 
 ## Properties of scripts used to load datasets:
 zone='IBI'
@@ -59,7 +59,10 @@ function run {
                 -it $DD_TAG:latest
             ;;
         'ls')
-            sudo ls -al /var/lib/docker/volumes/ac_share/_data/$2
+            sudo ls -al /var/lib/docker/volumes/$SHARED_VOLUME_NAME/_data/$2
+            ;;
+        'ls2')
+            docker run --rm -i -v=$SHARED_VOLUME_NAME:/media/volume busybox sh
             ;;
         'run')
             container_id=$( docker ps -q -f name=$CONTAINER_NAME )
