@@ -1,0 +1,211 @@
+{
+    "species": {
+        "section_name": "Shellfish Species",
+        "section_description": "blabla",
+        "parameters_descriptions": {
+            "CR_max"    : ["Maximum cleranace rate", "l/hr/g DST"],
+            "CR_grad"   : ["Gradient of clearance rate with temperature",""],
+            "CR_inflec" : ["Temperature of max clearance rate (inflection point of curve)","celcius"],
+            "a_TEM"     : ["species-specific exponent scaling factor for temperature-dependence of maintenance heat loss",""],
+            "m_NSO"     : ["Gradient of relationship between concentration of phytoplankton-derived organic matter (SELORG) and net ingestion rate of SELORG",""],
+            "c_NSO"     : ["Intercept of relationship between concentration of phytoplankton-derived organic matter (SELORG) and net ingestion rate of SELORG i.e. net ingestion rate at zero SELORG","mg/hr/g DST"],
+            "a_NRO"     : ["'a' coefficient of relationship describing net ingestion rate of other organic matter",""],
+            "b_NRO"     : ["'b' exponent of relationship describing net ingestion rate of other organi matter",""],
+            "ON_min"    : ["Minimum consumed O: excreted N (when net energy assimilation is ~zero)",""],
+            "ON_max"    : ["Maximum consumed O: excreted N (when net energy assimilation is max)",""],
+            "MNEA"      : ["Maximum net energy absorbtion","(J/g DST/d)"],
+            "MTA"       : ["Mean tissue allocation between shell and tissue",""],
+            "WCS"       : ["Fractional water content of shell",""],
+            "WCT"       : ["Fractional water content of soft tissue",""],
+            "SCW"       : ["Shell cavity water scaling factor for calculation of wet weight",""],
+            "a_SHL"     : ["'a' coefficient of shell length relationship with dry shell weight",""],
+            "b_SHL"     : ["'b' exponent of shell length relationship with dry shell weight",""],
+            "SLM"       : ["Shell length on maturation", "cm"],
+            "PSTL"      : ["Proportion of soft tissue loss on spawning",""],
+            "TTS"       : ["Minimum temperature for spawning","(celcius)"],
+            "EST"       : ["Energy content of dry soft tissue", "(J/mg)"],
+            "ECS"       : ["Energy content of dry shell", "(J/mg)"]
+        },
+        "options_descriptions": {},
+        "defaults": {
+            "M_edulis": {
+                "name": "Mytilus edulis ",
+                "description": "long blabla",
+                "parameters": {
+                    "CR_max"    :4.825 ,
+                    "CR_grad"   :0.013 ,
+                    "CR_inflec" :18.954 ,
+                    "a_TEM"     : 0.074,
+                    "m_NSO"     :3.57 ,
+                    "c_NSO"     :-0.16 ,
+                    "a_NRO"     :7.1 ,
+                    "b_NRO"     :-0.31 ,
+                    "ON_min"    :10 ,
+                    "ON_max"    :200 ,
+                    "MNEA"      :1250 ,
+                    "MTA"       : 0.68,
+                    "WCS"       : 0.048,
+                    "WCT"       : 0.804,
+                    "SCW"       : 1.485,
+                    "a_SHL"     : 2.654,
+                    "b_SHL"     : 0.335,
+                    "SLM"       : 2,
+                    "PSTL"      : 0.18,
+                    "TTS"       : 13,
+                    "EST"       : 23.5,
+                    "ECS"       : 1.035
+                    
+                },
+                "options": {}
+            },
+            "C_gigas": {
+                "name": "Crassostrea gigas",
+                "description": "long blabla",
+                "parameters": {
+                    "CR_max"    :2.6325 ,
+                    "CR_grad"   :0.0113 ,
+                    "CR_inflec"   :14.3053 ,
+                    "a_TEM"     : 0.067,
+                    "m_NSO"     : 4.11,
+                    "c_NSO"     : -0.33,
+                    "a_NRO"     : 8.21,
+                    "b_NRO"     : -0.34,
+                    "ON_min"    : 10,
+                    "ON_max"    : 200,
+                    "MNEA"      : 1350,
+                    "MTA"       : 0.76,
+                    "WCS"       : 0.189,
+                    "WCT"       : 0.914,
+                    "SCW"       : 1.115,
+                    "a_SHL"     : 2.767,
+                    "b_SHL"     : 0.327,
+                    "SLM"       : 5,
+                    "PSTL"      : 0.44,
+                    "TTS"       : 19,
+                    "EST"       : 23.5,
+                    "ECS"       : 0.161
+                },
+                "options": {}
+            },
+            "P_maximus": {
+                "name": "Pecten maximus",
+                "description": "long blabla",
+                "parameters": {
+                    "CR_max"    :2.6325 ,
+                    "CR_grad"   :0.0113 ,
+                    "CR_inflec"   :14.3053 ,
+                    "m_NSO"     : 4.11,
+                    "c_NSO"     : -0.33,
+                    "a_NRO"     : 8.21,
+                    "b_NRO"     : -0.34,
+                    "ON_min"    : 10,
+                    "ON_max"    : 200,
+                    "MNEA"      : 1350,
+                    "MTA"       : 0.76,
+                    "WCS"       : 0.189,
+                    "WCT"       : 0.914,
+                    "SCW"       : 1.115,
+                    "a_SHL"     : 2.767,
+                    "b_SHL"     : 0.327,
+                    "PSTL"      : 0.44,
+                    "TTS"       : 19,
+                    "EST"       : 23.5,
+                    "ECS"       : 0.161
+
+                },
+                "options": {}
+            }
+        }
+    },
+
+    "farm": {
+        "section_name": "Farm definition",
+        "section_description": "blabla",
+        "parameters_descriptions": {
+            "y_farm"            : ["width of farm perpendicular to flow direction"    , "m"],
+            "density_MA"        : ["fraction of farm area occupied by algae"          , ""],
+            "x_farm"            : ["farm length in flow direction"                    , "m"],
+            "z"                 : ["cultivation depth"                                , "m"]
+        },
+        "options_descriptions": {},
+        "defaults": {
+            "default": {
+                "name": "blabla",
+                "description": "long blabla",
+                "parameters": {
+                    "y_farm"            : 1000,
+                    "density_MA"        : 0.4,
+                    "x_farm"            : 1000,
+                    "z"                 : 2
+                },
+                "options": {}
+            }
+        }
+    },
+
+    "harvest": {
+        "section_name": "Harvesting process",
+        "section_description": "blabla",
+        "parameters_descriptions": {
+            "harvest_first"     : ["days from start of run to first harvest"                , "days"],
+            "harvest_freq"      : ["days bewteen first harvest and subsequent harvests"     , "days"],
+            "harvest_fraction"  : ["fraction of total biomass to harvest at each harvest"   , ""],
+            "deployment_day"    : ["days from start of run to deployment of seaweed"        , "days"],
+            "deployment_STW"     : ["mass of shellfish deployed"                             , "mg fixed N per m3"]
+        },
+        "options_descriptions": {},
+        "defaults": {
+            "Winter_growth":{
+                "name": "Winter growth",
+                "description": "long blabla",
+                "parameters":{
+                    "deployment_day"    : 280,
+                    "harvest_first"     : 520,
+                    "harvest_freq"      : 1000,
+                    "harvest_fraction"  : 1,
+                    "deployment_Nf"     : 1000
+                },
+                "options": {}
+            },
+            "CCA":{
+                "name": "CCA",
+                "description": "long blabla",
+                "parameters":{
+                    "deployment_day"    : 2,
+                    "harvest_first"     : 65,
+                    "harvest_freq"      : 50,
+                    "harvest_fraction"  : 0.75,
+                    "deployment_Nf"     : 10000
+                },
+                "options": {}
+            }
+        }
+    },
+
+    "run": {
+        "section_name": "Simulation options",
+        "section_description": "blabla",
+        "parameters_descriptions": {
+            "ESELORG":["Energy content of chlorophyll-associated organic matter","J/mg dry weight"]
+        },
+        "options_descriptions": {
+            "harvest_method": ["no harvesting",
+                                "single winter deployment",
+                                "cut and come again"],
+            "POC_data": ["TRUE","FALSE"]
+        },
+        "defaults": {
+            "default": {
+                "name": "default",
+                "description": "long blabla",
+                "parameters": {
+                    "ESELORG": 23.5
+                },
+                "options": {
+                    "harvest_method": 0,
+                    "POC_data": "TRUE"
+                }
+            }
+        }
+    }
+}

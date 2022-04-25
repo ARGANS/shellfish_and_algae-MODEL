@@ -15,7 +15,7 @@ depth = 3
 
 
 #extract the data value at depth in the merged files (all the daily data merged in one file)
-def getwantedMergeData(data,depth,dataCmdpath,mergedFilepath = 'I:/work-he/apps/safi/data/IBI/merged_files/'):
+def getwantedMergeData(data,depth,dataCmdpath,mergedFilepath = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/'):
     csvFile = pd.read_csv(dataCmdpath, ';')
     DataLine = csvFile.loc[csvFile["Parameter"] == data]
     variable = DataLine.iloc[0]["variable"]

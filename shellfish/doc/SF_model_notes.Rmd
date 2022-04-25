@@ -1,0 +1,360 @@
+---
+title: "Shellfish model notes"
+author: "M Johnson mjohnson@bmrs.ie"
+
+header-includes:
+  - \usepackage{amsmath}
+
+output: 
+  bookdown::pdf_document2:
+    number_sections: true 
+bibliography: bib.bib
+csl: citestyle.csl
+
+
+
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(reshape2)
+
+options(scipen=999)
+
+knitr::opts_knit$set(root.dir = '../')
+
+op = function(x, d=0) sprintf(paste0("%1.",d,"f"), x) 
+
+
+```
+
+```{=tex}
+%\newcommand{\}{} 
+%\newcommand{\}{\mathrm{}}
+\newcommand{\cNSO}{\mathrm{c_{NSO}}}
+\newcommand{\mNSO}{\mathrm{m_{NSO}}}
+\newcommand{\crmax}{cr_{max}}
+\newcommand{\crgrad}{cr_{grad}}
+\newcommand{\crinflec}{cr_{inflec}}
+\newcommand{\CR}{\mathrm{CR}}
+\newcommand{\TEF}{\mathrm{TEF}}
+\newcommand{\NIRSELORG}{\mathrm{NIRSELORG}}
+\newcommand{\SELORG}{\mathrm{SELORG}}
+\newcommand{\ESELORG}{\mathrm{ESELORG}}
+\newcommand{\REMORG}{\mathrm{REMORG}}
+\newcommand{\NIRREMORG}{\mathrm{NIRREMORG}}
+\newcommand{\WE}{\mathrm{WE}}
+\newcommand{\WS}{\mathrm{WS}}
+\newcommand{\DSTW}{\mathrm{DSTW}}
+\newcommand{\DSHW}{\mathrm{DSHW}}
+\newcommand{\CHL}{\mathrm{CHL}}
+\newcommand{\NEA}{\mathrm{NEA}}
+\newcommand{\EREM}{\mathrm{EREM}}
+\newcommand{\MHL}{\mathrm{MHL}}
+\newcommand{\THL}{\mathrm{THL}}
+\newcommand{\MNEA}{\mathrm{MNEA}}
+\newcommand{\ON}{\mathrm{O:N}}
+\newcommand{\ONmax}{\mathrm{O:N}_{max}}
+\newcommand{\ONmin}{\mathrm{O:N}_{min}}
+\newcommand{\EL}{\mathrm{EL}}
+\newcommand{\NEB}{\mathrm{NEB}}
+\newcommand{\COND}{\mathrm{COND}}
+\newcommand{\SHE}{\mathrm{SHE}}
+\newcommand{\STE}{\mathrm{STE}}
+\newcommand{\NSE}{\mathrm{NSE}}
+\newcommand{\EST}{\mathrm{EST}}
+\newcommand{\SL}{\mathrm{SL}}
+\newcommand{\SLM}{\mathrm{SLM}}
+\newcommand{\PSTW}{\mathrm{PSTW}}
+\newcommand{\TTS}{\mathrm{TTS}}
+\newcommand{\MTA}{\mathrm{MTA}}
+\newcommand{\SPAWN}{\mathrm{SPAWN}}
+\newcommand{\WCS}{\mathrm{WCS}}
+\newcommand{\WCT}{\mathrm{WCT}}
+\newcommand{\DWW}{\mathrm{DWW}}
+
+```
+## Source model   
+
+Model is based on ShellSIM, a generic shellfish model presented by @Hawkins2013.  It can run with Chla or Chla and POC inputs to calculate food availability (note that ShellSIM can also run with POM inputs but given the availability of POC this was considred preferable).
+
+## Notes on variables and model equations
+
+Temperature-dependent clearance rates for different shellfish species are presented by @Hawkins2013 with different functional forms. For the mussel *Mytilus edulis*:
+
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    CR= 4.825-(0.013\cdot(T-18.954)^2) (\#eq:CR_ME)
+\end{equation}
+```
+
+and for Oyster *Crassotrea Gigas*
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    CR = 0.320+(0.3233\cdot{}T) – (0.0113\cdot{}T^2)
+\end{equation}
+```
+
+Where T is the temperature in Ceclius. The resulting functions are not particularly different in shape and it is highly preferable to have the same form of equation paratereised to resprest different species in terms of simple model implementation. Therefore we derive a new fit for *C. Gigas* using the form of the *M. edulis* equation. 
+
+```{r CRfit, echo=TRUE}
+
+T<-seq(0,30,0.01)
+M.edulis<- 4.825-(0.013 *(T-18.954)^2)
+C.gigas<-0.320 + (0.3233*T) + (-0.0113*T^2)
+
+data<-melt(data=data.frame(T=T,C.gigas=C.gigas,M.edulis=M.edulis),id.vars='T')
+
+ggplot(data,aes(x=T,y=value))+geom_line(aes(colour=variable))+ylab('CR')
+
+#define a function with the same structure as M.edulis relationship
+
+CRfunc<-function(max,grad,inflec,T){
+  max-(grad*(T-inflec)^2)
+}
+
+#fit the C.gigas model to it...
+
+X<-nls(Cgig~CRfunc(m,g,i,T),data=data.frame(T=T,Cgig=jitter(C.gigas,factor=0.1)),start=list(m=2.65,g=0.0115,i=14.1))
+
+C.gigas_fit<-predict(X)
+
+#plot to compare the two (they are both there, right on top of each other...)
+data2<-melt(data=data.frame(T=T,C.gigas=C.gigas,C.gigas_fit=C.gigas_fit),id.vars='T')
+
+ggplot(data2,aes(x=T,y=value))+geom_point(aes(color=variable,shape=variable))+ylab('CR')
+
+
+```
+we therefore define a generic equation to describe clearance rate, where the characteristic maximum $\crmax$, gradient $\crgrad$ and inflection point of curve (i.e. optimum temperature, $crinflec$):
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \CR = \crmax-(\crgrad\cdot(T-\crinflec)^2)
+\end{equation}
+```
+
+
+The temperature effect on feeding, $\TEF$ is the clearance rate\ $\CR$ at temp T normalised to $\CR$ at 15 Celcius:
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \TEF= \frac{\CR(T)}{\CR(15)}
+\end{equation}
+```
+
+NIRSELORG is the net ingestion rate of SELORG and is calculated by the following empirically derived relationship of the form $y=mx+c$ (with species specific parameters):
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \NIRSELORG = \mNSO\cdot{}SELLORG + \cNSO
+\end{equation}
+```
+
+Where parameter values from @Hawkins2013 are $\mNSO$ = 3.57 and $\cNSO$ = -0.16 for *M. edulis* and $\mNSO$ = 4.11 and $\cNSO$ = -0.33 for *C. gigas*.
+
+
+Above is the direct NIRSELORG derived from experimental data in mg/h/g. In the table of equations in @Hawkins2013, NIRSELORG is presented with temperature and shellfish size dependence as:
+
+   
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \NIRSELORG =
+    \begin{cases}
+       b\cdot\SELORG\cdot\TEF\cdot\left(\frac{\WE}{\WS}\right)^{0.62}, & \CHL\geq 0.01\\
+       0,              & \CHL < 0.01
+\end{cases}
+\end{equation}
+``` 
+ 
+ where $\TEF$ is defined above, $b$ is @Hawkins2013's nomenclature for $\mNSO$. $\cNSO$ is absent from the equation presented in the table which I believe to be in error.  $\left(\frac{WE}{WS}\right)^{0.62}$ is related to shellfish size but is defined differently in the text of @Hawkins2013 to the way it is presented in the table (where the terms are not defined. Verbatim:
+ 
+ > Relations describing shellfish feeding and metabolism were all standardized for an equivalent individual shellfish of 1g dry soft tissue weight, where the standardised rate SR = [(SW/WE)$^b$ x UR], where SW is the standard weight (1 g), WE is the dry soft tissue weight (measured in grams) of experimental animal, UR is the uncorrected weight and $b$ is the associated weight exponent. The same exponents were applied in *Mytilus edulis* and *Crasostrea gigas*, but differed according to whether correcting for feeding ($b$ = 0.62) or metabolism ($b$ = 0.72)...
+ 
+ We interpret from this that SW is equivalent to $\WS$. Furthermore, the reference weight should be the denominator so we assume tha there is an error in the above. text and that the equation from their table is correct. WE is not a particularly obvious term for *dry soft tissue wight* so we rename it to $\DSTW$. Finally, as the value of SW (or $\WS$) is 1 (g) then the equation for $\NIRSELORG$ simplifies to:
+
+
+   
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \NIRSELORG =
+    \begin{cases}
+       \left(\cNSO+\mNSO\cdot\SELORG\right)\cdot\TEF\cdot\DSTW^{0.62}, &  \CHL\geq 0.01\\
+       0,              & \CHL < 0.01
+\end{cases}
+\end{equation}
+``` 
+
+$\NIRREMORG$ is the net ingestion rate of $\REMORG$ and again is presented in 2 ways by @Hawkins2013. Firstly, experimetal data for both species is used to fit an equation of the form:
+
+
+ ```{=tex}
+\begin{equation}
+    \displaystyle
+    \NIRREMORG= a\cdot\left(1-e^{-b\cdot{\REMORG}}\right)
+\end{equation}
+```
+
+where $a$ and $b$ are 7.1 and 0.31 respectively for *M. edulis* and 8.21 and 0.34 respectively for *C. gigas*. 
+
+Again this rate is scaled to temperature and shell size as follows:
+
+
+ ```{=tex}
+\begin{equation}
+    \displaystyle
+    \NIRREMORG= a\cdot\left(1-e^{-b\cdot{\REMORG}}\right)\cdot\TEF\cdot\DSTW^{0.62}
+\end{equation}
+```
+
+Net energy absorbtion ($\NEA$) (J per day) is calcuated as
+
+
+
+ ```{=tex}
+\begin{equation}
+    \displaystyle
+    \NEA= 0.8*24\cdot{}[(\NIRSELORG\cdot{}\ESELORG)+(\NIRREMORG\cdot{}0.15\cdot{}\EREM)]
+\end{equation}
+```
+
+Where the energy content of phytoplankton, ESELORG is 23.5 J/mg (dry weight), 15% of REMORG is bioavailable and all organics are ingested at 80% efficiency. 24 scales from per hour ($\NIRREMORG$ and $\NIRSELORG$) to per day. [note in production version of model all variables to be in the same units....!].
+
+Maintenance heat loss, $\MHL$ in J/day is 
+
+
+ ```{=tex}
+\begin{equation}
+    \displaystyle
+    \MHL= 96.12\cdot\TEF\cdot\DSTW^{0.72}
+\end{equation}
+```
+where 96.12 is 4.005 J/h/g from @Hawkins2013 multiplied by 24 hours.
+
+Total heat loss $\THL$ also in J/day is then 
+
+ ```{=tex}
+\begin{equation}
+    \displaystyle
+    \THL= \MHL + 0.23\NEA
+\end{equation}
+```
+In @Hawkins2013 it is stated that "...according to @Hawkins2002 ... the fractional energy cost of feeding and digestion [is] based on measures of ... 0.23 J/g/hr". This statement is not self-consistent as a fractional energy cost should be unitless and indeed on referring back to @Hawkins2002 we find 0.23 defined as the "Heat loss per unit energy absorption above maintenance" and with stated units of J/J (i.e. unitless). We conclude @Hawkins2002 must be correct and the 0.23 is a unitless 'energy cost' as they define it. 
+
+@Hawkins2013 model excretory energy losses by relating them to the O:N ratio of respiration (with lower O:N when the shellfish have less food).
+
+O:N ratio is explained by @Widdows1978 as:
+
+>"... the oxygen:nitrogen ratio (O:N) [...] is the ratio of oxygen consumed to nitrogen excreted, in atomic equivalents; it provides an indication of the balance in the animal's tissues between the rates of catabolism of protein, carbohydrate and lipid substrates (Corner & Cowey, 1968; Bayne, 1973 a, 1975; Bayne et al. 1976). A low value for O:N indicates that mainly protein is being utilized; whereas a high value indicates catabolism of carbohydrate and/or fat. The theoretical minimum for the O:N ratio is approximately 7 (Mayzaud,1973)> signifying catabolism based entirely upon protein."
+
+
+@Hawkins2013 present ON calculated as (O2) $\div$ 16 / (NH4-N) $\div$ 14 where O2 and NH4-N are measured in milligrams". This calculation doesn't actually feature in the model. Note that get from mg O2 to mol O2 note that it is necessary to divide by 32...
+
+Let us assume that this error does not propagate through to the values of O:N used (these having been taken from the literature, but I do need to check), then O:N is calculated assuming a linear relationship with $\NEA$ where O:N varies from minimum to maximum species specific observed values as $\NEA$ varies from 0 to species specific maximum observed value $\MNEA$. 
+
+As stated by @Hawkins2013:
+
+ ```{=tex}
+\begin{equation}
+    \displaystyle
+    \ON = 10 + (((200-10)\div\MNEA)\times\NEA)
+\end{equation}
+```
+Parameterised for use here with multiple species (note that scallops have different max O:N):
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \ON = \ONmin + \frac{\ONmax-\ONmin}{\MNEA}\cdot\NEA
+\end{equation}
+```
+
+Excretory loss ($\EL$) in $\mu$g NH$_4$-N/day (stated incorrectly by @Hawkins2013 as $\mu$g NH$_4$/day) is then calculated as a function of the total heat loss converted to oxygen and then converted on to NH4 via the O:N ratio. @Hawkins2013 describe this as:
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \EL = (((THL \div 14.06)\div16)\div\ON)\times 14 \times 1000 
+\end{equation}
+```
+
+Here $\frac{\THL}{14.06}$ gives the oxygen equivalents of the total heat loss. Further dividing by 16 (should be 32... see below) converts to (milli)molar units, then dividing by $\ON$ gives the NH4 equivalents in (milli)molar units, multiply by 14 to convert to mg NH4-N, by 1000 for $\mu$g. Note there is a spurious $\times{}24$ in the text which does not appear in the table of equations. 
+
+Teasing this all apart... @Hawkins2013 state that "1 mg O$_2$ = 14.06 J". They aren't talking about special relativity here so equating mass and energy is nonsensical (also the energy of 1mg of mass is 90 gigajoules..). What they mean is that the energy involved in the use of 1mg of oxygen in respiratio is 14.06J. They refer to @Gnaiger1983 for this value. In this work, in Table 4 of @Gnaiger1983, the heat loss associated with 1 $\mu$mol O$_2$ consumtion per hour is given as 0.45 J/hr. 1 $\mu$mol O$_2$ is equivlaent to ($\times\frac{32}{1000}$) = 0.032 mg. Therefore, energy per mg is 0.45/0.032 = 14.06 J/mg. So this all makes sense, but unfortunately @Hawkins2013 then inconsitently (and incorrectly) uses rmm of O not rmm of O$_2$ (i.e. 16 rather than 32 to convert back to a molar quantity in the calculation of $\EL$).
+
+We correct this error and re-state the $\EL$ equation as follows
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \EL = \frac{\THL}{0.450\cdot{}\ON}\cdot{}14
+\end{equation}
+```
+
+ Where 0.450 converts 1J of energy loss to oxygen equivalents in $\mu$mol O$_2$ directly as described in @Gnaiger1983, which results in a simpler conversion via $\ON$ and the rmm of nitrogen to give  $\mu$g NH$_4$-N (not $\mu$g NH$_4$ as stated by @Hawkins2013)
+ 
+$\EL$ is used with a conversion factor from ammonium back to energy and subtracted, along with $\THL$, from $\NEA$ to give the net energy balance $\NEB$ in Joules (per day):
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \NEB = \NEA - \THL - (\EL * 0.0248)
+\end{equation}
+```
+
+The conversion from NH$_4$ to energy (0.0248 J per $\mu$g NH$_4$-N) compares well to the heat of combustion of NH$_4$ quoted in @Pilgrim1954 (~0.021 when converted to the same units) which is also about energy loss via excretion of reduced N compounds.
+
+### reproductive losses
+
+The condition variable $\COND$ is used for logic around spawning and shell growth and is calculated as:
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \COND = \frac{\SHE}{\SHE+\STE}
+\end{equation}
+```
+
+Spawning occurs when shell length, $\SL$, is greater than or equal to maximum shell length, $\SLM$; when temperature is greater than or equal to spawning temperature, $\TTS$; and when $\COND$ is greater than or equal to 0.95 of the mean tissue allocation ($\MTA$). When these conditions are met, the, the energy losses due to spawning are calculated as:
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \SPAWN = \DSTW\cdot\PSTW\cdot\EST
+\end{equation}
+```
+
+The number of spawning events per year ($\NSE$) is limited to 2. 
+
+
+We define an additional derived variable, drained wet weight, DWW as 
+
+```{=tex}
+\begin{equation}
+    \displaystyle
+    \DWW =\DSHW\cdot(1+\WCS)+\DSTW\cdot(1+\WCT)
+\end{equation}
+```
+
+
+
+#unit tracking
+
+
+
+
+
+#references
+
+
+
+
