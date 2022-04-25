@@ -69,12 +69,12 @@ class MA_model_scipy:
 
         ### This section will need an update to use the input json rather than defaults json
         with open(parms_path, 'r') as f:
-            parms = json.loads(f.read())
+            parms = json.loads(f.read())['parameters']
 
         self._parameters = {}
         for _,section in parms.items():
-            # just take the first option for each section for now
-            first_default = section['defaults'][next(iter(section['defaults']))]
+            # take the first option for each section which should be the only one
+            first_default = next(iter(section.values()))
 
             self._parameters.update(first_default['parameters'])
             self._parameters.update(first_default['options'])
@@ -417,9 +417,9 @@ if __name__ =="__main__":
             data, dims = algaeData.getData(longitude = -9.8971,
                                        latitude = 51.5874,
                                        depth = 3,
-                                       time = (startTime, endTime)#,
-                                       #averagingDims = ('time',),
-                                       #weighted = False
+                                       time = (startTime, endTime),
+                                       averagingDims = ('time',),
+                                       weighted = False
                                         )
             data_in = {
                     'SST': np.average(data['Temperature']),
@@ -446,6 +446,31 @@ if __name__ =="__main__":
             y0 = np.squeeze(out_m.y[:,-1])
 
     print(f"One run, monthly averaged: {(time.time() - t0)/n_runs}\n")
+
+    data_csv = pd.DataFrame({
+        'time': time_axis,
+        'SST': input_data['Temperature'],
+        'PAR': 500,
+        'NH4_ext': input_data['Ammonium'],
+        'NO3_ext': input_data['Nitrate'],
+        'PO4_ext': 50,
+        'K_d': 0.1,
+        'F_in': np.sqrt(input_data['northward_Water_current']**2 + input_data['eastward_Water_current']**2),
+        'h_z_SML': 30,
+        't_z': 10,
+        'D_ext': 0.1
+    })
+
+    print(data_csv)
+    print(model._parameters)
+    print(pd.DataFrame(result_J.y.T, columns=model.names))
+
+    data_csv.to_csv("/media/share/results/example/input_data.csv", sep=';')
+    pd.DataFrame(result_J.y.T, columns=model.names).to_csv("/media/share/results/example/output_data.csv", sep=';')
+    with open('/media/share/results/example/input_parms.json', 'w') as outfile:
+        json.dump(model._parameters, outfile)
+
+
 
     #plt.plot(result_J.t, result_J.y[3,:])
     #plt.plot(t_m, result_m[3,:])

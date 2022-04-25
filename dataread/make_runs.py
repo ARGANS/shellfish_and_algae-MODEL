@@ -7,187 +7,28 @@ from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
 import multiprocessing as mp
 
+def degrees_to_meters(lonDist, latDist, refLat):
+    """Converts degrees of latDist,lonDist to meters assuming that the latitude
+    stays near refLat.
+    """
+    lat_degree = 111000 # conversion of latitude degrees to meters
 
-def yearly_runs(data, latitudes, longitude, startDate, endDate, mask, model):
-    result = np.zeros(mask.shape)
-    result = np.ma.masked_array(result, mask)
+    Dx = lonDist * lat_degree * np.cos(np.deg2rad(refLat))
+    Dy = latDist * lat_degree
 
-    n_cells = 0
-    time_model = 0
-    T0 = time.time()
-
-    for i, lat in enumerate(latitudes):
-        print(f"LATITUDE: {lat}")
-        for j, lon in enumerate(longitudes):
-            if mask[i, j] :
-                continue
-
-            print(f"lon: {lon}")
-
-            n_cells += 1
-
-            # Get data at 3m
-            df = algaeData.getTimeSeries(lat, lon, (startDate, endDate), 3)
-
-            # This translation should be done somewhere else ?
-            dataToR = pd.DataFrame({
-                'time': [(date - df['date'][0]).days + 1 for date in df['date']],
-                'SST': df['Temperature'],
-                'PAR': 500,
-                'NH4_ext': df['Ammonium'],
-                'NO3_ext': df['Nitrate'],
-                'PO4_ext': 50,
-                'K_d': 0.1,
-                'F_in': np.sqrt(df['northward_Water_current']**2 + df['eastward_Water_current']**2),
-                'h_z_SML': 30,
-                't_z': 10,
-                'D_ext': 0.1
-                })
-
-            t0 = time.time()
-
-            #out = model.apply_on(dataToR, float(lat))
-            y0 = pd.DataFrame({"NH4": [0],
-                               "NO3": 0,
-                               "N_s": 1,
-                               "N_f": 1,
-                               "D": 0,
-                               "Yield": 0,
-                               "Yield_per_m": 0})
-
-            out_rows = []
-            for t in dataToR.index:
-
-                # twice the same row
-                input_row = dataToR.iloc[[t,t]].reset_index()
-
-                # start at 0, count the number of days
-                #ndays = dataToR['time'][t] - dataToR['time'][t-1] if t!=0 else dataToR['time'][0]
-                #input_row['time'] = [0, ndays]
-                input_row.loc[1, ['time']] = dataToR['time'][t+1] if t+1 in dataToR.index else dataToR['time'][t] + 1
-
-                row = model.apply_on(input_row, float(lat), y0).iloc[[1]]
-
-                out_rows.append(row)
-
-                # change y0 for next step
-                y0 = row[["NH4", "NO3", "N_s", "N_f", "D", "Yield", "Yield_per_m"]]
-            
-            out = pd.concat(out_rows, ignore_index=True)
-
-            time_model += time.time() - t0
-
-            result[i,j] = np.sum(out['f_NO3'])
-
-    print(result)
-    print(f"Average model run: {time_model/n_cells}\n" +
-          f"Total time: {time.time() - T0}"
-        )
+    return Dx, Dy
 
 
-def monthly_simulations(data, latitudes, longitude, startDate, endDate, mask, model):
-    ### Create the necdf output
-    ds = nc.Dataset("/media/share/results/monthly_simulations_test.nc", 'w', format='NETCDF4')
+def meters_to_degrees(Dx, Dy, refLat):
+    """Converts longitudinal and meridional distances Dx and Dy to degrees of
+    longitude and latitude assuming that the latitude stays near refLat"""
 
-    months = ds.createDimension('time', None)
-    lat = ds.createDimension('latitude', len(latitudes))
-    lon = ds.createDimension('longitude', len(longitudes))
+    lat_degree = 111000 # conversion of latitude degrees to meters
 
-    lats = ds.createVariable('latitude', 'f4', ('latitude',))
-    lons = ds.createVariable('longitude', 'f4', ('longitude',))
+    lonDist = Dx / (lat_degree * np.cos(np.deg2rad(refLat)))
+    latDist = Dy / lat_degree
 
-    lats[:] = latitudes
-    lons[:] = longitudes
-
-
-
-    for name in ["NH4", "NO3", "N_s", "N_f", "D", "Yield", "Yield_per_m"]:
-        var = ds.createVariable(name, 'f4', ('time', 'latitude', 'longitude',))
-
-    ds.close()
-
-
-    n_cells = 0
-    T0 = time.time()
-
-    initTime = datetime.datetime(2021, 1, 1, 0)
-
-    results = {}
-    results_names = ["NH4", "NO3", "N_s", "N_f", "D", "Yield", "Yield_per_m"]
-    for param in results_names:
-        zeros = np.zeros(mask.shape)
-        results[param] = np.ma.masked_array(zeros, mask)
-
-    y0 = pd.DataFrame({"NH4": [0],
-                       "NO3": 0,
-                       "N_s": 1,
-                       "N_f": 1,
-                       "D": 0,
-                       "Yield": 0,
-                       "Yield_per_m": 0})
-
-    y0_array = np.empty(mask.shape, dtype=object)
-
-    # !!! All the same reference, but should not matter
-    for i in range(mask.shape[0]):
-        for j in range(mask.shape[1]):
-            y0_array[i,j] = y0
-
-    for month in range(1,13):
-        print(f"MONTH: {month}")
-        startTime = datetime.datetime(2021, month, 1, 0)
-        if month == 12:
-            endTime = datetime.datetime(2022, 1, 1, 0)
-        else:
-            endTime = datetime.datetime(2021, month+1, 1, 0)
-        data, dims = algaeData.getData(longitude = sim_area['longitude'], 
-                                       latitude = sim_area['latitude'],
-                                       depth = sim_area['depth'],
-                                       time = (startTime, endTime),
-                                       averagingDims = ('time',),
-                                       weighted = False
-                                       )
-
-        for i, lat in enumerate(latitudes):
-            print(f"    latitude: {lat}")
-            for j, lon in enumerate(longitudes):
-                if mask[i, j]:
-                    continue
-                n_cells += 1
-                #print(f"        longitude: {lon}")
-
-                # This translation should be done somewhere else ?
-                dataToR = pd.DataFrame({
-                    'time': [(startTime - initTime).days, (endTime - initTime).days],
-                    'SST': data['Temperature'][i,j],
-                    'PAR': 500,
-                    'NH4_ext': data['Ammonium'][i,j],
-                    'NO3_ext': data['Nitrate'][i,j],
-                    'PO4_ext': 50,
-                    'K_d': 0.1,
-                    'F_in': np.sqrt(data['northward_Water_current'][i,j]**2 + data['eastward_Water_current'][i,j]**2),
-                    'h_z_SML': 30,
-                    't_z': 10,
-                    'D_ext': 0.1
-                    })
-
-                # run the month
-                model_res = model.apply_on(dataToR, float(lat), y0_array[i,j]).iloc[[1]]
-
-                for param in results_names:
-                    results[param][i,j] = model_res[param][0]
-
-                y0_array[i,j] = model_res[["NH4", "NO3", "N_s", "N_f", "D", "Yield", "Yield_per_m"]]
-
-        ds = nc.Dataset("/media/share/results/monthly_simulations_test.nc", 'a')
-        for name, values in results.items():
-            ds[name][month-1,:,:] = values
-        ds.close()
-
-    total_time = time.time() - T0
-    print(f"Total time: {total_time}" +
-          f"Time per cell per month: {total_time/n_cells}"
-    )
+    return lonDist, latDist
 
 
 def initialize_result(fileName:str, times, latitudes, longitudes, 
@@ -223,12 +64,23 @@ def initialize_result(fileName:str, times, latitudes, longitudes,
     ds.close()
 
 
-def run_scenario_a_monthly(fileName:str, model, y0:list, input_args:dict, year:int):
+def run_scenario_a_monthly(fileName:str, model_params:str, y0:list, input_args:dict, year:int,
+                           farm_at_gridSize=False, data_is_monthly=False):
     """Runs simulation on all the grid points in fileName, reading data from
     inputData, and initializing at y0. The simulations are ran on monthly
     averaged data.
     Writes the results in fileName.
     input_args are passed to open_data_input() to open an AllData object.
+
+    farm_at_gridSize: If True, the farm size parameters in the model are
+        overruled and instead, a square farm with an area equal to the grid size
+        is used. The grid size is obtained from latitude and longitude axes,
+        they must have a constant step in degrees for this option to work
+        properly.
+    data_is_monthly: If True, the data opened by passing input_args to
+        open_data_input() is assumed to already be averaged monthly. The data
+        is then accessed by searching for the value that is nearest to the
+        15th of each month.
     """
 
     algaeData = open_data_input(**input_args)
@@ -246,6 +98,9 @@ def run_scenario_a_monthly(fileName:str, model, y0:list, input_args:dict, year:i
 
     initTime = datetime.datetime(year, 1, 1, 0)
 
+    gridLat = latitudes[1] - latitudes[0]
+    gridLon = longitudes[1] - longitudes[0]
+
     for month in range(1,13):
         #print(f"MONTH: {month}")
         startTime = datetime.datetime(year, month, 1, 0)
@@ -261,6 +116,17 @@ def run_scenario_a_monthly(fileName:str, model, y0:list, input_args:dict, year:i
 
         for i, lat in enumerate(latitudes):
             #print(f"Latitude: {lat}")
+
+            # The model is recreated at every latitude, not too slow
+            model = MA_model_scipy(model_params)
+            if farm_at_gridSize:
+                lon_m, lat_m = degrees_to_meters(gridLon, gridLat, lat)
+                square_side = np.sqrt(lon_m * lat_m)
+                model._parameters.update({'y_farm': square_side,
+                                          'x_farm': square_side
+                                        })
+                # Ths size does not change with longitude
+
             for j, lon in enumerate(longitudes):
                 #print(f"    Longitude: {lon}")
                 if mask[i, j]:
@@ -269,20 +135,28 @@ def run_scenario_a_monthly(fileName:str, model, y0:list, input_args:dict, year:i
                 if month==1:
                     n_cells += 1
 
-                data, dims = algaeData.getData(longitude = lon,
-                                       latitude = lat,
-                                       depth = 3,
-                                       time = (startTime, endTime)
-                                        )
+                data_kwargs = {
+                    "longitude": lon,
+                    "latitude": lat,
+                    "depth": 3
+                    #"depth": model._parameters["z"]
+                }
+                if data_is_monthly:
+                    data_kwargs["time"] = startTime + datetime.timedelta(days=14)
+                else:
+                    data_kwargs["time"] = (startTime, endTime)
+                    data_kwargs["averaging_dims"] = ("time",)
+
+                data, dims = algaeData.getData(**data_kwargs)
 
                 data_in = {
-                    'SST': np.average(data['Temperature']),
+                    'SST': data['Temperature'],
                     'PAR': 500,
-                    'NH4_ext': np.average(data['Ammonium']),
-                    'NO3_ext': np.average(data['Nitrate']),
+                    'NH4_ext': data['Ammonium'],
+                    'NO3_ext': data['Nitrate'],
                     'PO4_ext': 50,
                     'K_d': 0.1,
-                    'F_in': np.average(np.sqrt(data['northward_Water_current']**2 + data['eastward_Water_current']**2)),
+                    'F_in': np.sqrt(data['northward_Water_current']**2 + data['eastward_Water_current']**2)),
                     'h_z_SML': 30,
                     't_z': 10,
                     'D_ext': 0.1
@@ -293,9 +167,16 @@ def run_scenario_a_monthly(fileName:str, model, y0:list, input_args:dict, year:i
                                 rtol=0.05, method='BDF')
 
                 if not result.success:
-                    # Do not attempt to write if it failed
-                    print(result.message)
-                    continue
+                    # try again with strict tolerance
+                    result = solve_ivp(MA_model_scipy.derivative_fast, (days_start, days_end), y0_array[:,i,j], args=(data_in, lat, model),
+                                jac=MA_model_scipy.jacobian_fast, t_eval=[days_end],
+                                method='BDF')
+
+                    if not result.success:
+                        # Still failing
+                        # Do not attempt to write if it failed
+                        print(result.message)
+                        continue
 
                 values[:,i,j] = np.squeeze(result.y)
 
@@ -374,11 +255,11 @@ def run_scenario_a(fileName:str, model, y0:list, input_args:dict):
     return n_cells
 
 
-def open_data_input(mainpath:str, zone:str, paramNames:list, fileRef:str):
+def open_data_input(file_adress:str, zone:str, paramNames:list, fileRef:str):
 
     dataRef = pd.read_csv(fileRef, delimiter=';')
 
-    fileNames = [mainpath + f"{zone}/{param}/{zone}_{param}_merged.nc" for param in paramNames]
+    fileNames = [file_adress.format(zone=zone, param=param) for param in paramNames]
 
     #dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][0] for param in paramNames]
     dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][-1] for param in paramNames]
@@ -405,23 +286,20 @@ def open_data_input(mainpath:str, zone:str, paramNames:list, fileRef:str):
 
 if __name__=="__main__":
 
-    input_args = {
-        'zone' : "IBI",
-        'mainpath' : '/media/share/data_merged/',
-        'fileRef' : './dataCmd.csv',
-        'paramNames' : ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
-    }
     ### Initialize the netcdf reading interface
-    algaeData = open_data_input(**input_args)
+    algaeData = open_data_input(file_adress = '/media/share/data_merged/{zone}/{param}/{zone}_{param}_merged.nc',
+                                zone = "IBI",
+                                paramNames = ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current'],
+                                fileRef = './dataCmd.csv')
 
 
     ### get the copernicus grid and mask
 
     sim_area = {
-        'longitude': (-4, -3),
-        'latitude': (48.5, 49),
-        #'longitude': (-180, 180),
-        #'latitude': (-90, 90),
+        #'longitude': (-4, -3),
+        #'latitude': (48.5, 49),
+        'longitude': (-180, 180),
+        'latitude': (-90, 90),
         'time_index': 0,
         'depth': 3
     }
@@ -439,20 +317,21 @@ if __name__=="__main__":
 
     mask = np.logical_or(mask1, np.logical_or(mask2, mask3))
 
-    model = MA_model_scipy("macroalgae_model_parameters.json")
+    ###
 
-    n_slices = 20
+
+    model_params = "macroalgae_model_parameters_input.json"
+    model = MA_model_scipy(model_params)
+
+    n_slices = 100
 
     lon_split = np.array_split(longitudes, n_slices)
     mask_split = np.array_split(mask, n_slices, 1)
 
-    ### Create datasets
-    for i, (lon_arr, mask_arr) in enumerate(zip(lon_split, mask_split)):
-        initialize_result(f"/media/share/results/complete_simulations_test_{i}.nc",
-        times, latitudes, lon_arr, model.names, mask_arr)
+
     ### Create datasets for monthly sim
     for i, (lon_arr, mask_arr) in enumerate(zip(lon_split, mask_split)):
-        initialize_result(f"/media/share/results/complete_simulations_monthly_test_{i}.nc",
+        initialize_result(f"/media/share/results/simulations/monthly/monthly_simulations_{i:03d}.nc",
         np.array(range(1,13)), latitudes, lon_arr, model.names, mask_arr)
 
     pool = mp.Pool(10)
@@ -461,10 +340,9 @@ if __name__=="__main__":
 
 
     t0 = time.time()
-    #n_cells = pool.starmap_async(run_scenario_a, 
-    #    [(f"/media/share/results/complete_simulations_test_{i}.nc", model, y0, input_args) for i in range(n_slices)]).get()
-    n_cells = pool.starmap_async(run_scenario_a_monthly, 
-        [(f"/media/share/results/complete_simulations_monthly_test_{i}.nc", model, y0, input_args, 2021) for i in range(n_slices)]).get()
+    n_cells = pool.starmap_async(run_scenario_a_monthly,
+        [(f"/media/share/results/simulations/monthly/monthly_simulations_{i:03d}.nc", 
+            model_params, y0, input_args, 2021, True, True) for i in range(n_slices)]).get()
     #n_cells = run_scenario_a_monthly("/media/share/results/complete_simulations_monthly_test_0.nc", model, y0, input_args, 2021)
 
 
