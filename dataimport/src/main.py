@@ -16,14 +16,13 @@ outputDirectory = '/media/share/data/IBI/'
 
 dataFin=pd.read_csv('./dataCmd.csv',';')
 
-datesList=giveDateslist(dateBeginning,dateEnd)
+datesList=giveDateslist(dateBeginning,dateEnd,frequency)
 
 for dat in wantedData:
     DataLine = dataFin.loc[dataFin["Parameter"] == dat]
     if DataLine.iloc[0]["daily"] > 0:
-        for (dateBeg, dateE) in zip(datesList[0], datesList[1]):
-            DataOutputDirectory = outputDirectory + dat + '/'
-            getData(dat, zone, dataFin, deepthmin, deepthmax,  DataOutputDirectory, dateBeg, dateE,frequency)
+        DataOutputDirectory = outputDirectory + dat + '/'
+        getData(dat, zone, dataFin, deepthmin, deepthmax,  DataOutputDirectory, datesList[0], datesList[1],frequency)
     else:
         DataOutputDirectory = outputDirectory + dat + '/'
         getData(dat, zone, dataFin, deepthmin, deepthmax, DataOutputDirectory)
