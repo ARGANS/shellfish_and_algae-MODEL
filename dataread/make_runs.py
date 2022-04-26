@@ -156,7 +156,7 @@ def run_scenario_a_monthly(fileName:str, model_params:str, y0:list, input_args:d
                     'NO3_ext': data['Nitrate'],
                     'PO4_ext': 50,
                     'K_d': 0.1,
-                    'F_in': np.sqrt(data['northward_Water_current']**2 + data['eastward_Water_current']**2)),
+                    'F_in': np.sqrt(data['northward_Water_current']**2 + data['eastward_Water_current']**2),
                     'h_z_SML': 30,
                     't_z': 10,
                     'D_ext': 0.1
@@ -286,30 +286,29 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, fileRef:str):
 
 if __name__=="__main__":
 
+    input_args = {
+        'zone' : "IBI",
+        'file_adress' : '/media/share/data/{zone}/{param}/{param}{zone}modelNetCDF2021-01to2022-01.nc',
+        'fileRef' : './dataCmd.csv',
+        'paramNames' : ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
+    }
     ### Initialize the netcdf reading interface
-    algaeData = open_data_input(file_adress = '/media/share/data_merged/{zone}/{param}/{zone}_{param}_merged.nc',
-                                zone = "IBI",
-                                paramNames = ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current'],
-                                fileRef = './dataCmd.csv')
+    algaeData = open_data_input(**input_args)
 
 
     ### get the copernicus grid and mask
 
     sim_area = {
-        #'longitude': (-4, -3),
-        #'latitude': (48.5, 49),
-        'longitude': (-180, 180),
-        'latitude': (-90, 90),
+        'longitude': (-4, -3),
+        'latitude': (48.5, 49),
+        #'longitude': (-180, 180),
+        #'latitude': (-90, 90),
         'time_index': 0,
         'depth': 3
     }
 
-    startDate = datetime.datetime(2021, 1, 1, 12)
-    endDate = datetime.datetime(2022, 1, 1, 12)
-
     longitudes, _ = algaeData.parameterData['Temperature'].getVariable('longitude', **sim_area)
     latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **sim_area)
-    times, _ = algaeData.parameterData['Temperature'].getVariable('time', time=(startDate, endDate), rawTime=True)
 
     mask1 = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0].mask
     mask2 = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0].mask
@@ -323,7 +322,7 @@ if __name__=="__main__":
     model_params = "macroalgae_model_parameters_input.json"
     model = MA_model_scipy(model_params)
 
-    n_slices = 100
+    n_slices = 10
 
     lon_split = np.array_split(longitudes, n_slices)
     mask_split = np.array_split(mask, n_slices, 1)

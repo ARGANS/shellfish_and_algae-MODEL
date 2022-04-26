@@ -10,7 +10,7 @@ import time
 from scipy.integrate import odeint
 from scipy.integrate import solve_ivp
 from types import SimpleNamespace
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
 from read_netcdf import *

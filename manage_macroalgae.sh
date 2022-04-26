@@ -17,10 +17,11 @@ function start_container {
         docker run \
             --rm \
             --name $CONTAINER_NAME \
-            --volume "$HOME/share/data_merged":/media/share/data_merged \
-            --volume "$HOME/share/results":/media/share/results \
+            --volume ac_share:/media/share \
             --entrypoint '/bin/bash' \
             -dit $MA_TAG:latest
+            #--volume "$HOME/share/data_merged":/media/share/data_merged \
+            #--volume "$HOME/share/results":/media/share/results \
 
         run "update"
     fi
