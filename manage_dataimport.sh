@@ -59,7 +59,10 @@ function run {
                 -it $DD_TAG:latest
             ;;
         'ls')
-            sudo ls -al /var/lib/docker/volumes/ac_share/_data/$2
+            sudo ls -al /var/lib/docker/volumes/$SHARED_VOLUME_NAME/_data/$2
+            ;;
+        'ls2')
+            docker run --rm -i -v=$SHARED_VOLUME_NAME:/media/volume busybox sh
             ;;
         'run')
             container_id=$( docker ps -q -f name=$CONTAINER_NAME )
