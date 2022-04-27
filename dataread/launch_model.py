@@ -65,11 +65,7 @@ class MA_model:
 
 
 class MA_model_scipy:
-    def __init__(self, parms_path):
-
-        ### This section will need an update to use the input json rather than defaults json
-        with open(parms_path, 'r') as f:
-            parms = json.loads(f.read())['parameters']
+    def __init__(self, parms: dict):
 
         self._parameters = {}
         for _,section in parms.items():

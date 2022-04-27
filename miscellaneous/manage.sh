@@ -42,6 +42,7 @@ function run_container_for_model_execution {
     fi
 
     docker volume create --name $SHARED_VOLUME_NAME
+    data=`cat macroalgae/macroalgae_model_parameters_input.json`
 
     # use -d to start a container in detached mode
     # use --entrypoint=/bin/bash \ to override the command
@@ -49,8 +50,8 @@ function run_container_for_model_execution {
         --rm \
         --name $container_name \
         --volume "$SHARED_VOLUME_NAME":/media/share \
+        -e parameters_json="$data" \
         -e PYTHONDONTWRITEBYTECODE=1 \
-        --entrypoint=/bin/bash \
         -it $image_tag:latest
 }
 
