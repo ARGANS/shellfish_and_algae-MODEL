@@ -16,6 +16,7 @@ function build_images_for_model_execution {
         --network host \
         --build-arg REQUIREMENTS_PATH="./requirements.txt" \
         --build-arg WITH_R="true" \
+        --build-arg WITH_NETCDF="true" \
         -t $base_image_tag:v1 -t $base_image_tag:latest \
         -f $base_image_dockerfile \
         $dir && \
@@ -42,6 +43,7 @@ function run_container_for_model_execution {
     fi
 
     docker volume create --name $SHARED_VOLUME_NAME
+    # All model properties received from the application
     data=`cat macroalgae/macroalgae_model_parameters_input.json`
 
     # use -d to start a container in detached mode

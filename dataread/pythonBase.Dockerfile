@@ -18,6 +18,12 @@ RUN if [ ! -z "$WITH_R" ] ; then \
     else echo "Without R"; \
     fi
 
+ARG WITH_NETCDF
+RUN if [ ! -z "$WITH_NETCDF" ] ; then \
+    apt-get install -y nco netcdf-bin; \
+    else echo "Without NetCDF"; \
+    fi
+
 ARG REQUIREMENTS_PATH
 RUN echo ":: $REQUIREMENTS_PATH"
 COPY "$REQUIREMENTS_PATH" .

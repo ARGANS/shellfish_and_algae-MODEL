@@ -8,6 +8,6 @@ WORKDIR /opt
 COPY . .
 
 COPY ./start.sh .
-RUN chmod +x start.sh
+RUN chmod +x *.sh
 
 CMD ["/opt/start.sh"]

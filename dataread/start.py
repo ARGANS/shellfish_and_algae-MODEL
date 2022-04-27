@@ -27,8 +27,6 @@ input_args = {
 
 ### Initialize the netcdf reading interface
 algaeData = open_data_input(**input_args)
-print('algaeData')
-pprint(algaeData)
 
 ### get the copernicus grid and mask
 
