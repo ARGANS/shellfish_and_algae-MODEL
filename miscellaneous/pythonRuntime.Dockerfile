@@ -1,7 +1,6 @@
 ARG BASE_IMAGE
-# 
 FROM $BASE_IMAGE
-RUN echo $BASE_IMAGE 
+
 LABEL NM <nmaltsev@argans.eu>
 
 WORKDIR /opt

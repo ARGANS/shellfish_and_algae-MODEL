@@ -1,6 +1,5 @@
 #!/bin/bash
 SHARED_VOLUME_NAME='ac_share'
-SHARED_VOLUME_NAME='ac_share_year'
 
 ## Properties of scripts used to load datasets:
 
@@ -8,8 +7,8 @@ function build_images_for_model_execution {
     local dir="./dataread"
     local base_image_tag="ac-processing/base"
     local runtime_image_tag="ac-processing/runtime"
-    local base_image_dockerfile="$dir/pythonBase.Dockerfile"
-    local runtime_image_dockerfile="$dir/pythonRuntime.Dockerfile"
+    local base_image_dockerfile="./miscellaneous/pythonBase.Dockerfile"
+    local runtime_image_dockerfile="./miscellaneous/pythonRuntime.Dockerfile"
 
     ### for GDAL: --build-arg WITH_GDAL="true" \
     docker build \

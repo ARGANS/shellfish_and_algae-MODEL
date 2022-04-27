@@ -1,96 +1,78 @@
-DIR='./dataimport'
-DD_TAG='aquaculture/dataimport'
-CONTAINER_NAME='ac-dataimport'
-
 SHARED_VOLUME_NAME='ac_share'
 
 ## Properties of scripts used to load datasets:
 zone='IBI'
 year=2021
-# output_dir='I:/work-he/apps/safi/data/IBI/'
 output_dir='/media/share/data/IBI/'
 deepthmin=0
 deepthmax=20
+
+function build_images_for_data_import {
+    local dir="./dataimport"
+    local base_image_tag="ac-import/base"
+    local runtime_image_tag="ac-import/runtime"
+    local base_image_dockerfile="./miscellaneous/pythonBase.Dockerfile"
+    local runtime_image_dockerfile="./miscellaneous/dataimportRuntime.Dockerfile"
+
+    docker build \
+        --network host \
+        --build-arg REQUIREMENTS_PATH="./src/requirements.txt" \
+        -t $base_image_tag:v1 -t $base_image_tag:latest \
+        -f $base_image_dockerfile \
+        $dir && \
+    docker build \
+        --network host \
+        --build-arg BASE_IMAGE="$base_image_tag" \
+        -t $runtime_image_tag:v1 -t $runtime_image_tag:latest \
+        -f $runtime_image_dockerfile \
+        $dir
+}
+
+function run_container_for_data_import {
+    local container_name="$1"
+    local container_id=$( docker ps -q -f name=$container_name )
+            
+    if [[ ! -z "$container_id" ]]; then
+        docker stop $container_name || true
+    fi
+    local image_tag="ac-import/runtime"
+    local image_id=$( docker images -q $image_tag )
+
+    if [[ -z "$image_id" ]]; then
+        build_images_for_model_execution
+    fi
+
+    docker volume create --name $SHARED_VOLUME_NAME
+    # All model properties received from the application
+    data="{\"zone\":\"$zone\",\"depth_min\":$deepthmin,\"depth_max\":$deepthmax,\"year\":$year}"
+
+    # use -d to start a container in detached mode
+    # use --entrypoint=/bin/bash \ to override the command
+    docker run \
+        --rm \
+        --name $container_name \
+        --volume "$SHARED_VOLUME_NAME":/media/share \
+        -e AC_OUTPUT_DIR="$output_dir" \
+        -e parameters_json="$data" \
+        -e PYTHONDONTWRITEBYTECODE=1 \
+        -it $image_tag:latest
+}
 
 function run {
     local command="$1"
 
     case $command in
         'build')
-            docker build \
-                --network host \
-                -t aquaculture/base:v1 -t aquaculture/base:latest \
-                -f $DIR/base.Dockerfile \
-                $DIR
-            docker build \
-                --network host \
-                -t $DD_TAG:v1 -t $DD_TAG:latest \
-                -f $DIR/runtime.Dockerfile \
-                $DIR
+            build_images_for_data_import 
             ;;
         'execute')
-            container_id=$( docker ps -q -f name=$CONTAINER_NAME )
-            
-            if [[ ! -z "$container_id" ]]; then
-                docker stop $CONTAINER_NAME || true
-            fi
-
-            image_id=$( docker images -q $DD_TAG )
-
-            if [[ -z "$image_id" ]]; then
-                run "build"
-            fi
-
-            docker volume create --name $SHARED_VOLUME_NAME
-
-            # use -d to start a container in detached mode
-            # use --entrypoint=/bin/bash \ to override the command
-            docker run \
-                --rm \
-                --name $CONTAINER_NAME \
-                --add-host=ftp.hermes.acri.fr:5.252.148.37 \
-                --volume "$SHARED_VOLUME_NAME":/media/share \
-                -e AC_OUTPUT_DIR="$output_dir" \
-                -e AC_YEAR="$year" \
-                -e AC_ZONE="$zone" \
-                -e AC_DEPTHMIN="$deepthmin" \
-                -e AC_DEPTHMAX="$deepthmax" \
-                -e PYTHONDONTWRITEBYTECODE=1 \
-                -it $DD_TAG:latest
+            run_container_for_data_import "ac-dataimport_run"
             ;;
         'ls')
             sudo ls -al /var/lib/docker/volumes/$SHARED_VOLUME_NAME/_data/$2
             ;;
         'ls2')
             docker run --rm -i -v=$SHARED_VOLUME_NAME:/media/volume busybox sh
-            ;;
-        'run')
-            container_id=$( docker ps -q -f name=$CONTAINER_NAME )
-            
-            if [[ ! -z "$container_id" ]]; then
-                docker stop $CONTAINER_NAME || true
-            fi
-
-            image_id=$( docker images -q $DD_TAG )
-
-            if [[ -z "$image_id" ]]; then
-                run "build"
-            fi
-
-            docker run \
-                --rm \
-                --name $CONTAINER_NAME \
-                --add-host=ftp.hermes.acri.fr:5.252.148.37 \
-                --volume "$PWD/share":/media/share \
-                --volume "$PWD/$DIR/src/.":"/opt/." \
-                --entrypoint=/bin/bash \
-                -e OUTPUT_DIR="$output_dir" \
-                -e AC_YEAR="$year" \
-                -e AC_ZONE="$zone" \
-                -e AC_DEPTHMIN="$deepthmin" \
-                -e AC_DEPTHMAX="$deepthmax" \
-                -e PYTHONDONTWRITEBYTECODE=1 \
-                -it $DD_TAG:latest
             ;;
         *)
             echo 'todo';;
