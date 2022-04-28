@@ -20,6 +20,8 @@ deepthmax = input_parameters['depth_max']
 
 
 outputDirectory = os.getenv('AC_OUTPUT_DIR')
+# TODO remove finalizing / in outputDirectory
+
 wantedData = ['Temperature', 'Nitrate', 'Ammonium', 'eastward_Water_current', 'northward_Water_current']
 
 dateBeginning = f'{year}-01-01 00:00:00'
@@ -34,7 +36,7 @@ datesList = giveDateslist(dateBeginning, dateEnd, frequency)
 # print('datesList')
 # pprint(datesList)
 for dat in wantedData:
-    dataOutputDirectory = outputDirectory + dat + '/'
+    dataOutputDirectory = outputDirectory + '/' + dat + '/'
     dataLine = dataFin.loc[dataFin["Parameter"] == dat]
     print(f'dataLine {dataOutputDirectory}')
     pprint(dataLine)
