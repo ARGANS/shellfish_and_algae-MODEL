@@ -50,8 +50,9 @@ function run_container_for_model_execution {
     docker run \
         --rm \
         --name $container_name \
-        --volume "$SHARED_VOLUME_NAME":/media/share \
-        -e parameters_json="$data" \
+        --volume "$SHARED_VOLUME_NAME:/media/share" \
+        -e TASK_ID="IBI-2021-3-18" \
+        -e PARAMETERS_JSON="$data" \
         -e PYTHONDONTWRITEBYTECODE=1 \
         -it $image_tag:latest
 }
@@ -73,7 +74,9 @@ function handle_arguments {
             docker run --rm -i -v=$SHARED_VOLUME_NAME:/media/volume busybox sh
             ;;
         *)
-            echo 'todo';;
+            echo 'commands:'
+            echo 'build, execute, ls, ls2'
+            ;;
     esac
 }
 

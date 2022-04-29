@@ -61,15 +61,15 @@
 	},
 	"metadata": {
 		"name": "user1_Winter_growth_Artic_21-04-2022",
-		"zone": "Artic",
+		"zone": "IBI",
 		"_suggested": {
 			"login": "user1",
 			"species": "Winter_growth",
 			"zone": "Artic",
 			"date": "21-04-2022"
 		},
-		"depth_min": 0,
-		"depth_max": 0,
-		"year": 2022
+		"depth_min": 3,
+		"depth_max": 18,
+		"year": 2021
 	}
 }

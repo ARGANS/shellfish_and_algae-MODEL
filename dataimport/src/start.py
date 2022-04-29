@@ -4,6 +4,9 @@ from general import giveDateslist, getData
 import pandas as pd
 from pprint import pprint
 
+def cleanFinalSlash(value: str) -> str:
+    return value[:-1] if value.endswith('/') else value
+
 # Read dataset parameters
 ### parameters_json_value == {"zone":"Artic","depth_min":0,"depth_max": 0,"year": 2022}
 parameters_json_value:str = os.getenv('parameters_json') 
@@ -19,7 +22,8 @@ deepthmin = input_parameters['depth_min']
 deepthmax = input_parameters['depth_max']
 
 
-outputDirectory = os.getenv('AC_OUTPUT_DIR')
+outputDirectory = cleanFinalSlash(os.getenv('AC_OUTPUT_DIR'))
+
 # TODO remove finalizing / in outputDirectory
 
 wantedData = ['Temperature', 'Nitrate', 'Ammonium', 'eastward_Water_current', 'northward_Water_current']

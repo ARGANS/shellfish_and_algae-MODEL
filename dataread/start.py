@@ -1,26 +1,27 @@
-from pprint import pprint
 from make_runs import open_data_input, initialize_result, run_scenario_a_monthly
 import pandas as pd
 import numpy as np
 import time
-import json
 import os
 import multiprocessing as mp
 from launch_model import MA_model_scipy
+from models.ModelProperties import ModelProperties
 
-# TODO provide dataCmd.csv from mounted volume
+# TODO get dataCmd.csv from a mounted volume
 dataRef: pd.DataFrame = pd.read_csv('./dataCmd.csv', delimiter=';')
 
-parameters_json_value:str = os.getenv('parameters_json')
+model_properties = ModelProperties()
 try:
-    input_parameters:dict = json.loads(parameters_json_value)
+    model_properties.parse(os.getenv('PARAMETERS_JSON'))
 except:
     raise RuntimeError('Cannot parse the value of the parameters_json environment variable')
 
-# TODO safe in a manifest file all information about zone and paramNames
+if not model_properties.isDataDownloadTaskCompleted():
+    raise RuntimeError('Data not downloaded')
+
 input_args = {
     'zone' : 'IBI',
-    'file_adress' : '/media/share/data/{zone}/{param}/{param}{zone}modelNetCDF2021-01to2022-01.nc',
+    'file_adress' : model_properties.file_template,
     'dataRef' : dataRef,
     'paramNames' : ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
 }
@@ -51,22 +52,29 @@ n_slices = 10
 lon_split = np.array_split(longitudes, n_slices)
 mask_split = np.array_split(mask, n_slices, 1)
 
-model = MA_model_scipy(input_parameters['parameters'])
-
+model = MA_model_scipy(model_properties.parameters)
+# model_properties.createResultDir()
 ### Create datasets for monthly sim
 for i, (lon_arr, mask_arr) in enumerate(zip(lon_split, mask_split)):
-    initialize_result(f"/media/share/results/simulations/monthly/monthly_simulations_{i:03d}.nc",
-    np.array(range(1,13)), latitudes, lon_arr, model.names, mask_arr)
+    initialize_result(
+        model_properties.getMonthlySimulationsPath(i), 
+        np.array(range(1,13)), latitudes, lon_arr, model.names, mask_arr)
 
 pool = mp.Pool(10)
 y0 = np.array([0, 0, 0, 1000, 0], dtype=np.float64)
 t0 = time.time()
 
-n_cells = pool.starmap_async(run_scenario_a_monthly,
-    [(f"/media/share/results/simulations/monthly/monthly_simulations_{i:03d}.nc", 
-        input_parameters['parameters'], y0, input_args, 2021, True, True) for i in range(n_slices)]).get()
+n_cells = pool.starmap_async(run_scenario_a_monthly, [(
+        model_properties.getMonthlySimulationsPath(i),
+        model_properties.parameters, 
+        y0, 
+        input_args, 
+        model_properties.attrs['metadata']['year'], 
+        True, 
+        True
+    ) for i in range(n_slices)]).get()
 # n_cells = run_scenario_a_monthly("/media/share/results/complete_simulations_monthly_test_0.nc", model, y0, input_args, 2021)
 
-print('RESULTS')
-pprint(n_cells)
-pprint((time.time()-t0)/sum(n_cells))
+with open(model_properties.results_dir_path + '/stats.log', 'w') as file:
+    file.write(str(n_cells) + '\n')
+    file.write(str((time.time() - t0) / sum(n_cells)) + '\n')

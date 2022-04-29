@@ -1,5 +1,5 @@
 #!/bin/bash
-mkdir -p /media/share/results/simulations/monthly
+mkdir -p /media/share/results/$TASK_ID
 python start.py
 echo "Start concatenation"
-. concatenate_longitude.sh /media/share/results/simulations/monthly /media/share/results/simulations/concat.nc
+. concatenate_longitude.sh /media/share/results/$TASK_ID /media/share/results/$TASK_ID/concat.nc
