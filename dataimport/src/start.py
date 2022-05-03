@@ -16,10 +16,10 @@ except:
     raise RuntimeError('Cannot parse the value of the parameters_json environment variable')
 		
 
-year = input_parameters['year']
+year = int(input_parameters['year'])
 zone = input_parameters['zone']
-deepthmin = input_parameters['depth_min']
-deepthmax = input_parameters['depth_max']
+deepthmin = int(input_parameters['depth_min'])
+deepthmax = int(input_parameters['depth_max'])
 
 
 outputDirectory = cleanFinalSlash(os.getenv('AC_OUTPUT_DIR'))

@@ -1,5 +1,6 @@
 import json
 import os
+from pprint import pprint
 __all__ = ['ModelProperties']
 
 def get_file_content(path:str) -> str:
@@ -13,22 +14,25 @@ def get_file_content(path:str) -> str:
 
 class ModelProperties():
     attrs = {}
-    task_id = None
+    task_id:str = None
+    year:int = None
     
     def parse(self, parameters_json_value:str):
         self.attrs = json.loads(parameters_json_value)
         self.parse_metadata()  
 
     def parse_metadata(self):
+        print('[CALL parse_metadata]')
+        pprint(self.attrs)
         if 'metadata' not in self.attrs:
-            raise RuntimeError('Invalid input metadata schema')
+            raise RuntimeError('Invalid input metadata schema 1')
 
         metadata = self.attrs['metadata']
         
-        if 'year' not in metadata or \
-            not isinstance(metadata['year'], int):
-            raise RuntimeError('Invalid input metadata schema')
+        if 'year' not in metadata:
+            raise RuntimeError('Invalid input metadata schema 2')
 
+        self.year = int(self.attrs['metadata']['year'])
 
         self.task_id = '-'.join([
             metadata['zone'],
@@ -39,9 +43,8 @@ class ModelProperties():
 
     @property
     def file_template(self) -> str:
-        year:int = self.attrs['metadata']['year']
         # '/media/share/data/{zone}/{param}/{param}{zone}modelNetCDF2021-01to2022-01.nc',
-        return f'/media/share/data/{self.task_id}/{{param}}/{{param}}{{zone}}modelNetCDF{year}-01to{year+1}-01.nc'
+        return f'/media/share/data/{self.task_id}/{{param}}/{{param}}{{zone}}modelNetCDF{self.year}-01to{self.year + 1}-01.nc'
         
 
     @property

@@ -69,7 +69,7 @@ n_cells = pool.starmap_async(run_scenario_a_monthly, [(
         model_properties.parameters, 
         y0, 
         input_args, 
-        model_properties.attrs['metadata']['year'], 
+        model_properties.year, 
         True, 
         True
     ) for i in range(n_slices)]).get()
