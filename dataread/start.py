@@ -20,7 +20,7 @@ if not model_properties.isDataDownloadTaskCompleted():
     raise RuntimeError('Data not downloaded')
 
 input_args = {
-    'zone' : 'IBI',
+    'zone' : model_properties.attrs['metadata']['zone'],
     'file_adress' : model_properties.file_template,
     'dataRef' : dataRef,
     'paramNames' : ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
