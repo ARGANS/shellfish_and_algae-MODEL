@@ -46,7 +46,6 @@ op = function(x, d=0) sprintf(paste0("%1.",d,"f"), x)
 \newcommand{\WE}{\mathrm{WE}}
 \newcommand{\WS}{\mathrm{WS}}
 \newcommand{\DSTW}{\mathrm{DSTW}}
-\newcommand{\DSHW}{\mathrm{DSHW}}
 \newcommand{\CHL}{\mathrm{CHL}}
 \newcommand{\NEA}{\mathrm{NEA}}
 \newcommand{\EREM}{\mathrm{EREM}}
@@ -69,9 +68,7 @@ op = function(x, d=0) sprintf(paste0("%1.",d,"f"), x)
 \newcommand{\TTS}{\mathrm{TTS}}
 \newcommand{\MTA}{\mathrm{MTA}}
 \newcommand{\SPAWN}{\mathrm{SPAWN}}
-\newcommand{\WCS}{\mathrm{WCS}}
-\newcommand{\WCT}{\mathrm{WCT}}
-\newcommand{\DWW}{\mathrm{DWW}}
+
 
 ```
 ## Source model   
@@ -99,7 +96,7 @@ and for Oyster *Crassotrea Gigas*
 \end{equation}
 ```
 
-Where T is the temperature in Ceclius. The resulting functions are not particularly different in shape and it is highly preferable to have the same form of equation paratereised to resprest different species in terms of simple model implementation. Therefore we derive a new fit for *C. Gigas* using the form of the *M. edulis* equation. 
+Where T is the temperature in $\deg$C. The resulting functions are not particularly different in shape and it is highly preferable to have the same form of equation parameterised to respresent different species for simplest possible model implementation. Therefore we derive a new fit for *C. Gigas* using the form of the *M. edulis* equation. 
 
 ```{r CRfit, echo=TRUE}
 
@@ -194,7 +191,7 @@ Above is the direct NIRSELORG derived from experimental data in mg/h/g. In the t
 \end{equation}
 ``` 
 
-$\NIRREMORG$ is the net ingestion rate of $\REMORG$ and again is presented in 2 ways by @Hawkins2013. Firstly, experimetal data for both species is used to fit an equation of the form:
+$\NIRREMORG$ is the net ingestion rate of $\REMORG$ and again is preseted in 2 ways by @Hawkins2013. Firstly, experimetal data for both species is used to fit an equation of the form:
 
 
  ```{=tex}
@@ -333,21 +330,11 @@ Spawning occurs when shell length, $\SL$, is greater than or equal to maximum sh
 \end{equation}
 ```
 
-The number of spawning events per year ($\NSE$) is limited to 2. 
-
-
-We define an additional derived variable, drained wet weight, DWW as 
-
-```{=tex}
-\begin{equation}
-    \displaystyle
-    \DWW =\DSHW\cdot(1+\WCS)+\DSTW\cdot(1+\WCT)
-\end{equation}
-```
+The number of spawning events per year ($\NSE$) is limited to 2. In the `desolve` implementation of the model in R spawning is an event which only occurs when the above conditions have been met and not more than one spawning event has occurred within the previous 365 days. 
 
 
 
-#unit tracking
+
 
 
 

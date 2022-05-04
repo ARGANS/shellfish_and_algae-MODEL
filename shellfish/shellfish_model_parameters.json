@@ -24,7 +24,10 @@
             "PSTL"      : ["Proportion of soft tissue loss on spawning",""],
             "TTS"       : ["Minimum temperature for spawning","(celcius)"],
             "EST"       : ["Energy content of dry soft tissue", "(J/mg)"],
-            "ECS"       : ["Energy content of dry shell", "(J/mg)"]
+            "ECS"       : ["Energy content of dry shell", "(J/mg)"],
+            "h_SF"      : ["height of shellfish growth system e.g. ropes / trestles", "(m)"],
+            "stocking_density" : ["stocking density","(/m^3)"],
+            "specific_mortality":["daily fractional mortality", "(/d)"]
         },
         "options_descriptions": {},
         "defaults": {
@@ -53,7 +56,10 @@
                     "PSTL"      : 0.18,
                     "TTS"       : 13,
                     "EST"       : 23.5,
-                    "ECS"       : 1.035
+                    "ECS"       : 1.035,
+                    "h_SF"      : 0.2,
+                    "stocking_density"  : 300,
+                    "specific_mortality": 0.001
                     
                 },
                 "options": {}
@@ -83,7 +89,10 @@
                     "PSTL"      : 0.44,
                     "TTS"       : 19,
                     "EST"       : 23.5,
-                    "ECS"       : 0.161
+                    "ECS"       : 0.161,
+                    "h_SF"      : 0.2,
+                    "stocking_density" : 300,
+                    "specific_mortality": 0.005
                 },
                 "options": {}
             },
@@ -110,7 +119,11 @@
                     "PSTL"      : 0.44,
                     "TTS"       : 19,
                     "EST"       : 23.5,
-                    "ECS"       : 0.161
+                    "ECS"       : 0.161,
+                    "h_SF"      : 0.2,
+                    "stocking_density": 150,
+                    "specific_mortality": 0.005
+                    
 
                 },
                 "options": {}
@@ -123,7 +136,7 @@
         "section_description": "blabla",
         "parameters_descriptions": {
             "y_farm"            : ["width of farm perpendicular to flow direction"    , "m"],
-            "density_MA"        : ["fraction of farm area occupied by algae"          , ""],
+            "density_SF_farm"        : ["fraction of farm area occupied by shellfish"          , ""],
             "x_farm"            : ["farm length in flow direction"                    , "m"],
             "z"                 : ["cultivation depth"                                , "m"]
         },
@@ -134,7 +147,7 @@
                 "description": "long blabla",
                 "parameters": {
                     "y_farm"            : 1000,
-                    "density_MA"        : 0.4,
+                    "density_SF_farm"   : 0.4,
                     "x_farm"            : 1000,
                     "z"                 : 2
                 },
@@ -186,26 +199,35 @@
         "section_name": "Simulation options",
         "section_description": "blabla",
         "parameters_descriptions": {
-            "ESELORG":["Energy content of chlorophyll-associated organic matter","J/mg dry weight"]
+            "ESELORG":["Energy content of chlorophyll-associated organic matter","J/mg dry weight"],
+            "Assimilation_efficiency":["Assimilation efficiency of organic matter consumption",""],
+            "Bioavailable_detrital_fraction":["Fraction of REMORG (i.e. detrital organics represented by POC in the model) that are bioavailable",""]
+            
         },
         "options_descriptions": {
             "harvest_method": ["no harvesting",
                                 "single winter deployment",
                                 "cut and come again"],
-            "POC_data": ["TRUE","FALSE"]
+            "POC_data": ["TRUE","FALSE"],
+            "PHYC_data": ["TRUE","FALSE"]
         },
         "defaults": {
             "default": {
                 "name": "default",
                 "description": "long blabla",
                 "parameters": {
-                    "ESELORG": 23.5
+                    "ESELORG": 23.5,
+                    "Assimilation_efficiency":0.8,
+                    "Bioavailable_detrital_fraction":0.15
                 },
                 "options": {
                     "harvest_method": 0,
-                    "POC_data": "TRUE"
+                    "POC_data": "TRUE",
+                    "PHYC_data": "TRUE"
                 }
             }
+            
         }
     }
 }
+
