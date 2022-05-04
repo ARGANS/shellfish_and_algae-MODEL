@@ -1,9 +1,8 @@
 ### Shellfish model for EMFF shellfish and algae project
-## Based  on the shellfish component of Dabrowski et al 2013 http://dx.doi.org/10.1016/j.seares.2012.10.012Contents 
-
+## Based  on the individual-based model of Hawkins et al., 2013 (ShellSIM), adapted to flow-through, farm scale box model
 ## Full details of scientific rationale can be found in associated ATBD
 # Authors
-# M. Johnson (Bantry Marine Research Station, Ireland) mjohnson@bmrs.ie,
+# M. Johnson (Bantry Marine Research Station, Ireland) mjohnson@bmrs.ie....
 
 
 # REQUIRES R>4.1!
@@ -26,9 +25,10 @@ boundary_forcings<-function(input_data){
   
   # time (in days, e.g. 1:365),
   # SST (Sea surface temperature in celcius),
-  # Chlorophyll concentration (in g m-3 [3])
+  # Chlorophyll concentration (in ug/l [3])
   # F_in (net horizontal flow rate into farm cross section (m/d))
   # t_z (vertical mixing depth (m/d))
+  # optionally POC in ug/l, Phytoplankton carbon concentration in ug/l)
   
   output = list()
   for (param in names(input_data)) {
@@ -47,7 +47,7 @@ boundary_forcings<-function(input_data){
 
 
 ## =============================================================================
-# event control functions - when to plant out and harvest the shellfish and trigger spawning events
+# event control functions - trigger spawning events
 ## =============================================================================
 
 spawn_timed_rootfunc<-function(t,y,parms,...){
@@ -87,20 +87,6 @@ harvest_timed_rootfunc <- function(t,y,parms,...){
   })  
 }
  
-harvest_eventfunc <- function(t, y, parms,...){
-  with(as.list(c(y,parms)), {
-    if(t-deployment_day==0){
-      #deploy some seaweed
-      c(y[1],y[2],y[3],y[4]+deployment_Nf,y[5],y[6],y[7]) 
-    }  else {
-      #harvest; calculate yield either accross whole farm volume i.e. scale up yield (y[6]) by volume of macroalgae or per m of line (y[7]). In both cases divide by Q_min to get DW Biomass in g
-      V_MA<-y_farm*x_farm*density_MA*h_MA
-      c(y[1],y[2],y[3]*(1-harvest_fraction),y[4]*(1-harvest_fraction),y[5],y[6]+y[4]*harvest_fraction*V_MA/Q_min,y[7]+y[4]*harvest_fraction*h_MA*w_MA/Q_min) 
-    }
-  })
-
-
-}
 
 
 
@@ -128,9 +114,6 @@ run_SF_model<-function(input,parameters,y0,output='df'){
   parms = c(parameters, input_functions)
 
 
-  
-  if(parms['harvest_method']==0){
-    #no harvesting
     Out<-ode(times = times,
              func=SF_model,
              y=y0,
@@ -139,20 +122,7 @@ run_SF_model<-function(input,parameters,y0,output='df'){
              rootfun=spawn_timed_rootfunc,
              maxsteps=5e4,atol=1e-5)
               
-  } else if(parms['harvest_method']==1){
-    
-    #do some harvesting
-    
-    
-    Out_timed_harvest <- ode(times = times,
-                             func = SA_model,
-                             y = y0,
-                             parms = parms,
-                             event=list(func=harvest_eventfunc, root=TRUE),
-                             rootfun=harvest_timed_rootfunc)
-    Out<-Out_timed_harvest
-    
-  } 
+
   
   if(output=='df'){
     Out.<-as.data.frame(Out)
@@ -251,37 +221,31 @@ SF_model <- function(t,y,parms,...) {
     DSTW<-(STE)/(EST*1000) #dry soft tissue weight (g)
     
     CR<-function(SST.,CR_max,CR_grad,CR_inflec){
-      #Clearance rate at temp T, with 3 species specific parameters controlling teh relationship. CR in l/hr/g
+      #Clearance rate at temp T, with 3 species specific parameters controlling the relationship. CR in l/hr/g
       CR_max-CR_grad*(SST.-CR_inflec^2)
     }
    TEF <- CR(SST.=SST(t),CR_max,CR_grad,CR_inflec)/CR(SST.=15,CR_max,CR_grad,CR_inflec) # Temperature effect on feeding
-    #NIRSELORG<-ifelse(CHL(t)<0.01,0,((m_NSO*SELORG)+c_NSO)*TEF*DSTW^0.62) # mg/h
-    NIRSELORG<-ifelse(CHL(t)<0.01,0,((m_NSO*SELORG))*TEF*(DSTW)^0.62) # mg/h
-    #NIRSELORG<-ifelse(CHL(t)<0.01,0,SELORG*CR(SST.=SST(t),CR_max,CR_grad,CR_inflec)*(DSTW^0.62)) # mg/h
-    #NIRREMORG<-REMORG*(DSTW^0.62)*CR(SST.=SST(t),CR_max,CR_grad,CR_inflec) #mg/h
 
-    
+    NIRSELORG<-ifelse(CHL(t)<0.01,0,((m_NSO*SELORG))*TEF*(DSTW)^0.62) # mg/h
+
     NIRREMORG<-a_NRO*(1-exp(b_NRO*REMORG))*TEF*DSTW^0.62 #mg/h
     
     NEA<-Assimilation_efficiency*24*(NIRSELORG*ESELORG + NIRREMORG*Bioavailable_detrital_fraction*EREM) #J/day
     
     MHL<-4.005*24*(exp(SST(t)*a_TEM)/exp(15*a_TEM))*DSTW^(0.72) # j/day
     THL<-MHL+0.23*NEA #j/day
-    #ON<-ON_min+NEA*(ON_max-ON_min)/(MNEA)
     ON<-ON_min+NEA*(ON_max-ON_min)/(MNEA)
     EL<-14*THL/(0.45*ON) # ug NH4-N excreted (note this N is produced arbitrarily by the model - not linked to N content of input but to estimated Oxygen consumption and O:N ratio given conditions of organism...)
     NEB<-NEA-THL-(EL*0.0248)
-    
-    
     COND<-STE/(STE+SHE)
     
-    SHG<-ifelse(COND>=MTA&&NEB>0,(1-MTA)*NEB,0)#shell growth MTA is mean tissue allocation (between shell and soft tissue, a species specific parameter)
+    SHG<-ifelse(COND>=MTA&&NEB>0,(1-MTA)*NEB,0)#shell growth. MTA is mean tissue allocation (between shell and soft tissue, a species specific parameter)
     if(NEB>0){
       STG<-ifelse(COND<MTA,NEB,NEB*MTA)#soft tissue growth
       starvation_mortality=0
       }else{
         STG=0
-        starvation_mortality=POP*NEB/STE # calculate individuals lost as population multiplied by the ratio of individual NEB to soft tissue energy
+        starvation_mortality=POP*NEB/STE # calculate individuals lost: population multiplied by the ratio of individual NEB to soft tissue energy
       }   
     FW<-SCW*(DSHW*(1+WCS)+DSTW*(1+WCT)) #fresh weight
     DWW<-DSHW*(1+WCS)+DSTW*(1+WCT)
@@ -305,8 +269,6 @@ SF_model <- function(t,y,parms,...) {
     
     dSHE<-SHG   #shell energy
     dSTE<-STG   #soft tissue energy
-    #dDSHW<-SHG/(ECS*1000)       #dry shell weight (g)
-    #dDSTW<-(STG)/(EST*1000) #dry soft tissue weight (g)
     
 
 #spawning logic state variables 
@@ -328,7 +290,7 @@ SF_model <- function(t,y,parms,...) {
       dPHYC_farm<-0
     }
     #population numbers per m3
-   dPOP<-starvation_mortality#-POP*(specific_mortality+0.00001)#for some reason specific mortality values of 0.01,0.001,0.0001... cause integrator to fail - weird numerical error - add a tiny bit to fix it)
+   dPOP<-starvation_mortality
     
     output<-list(c(dSHE,dSTE,dspawnday,dsd2,dCHL_farm,dPOC_farm,dPOP,dPHYC_farm),
                  #individual data
