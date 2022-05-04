@@ -1,22 +1,21 @@
+#!/bin/bash
 SHARED_VOLUME_NAME='ac_share'
 
 ## Properties of scripts used to load datasets:
-zone='IBI'
-year=2021
-output_dir='/media/share/data/IBI/'
-deepthmin=0
-deepthmax=20
 
-function build_images_for_data_import {
-    local dir="./dataimport"
-    local base_image_tag="ac-import/base"
-    local runtime_image_tag="ac-import/runtime"
+function build_images_for_model_execution {
+    local dir="./dataread"
+    local base_image_tag="ac-processing/base"
+    local runtime_image_tag="ac-processing/runtime"
     local base_image_dockerfile="./miscellaneous/pythonBase.Dockerfile"
-    local runtime_image_dockerfile="./miscellaneous/dataimportRuntime.Dockerfile"
+    local runtime_image_dockerfile="./miscellaneous/pythonRuntime.Dockerfile"
 
+    ### for GDAL: --build-arg WITH_GDAL="true" \
     docker build \
         --network host \
-        --build-arg REQUIREMENTS_PATH="./src/requirements.txt" \
+        --build-arg REQUIREMENTS_PATH="./requirements.txt" \
+        --build-arg WITH_R="true" \
+        --build-arg WITH_NETCDF="true" \
         -t $base_image_tag:v1 -t $base_image_tag:latest \
         -f $base_image_dockerfile \
         $dir && \
@@ -28,14 +27,14 @@ function build_images_for_data_import {
         $dir
 }
 
-function run_container_for_data_import {
+function run_container_for_model_execution {
     local container_name="$1"
     local container_id=$( docker ps -q -f name=$container_name )
             
     if [[ ! -z "$container_id" ]]; then
         docker stop $container_name || true
     fi
-    local image_tag="ac-import/runtime"
+    local image_tag="ac-processing/runtime"
     local image_id=$( docker images -q $image_tag )
 
     if [[ -z "$image_id" ]]; then
@@ -44,29 +43,29 @@ function run_container_for_data_import {
 
     docker volume create --name $SHARED_VOLUME_NAME
     # All model properties received from the application
-    data="{\"zone\":\"$zone\",\"depth_min\":$deepthmin,\"depth_max\":$deepthmax,\"year\":$year}"
+    data=`cat macroalgae/macroalgae_model_parameters_input.json`
 
     # use -d to start a container in detached mode
     # use --entrypoint=/bin/bash \ to override the command
     docker run \
         --rm \
         --name $container_name \
-        --volume "$SHARED_VOLUME_NAME":/media/share \
-        -e AC_OUTPUT_DIR="$output_dir" \
-        -e parameters_json="$data" \
+        --volume "$SHARED_VOLUME_NAME:/media/share" \
+        -e TASK_ID="IBI-2021-3-18" \
+        -e PARAMETERS_JSON="$data" \
         -e PYTHONDONTWRITEBYTECODE=1 \
         -it $image_tag:latest
 }
 
-function run {
+function handle_arguments {
     local command="$1"
 
     case $command in
         'build')
-            build_images_for_data_import 
+            build_images_for_model_execution
             ;;
         'execute')
-            run_container_for_data_import "ac-dataimport_run"
+            run_container_for_model_execution "ac-model_run"
             ;;
         'ls')
             sudo ls -al /var/lib/docker/volumes/$SHARED_VOLUME_NAME/_data/$2
@@ -75,8 +74,10 @@ function run {
             docker run --rm -i -v=$SHARED_VOLUME_NAME:/media/volume busybox sh
             ;;
         *)
-            echo 'todo';;
+            echo 'commands:'
+            echo 'build, execute, ls, ls2'
+            ;;
     esac
 }
 
-run "$1" "$2"
+handle_arguments "$1" "$2"

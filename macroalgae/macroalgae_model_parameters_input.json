@@ -1,56 +1,75 @@
 {
-    "metadata": {
-        "creation_date": "YYYY-MM-DDTHH:MM:SS",
-        "sim_title": "short title",
-        "sim_description": "long description"
-    },
-    "defaults_used": {
-        "species": "saccharina",
-        "farm": "default",
-        "harvest": "Winter_growth",
-        "run": "default"
-    },
-    "parms": {
-        "species": {
-            "mu"      : 0.06,
-            "V_NH4"   : 100,
-            "V_NO3"   : 200,
-            "K_NH4"   : 11,
-            "K_NO3"   : 200,
-            "Q_max"   : 22,
-            "Q_min"   : 10,
-            "N_to_P"  : 12,
-            "K_c"     : 8,
-            "T_O"     : 12.5,
-            "T_min"   : 0,
-            "T_max"   : 20,
-            "I_s"     : 90,
-            "a_cs"    : 0.00036,
-            "d_m"     : 0.0003,
-            "h_MA"    : 2,
-            "w_MA"    : 0.3,
-            "r_L"     : 0.10,
-            "r_N"     : 0.1
-        },
-
-        "farm": {
-            "y_farm"            : 1000,
-            "density_MA"        : 0.4,
-            "x_farm"            : 1000,
-            "z"                 : 2
-        },
-
-        "harvest": {
-            "deployment_day"    : 280,
-            "harvest_first"     : 520,
-            "harvest_freq"      : 1000,
-            "harvest_fraction"  : 1,
-            "deployment_Nf"     : 1000
-        },
-
-        "run": {
-            "harvest_method": 0,
-            "light_scheme": 3
-        }
-    }
+	"parameters": {
+		"species": {
+			"saccharina": {
+				"options": {},
+				"parameters": {
+					"mu": 0.06,
+					"V_NH4": 100,
+					"V_NO3": 200,
+					"K_NH4": 11,
+					"K_NO3": 200,
+					"Q_max": 22,
+					"Q_min": 10,
+					"N_to_P": 12,
+					"K_c": 8,
+					"T_O": 12.5,
+					"T_min": 0,
+					"T_max": 20,
+					"I_s": 90,
+					"a_cs": 0.00036,
+					"d_m": 0.0003,
+					"h_MA": 2,
+					"w_MA": 0.3,
+					"r_L": 0.1,
+					"r_N": 0.1
+				}
+			}
+		},
+		"farm": {
+			"default": {
+				"options": {},
+				"parameters": {
+					"y_farm": 1000,
+					"density_MA": 0.4,
+					"x_farm": 1000,
+					"z": 2
+				}
+			}
+		},
+		"harvest": {
+			"Winter_growth": {
+				"options": {},
+				"parameters": {
+					"deployment_day": 280,
+					"harvest_first": 520,
+					"harvest_freq": 1000,
+					"harvest_fraction": 1,
+					"deployment_Nf": 1000
+				}
+			}
+		},
+		"run": {
+			"default": {
+				"options": {
+					"harvest_method": 0,
+					"light_scheme": 3
+				},
+				"parameters": {}
+			}
+		}
+	},
+	"metadata": {
+		"name": "user1_Winter_growth_Artic_21-04-2022",
+		"zone": "IBI",
+		"_suggested": {
+			"login": "user1",
+			"species": "Winter_growth",
+			"zone": "Artic",
+			"date": "21-04-2022"
+		},
+		"depth_min": 3,
+		"depth_max": 18,
+		"year": 2021
+	}
 }
