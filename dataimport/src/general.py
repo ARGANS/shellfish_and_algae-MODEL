@@ -94,6 +94,7 @@ def getdataFromFtp(dataFin, outputDirectory):
     # force UTF-8 encoding
     ftp_server.encoding = "utf-8"
     try:
+        print('ok')
         print(f'FTP {"/" + dataFin["product-id"]}')
         ftp_server.cwd('/' + dataFin["product-id"])
         filelist = ftp_server.nlst()
@@ -183,9 +184,15 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
             endDate = splitDate(dateEnd)
             filename = wantedData + zone + (validate(dataFin.iloc[j].get("type"), str) or '') + dataFin.iloc[j][
                 "fileType"] + dateBeginning.strftime("%Y-%m") + 'to' + dateEnd.strftime("%Y-%m")
+        elif wantedDataLine.iloc[0]["daily"] == 3:
+            begDate = splitDate(dateBeginning)
+            endDate = splitDate(dateEnd)
+            filename = wantedData + zone + (validate(dataFin.iloc[j].get("type"), str) or '') + dataFin.iloc[j][
+                "fileType"] + dateBeginning.strftime("%Y-%m-%d%H%M%S") + 'to' + dateEnd.strftime("%Y-%m-%d%H%M%S")
         else:
             filename = wantedData + zone + dataFin.iloc[j]["fileType"]
         outputFile = giveFile(filename, dataFin.iloc[j]["fileType"])
+        print(servicetype)
         if servicetype == 'marineCopernicus':
             getdataFromMarineCopernicus(dataFin.iloc[j], dateBeginning.strftime('"%Y-%m-%d %H:%M:%S"'),
                                         dateEnd.strftime('"%Y-%m-%d %H:%M:%S"'), outputDirectory,
@@ -226,6 +233,7 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
                 outputFile)
 
         elif servicetype == 'ftp':
+            print('ok')
             getdataFromFtp(dataFin.iloc[j], outputDirectory)
 
 
