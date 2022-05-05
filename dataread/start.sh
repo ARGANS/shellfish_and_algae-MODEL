@@ -1,5 +1,5 @@
 #!/bin/bash
-workdir=/media/share/results/$TASK_ID
+workdir=/media/share/results/$DATASET_ID/$TASK_ID
 mkdir -p $workdir
 echo -n $PARAMETERS_JSON > $workdir/parameters.json
 python start.py || rm $workdir/parameters.json

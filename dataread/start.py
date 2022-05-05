@@ -10,7 +10,7 @@ from models.ModelProperties import ModelProperties
 # TODO get dataCmd.csv from a mounted volume
 dataRef: pd.DataFrame = pd.read_csv('./dataCmd.csv', delimiter=';')
 
-model_properties = ModelProperties()
+model_properties = ModelProperties(os.getenv('DATASET_ID'), os.getenv('TASK_ID'))
 try:
     model_properties.parse(os.getenv('PARAMETERS_JSON'))
 except:

@@ -15,7 +15,12 @@ def get_file_content(path:str) -> str:
 class ModelProperties():
     attrs = {}
     task_id:str = None
+    dataset_id:str = None
     year:int = None
+
+    def __init__(self, dataset_id, task_id) -> None:
+        self.dataset_id = dataset_id
+        self.task_id = task_id
     
     def parse(self, parameters_json_value:str):
         self.attrs = json.loads(parameters_json_value)
@@ -34,7 +39,7 @@ class ModelProperties():
 
         self.year = int(self.attrs['metadata']['year'])
 
-        self.task_id = '-'.join([
+        self.dataset_id = '-'.join([
             metadata['zone'],
             str(metadata['year']),
             str(metadata['depth_min']),
@@ -43,8 +48,7 @@ class ModelProperties():
 
     @property
     def file_template(self) -> str:
-        # '/media/share/data/{zone}/{param}/{param}{zone}modelNetCDF2021-01to2022-01.nc',
-        return f'/media/share/data/{self.task_id}/{{param}}/{{param}}{{zone}}modelNetCDF{self.year}-01to{self.year + 1}-01.nc'
+        return f'/media/share/data/{self.dataset_id}/{{param}}/{{param}}{{zone}}modelNetCDF{self.year}-01to{self.year + 1}-01.nc'
         
 
     @property
@@ -54,7 +58,7 @@ class ModelProperties():
 
     def isDataDownloadTaskCompleted(self) -> bool:
         try:
-            _ = get_file_content(f'/media/share/data/{self.task_id}/task.mark')
+            _ = get_file_content(f'/media/share/data/{self.dataset_id}/task.mark')
             return True
         except FileNotFoundError:
             return False
@@ -66,5 +70,5 @@ class ModelProperties():
 
     @property
     def results_dir_path(self) -> str:
-        return f'/media/share/results/{self.task_id}'
+        return f'/media/share/results/{self.dataset_id}/{self.task_id}'
     

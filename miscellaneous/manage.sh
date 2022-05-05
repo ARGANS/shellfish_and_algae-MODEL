@@ -51,7 +51,8 @@ function run_container_for_model_execution {
         --rm \
         --name $container_name \
         --volume "$SHARED_VOLUME_NAME:/media/share" \
-        -e TASK_ID="IBI-2021-3-18" \
+        -e DATASET_ID="IBI-2021-3-18" \
+        -e TASK_ID="abcdef" \
         -e PARAMETERS_JSON="$data" \
         -e PYTHONDONTWRITEBYTECODE=1 \
         -it $image_tag:latest
