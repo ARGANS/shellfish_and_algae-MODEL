@@ -219,7 +219,7 @@ MA_model <- function(t,y,parms,...) {
     
     # nutrient controls on growth, relation to biomass ####
     Q           <- ifelse(N_f>0,Q_min*(1+(N_s/N_f)),0)                                       #    Internal nutrient quota of macroalgae                                      
-    B           <- N_f/Q_min                                                 # Biomass of dry macroalgae
+    B           <- N_f/Q_min                                                 # Biomass of dry macroalgae  g/m3
     g_Q         <- min(1,(Q-Q_min)/(Q-K_c))                                       # Growth limitation due to internal nutrient reserves
     # temperature-growth dynamics (from martin and marques 2002) ####
     if(SST(t)>T_O)
@@ -270,6 +270,9 @@ MA_model <- function(t,y,parms,...) {
     NO3_removed <- (f_NO3*B)-(r_N*NH4)
     NH4_removed <- (f_NH4*B)-(r_L*D)+(r_N*NH4)-(d_m*N_s)
     
+    Farm_NO3_demand = NO3_removed*V_MA/1000 #g N per day
+    Farm_NH4_demand = NH4_removed*V_MA/1000 #g N per day
+    
     #How much phosphate is available for growth
     PO4_tot<-PO4_ext(t)*V_EFF/V_MA
     #convert N:P from mol/mol to mg/mol
@@ -298,8 +301,9 @@ MA_model <- function(t,y,parms,...) {
     
     output<-list(c(dNH4, dNO3,dN_s,dN_f,dD,dYield_farm,dYield_per_m),
          Nf_change = Nf_change,
-         Farm_NO3_demand = NO3_removed*V_MA,
-         Farm_NH4_demand = NH4_removed*V_MA,
+         Farm_NO3_demand = Farm_NO3_demand, #g N per day
+         Farm_NH4_demand = Farm_NH4_demand, #g N per day
+         Farm_CO2_demand = (Farm_NO3_demand+Farm_NH4_demand)*(12/14)*CN_MA, #g C per day 
          V_EFF = V_EFF,
          V_INT = V_INT,
          Q         = Q,
@@ -310,7 +314,10 @@ MA_model <- function(t,y,parms,...) {
          g_E       = g_E,
          mu_g_EQT  = mu_g_EQT,
          f_NH4     = f_NH4,
-         f_NO3     = f_NO3
+         f_NO3     = f_NO3,
+         kcal_PUA = B*(h_MA/density_MA)*kcal_MA, # kcal/m2 divide by density to give PUA for whole farm area not just macroalgal lines
+         protein_PUA = B*(h_MA/density_MA)*prot_MA/1000 # kg/m2  
+         
     )
   }) 
 }

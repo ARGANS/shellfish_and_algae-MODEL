@@ -381,7 +381,7 @@ units<-c("$\\perday$",
          "$\\perday$",
          "$\\perday$"         )
 
-algaeparams<-data.frame(parameter=nicenames,description=descriptions,units=units,ulva=as.character(as.numeric(parms_ulva)),saccharina=as.character(as.numeric(parms_saccharina)),alaria=as.character(as.numeric(parms_alaria)))
+algaeparams<-data.frame(parameter=nicenames,description=descriptions,units=units,ulva=as.character(as.numeric(parms_ulva))[1:19],saccharina=as.character(as.numeric(parms_saccharina))[1:19],alaria=as.character(as.numeric(parms_alaria))[1:19])
  knitr::kable(algaeparams, format='latex',escape=FALSE,caption = 'Species specific parameter values for macroalgae, including default values for ulva and alaria ')
  
  
@@ -524,6 +524,50 @@ By default, the model run outputs a dataframe with 1 row per time point and with
 #### Post-processing
 A post-processing step will be necessary to capture key outputs of the model in the correct format for feeding forward into the nutrient transport model, scenario-driven farm placement, and the digital maps of model output. Specifically, a single seaweed yield data will need to be extracted from harvesting data, which in the case of continuous harvesting will need to be the yield accumulated in the second year of the simulation. Detrital material will be instantaneously remineralised to $\ammon$ for the purposes of the nutrient transport models. Net greehouse gas emissions for the farm could also be calculated in the post-processing step. 
 
+The following parameter values are needed for post processing to convert model outputs into the quantities required by the funder:
+
+1. Macroalgal C:N - converts net N uptake into carbon for the purposes of CO2 balance
+2. energy content of macroalgae - required to convert seaweed biomass into nutritional energy content (to give kcal/m$^{-2}$)
+3. protein content as a fraction of dry weight to give protein production in kg/m$^{-2}$
+
+Values are taken from literature as follows:
+
+
+
+C:N Saccharina varied from 18 (11m depth) to 48 (4m depth) in @Nielsen2014 in Aarhus bay, Denmark. @Gevaert2001 find C:N form 7.1 (March) to 12.8 (September) in the English Channel. More modest values of 6 to 8 are found by @Monteiro2020 off the Brittany coast but these are mass C:N not molar - so convert to 7 to 9.3. Finally, @Diehl2021 find ratios of between 13 and 26 accross the full latidudinal range of S. Lattisima with highest values found in Helgoland (N. Sea) and higher C:N values attributed to nutrient limitation.. 
+
+C:N Ulva also appears to be related to nutrient availability and highly variable. @Neiori1991 find C:N between 17.5 (low nutrient loading) and 8 (high nutrient) when U. Lactuta was grown as a biofilter in fish farm effluent. @Nielsen2012 find C:N ranging from 7 to 23 in experiments where seaweed was fertilised with manure. @Bruhn2011 found U. lactuta C:N varied from 10 to 25 depending on light irradiance in growth experiments. At 'low' nutrient concentrations (~10uM of NH4 so actually quite high compared to the natural environment) in high-through-flow experiments, C:N of U. Lactuta was found to be between 8 and 10. 
+
+There is little available data for Alaria spp. @Buchholz2015 found C:N in Alaria biomass varying between 30 (healthy) and 15 (dying) in Svalbard. 
+
+In a comprehensive review of macromolecular composition of wild populations of non-calcifying macroalgae, @Fiset2019 find median C:N ratios of ~15 (range 13-18) for green algae species (chlorophyta, including ulva spp) and ~21 (18-24) for ochrophyta (brown algae, including Saccharina and Alaria). These phylum level values are broadly consistent with the species or genus-specific data summarised above - particularly for populations of macroalgae growing at normal seawater concentrations, which would be low relative to incubation experiments or fish farm outflow etc. Therefore we adopt the phylum-averages of 15 for ulva and 21 for Saccharina and Alaria. 
+
+
+
+The same review provides the necessary information to derive representative energy and protein values per g DW for each phylum. Table below shows summary values from Fig 1 of @Fiset2019.
+
+
+```{r nutritionalcomposition, echo=FALSE}
+  
+
+  composition<-data.frame(
+    Phylum=c('Rhodophyta','Ochrophyta','Chlorophyta'),
+    Protein=c(10.5,8,10.5),
+    Lipid=c(2.2,2.9,3.2),
+    Carbohydrate=c(48,52,46)
+  )
+   knitr::kable(modelouts,caption = 'Nutritional composition of seaweeds from Fiset et al., (2019). Note that only Brown (Ochrophyta) seaweeds (Saccharina, Alaria) and Green (Chlorophyta) seaweeds (Ulva) are currently parameterised in to the macroalgal model but the Red seaeweed data is included here for future reference.') 
+ 
+ 
+```
+
+
+Standard food energy factors ('Atwater factors', @Merrill1973) are used with the above data to calculate the energy composition of seaweeds. Protein (2.44 kcal/g), Fat (lipid, 8.37 kcal/g) and Carbohydrate (3.57 kcal/g). The energy per gram for Ochrophyta is therefore 0.08*2.44 + 0.029*8.37 + 0.52*3.57 = 2.29 kcal / g and similarly for Chlorophyta 2.16 kcal/g
+
+
+
+
+
 ## Characterising model behaviour
 
 Model behaviour is characterised by considering 4 regime types which challenge the model to work at the extreme cases of nutrient concentration and availabilty: 1) low nutrient, low flow; 2) high nutrient, low flow; 3) low nutrient, high flow and 4) high nutrient high flow. The model is run with default parameter set for ulva and all other parameters set to default values (Section \@ref(params)). Input values are simulated sinusoidal parameters representing annual cycles for PAR, ammonium  and nitrate. Phosphate is kept in excess. Fixed values of the other forcings are used. Common to all runs, PAR varies betweem 200 and 1000 $\mathrm{\mu mol m{^{-3}} s{^{-1}}}$, $\Kd$ is fixed at 0.1 m$^{-1}$ and latitude (used to calculate solar angle) is 50 degrees. The remaining forcings differ between each run and are summarised in Table \@ref(tab:refruns). Reference runs are conducted under each harvesting regime (no harvesting, single harvest in spring and continuous harvest, using the default harvest parameters outlined in Table \@ref(tab:harvestoptions) above).
@@ -637,8 +681,19 @@ b<-  ggplot(refruns) +
  geom_point(shape = "circle", size = 0.7) +
  scale_color_hue(direction = 1) +
  theme_minimal()
+   e<-  ggplot(refruns) +
+ aes(x = time, y = kcal_PUA, colour = run) +
+ geom_point(shape = "circle", size = 0.7) +
+ scale_color_hue(direction = 1) +
+ theme_minimal()  
+ f<-   ggplot(refruns) +
+ aes(x = time, y = Farm_CO2_demand, colour = run) +
+ geom_point(shape = "circle", size = 0.7) +
+ scale_color_hue(direction = 1) +
+ theme_minimal()
   
- a+b+c+d
+ (a|b)/(c|d)/(e|f)
+
   
 
 
