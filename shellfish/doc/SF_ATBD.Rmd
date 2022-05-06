@@ -1,0 +1,153 @@
+---
+title: "SF_ATBD"
+author: "M Johnson mjohnson@bmrs.ie"
+header-includes:
+  - \usepackage{amsmath}
+
+output: 
+  bookdown::pdf_document2:
+    number_sections: true 
+bibliography: bib.bib
+csl: citestyle.csl
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+
+options(scipen=999)
+
+knitr::opts_knit$set(root.dir = '../')
+library(ggplot2)
+library(patchwork)
+
+```
+
+```{r refrun_Medulis, echo=FALSE, fig.cap='Reference runs of the model for M edulis, showing a) Chlorophyll concentration within the farm (ug/l) b) POC concentration in the farm (ug/l), c) Individual shell length (cm) ,d) daily NH4 production accross the farm (1km*1km),  e) soft tissue biomass (dry weight) per unit area (kg/m^2) and f) Fresh weight per unit area (kg/m^2)'}
+source("run_SF.R")
+
+HL<-reference_run(hclf,c(PHYC_data=FALSE))
+LL<-reference_run(lclf,c(PHYC_data=FALSE))
+LH<-reference_run(lchf,c(PHYC_data=FALSE))
+HH<-reference_run(hchf,c(PHYC_data=FALSE))
+
+  HL$run<-'hclf'
+  LL$run<-'lclf'
+  LH$run<-'lchf'
+  HH$run<-'hchf'
+  
+  refruns<-rbind(HL,LL,LH,HH)
+
+a<- ggplot(refruns) +
+  aes(x = time, y = CHL_farm, colour = run) +
+  geom_point(shape = "circle", size = 0.7) +
+  scale_color_hue(direction = 1) + ylab("CHL / ug.l^-1")+
+  theme_minimal()
+ b<-  ggplot(refruns) +
+  aes(x = time, y = POC_farm, colour = run) +
+  geom_point(shape = "circle", size = 0.7) +
+  scale_color_hue(direction = 1) + ylab("POC / ug.l^-1")+
+  theme_minimal()
+ c<-  ggplot(refruns) +
+  aes(x = time, y = SHL, colour = run) +
+  geom_point(shape = "circle", size = 0.7) +
+  scale_color_hue(direction = 1) + ylab("Shell length / cm")+
+  theme_minimal()
+  d<-   ggplot(refruns) +
+  aes(x = time, y = NH4_production, colour = run) +
+  geom_point(shape = "circle", size = 0.7) +
+  scale_color_hue(direction = 1) + ylab("NH4 yield / g.d^-1 ")+
+  theme_minimal()
+
+ e<-  ggplot(refruns) +
+  aes(x = time, y = DSTW_PUA, colour = run) +
+  geom_point(shape = "circle", size = 0.7) +
+  scale_color_hue(direction = 1) + ylab("Dry soft tissue / kg.m^-2")+
+  theme_minimal()
+  f<-   ggplot(refruns) +
+  aes(x = time, y = FW_PUA, colour = run) +
+  geom_point(shape = "circle", size = 0.7) +
+  scale_color_hue(direction = 1) + ylab("Fresh weight / kg.m^-2")+
+  theme_minimal()
+
+ (a|b)/(c|d)/(e|f)
+
+
+
+
+
+ 
+ 
+ 
+```
+
+```{r refrun_Cgigas, echo=FALSE, fig.cap='Reference runs of the model for C gigas, showing a) Chlorophyll concentration within the farm (ug/l) b) POC concentration in the farm (ug/l), c) Individual shell length (cm) ,d) daily NH4 production accross the farm (1km*1km),  e) soft tissue biomass (dry weight) per unit area (kg/m^2) and f) Fresh weight per unit area (kg/m^2)'}
+source("run_SF.R")
+
+HL<-reference_run(hclf,c(PHYC_data=FALSE),species='Cgig')
+LL<-reference_run(lclf,c(PHYC_data=FALSE),species='Cgig')
+LH<-reference_run(lchf,c(PHYC_data=FALSE),species='Cgig')
+HH<-reference_run(hchf,c(PHYC_data=FALSE),species='Cgig')
+
+  HL$run<-'hclf'
+  LL$run<-'lclf'
+  LH$run<-'lchf'
+  HH$run<-'hchf'
+  
+  refruns<-rbind(HL,LL,LH,HH)
+
+a<- ggplot(refruns) +
+  aes(x = time, y = CHL_farm, colour = run) +
+  geom_point(shape = "circle", size = 0.7) +
+  scale_color_hue(direction = 1) + ylab("CHL / ug.l^-1")+
+  theme_minimal()
+ b<-  ggplot(refruns) +
+  aes(x = time, y = POC_farm, colour = run) +
+  geom_point(shape = "circle", size = 0.7) +
+  scale_color_hue(direction = 1) + ylab("POC / ug.l^-1")+
+  theme_minimal()
+ c<-  ggplot(refruns) +
+  aes(x = time, y = SHL, colour = run) +
+  geom_point(shape = "circle", size = 0.7) +
+  scale_color_hue(direction = 1) + ylab("Shell length / cm")+
+  theme_minimal()
+  d<-   ggplot(refruns) +
+  aes(x = time, y = NH4_production, colour = run) +
+  geom_point(shape = "circle", size = 0.7) +
+  scale_color_hue(direction = 1) + ylab("NH4 yield / g.d^-1 ")+
+  theme_minimal()
+
+ e<-  ggplot(refruns) +
+  aes(x = time, y = DSTW_PUA, colour = run) +
+  geom_point(shape = "circle", size = 0.7) +
+  scale_color_hue(direction = 1) + ylab("Dry soft tissue / kg.m^-2")+
+  theme_minimal()
+  f<-   ggplot(refruns) +
+  aes(x = time, y = FW_PUA, colour = run) +
+  geom_point(shape = "circle", size = 0.7) +
+  scale_color_hue(direction = 1) + ylab("Fresh weight / kg.m^-2")+
+  theme_minimal()
+
+ (a|b)/(c|d)/(e|f)
+
+
+
+
+
+ 
+ 
+ 
+```
+## Protein and energy content of shellfish species
+
+### Protein content
+
+Protein content as fraction of dry soft tissue weight. 
+
+Mussel (M. edulis): 0.2-0.3 (assume average 0.25) [@Pleissner2012]
+Oyster (C. Gigas): 0.5-0.57 (commercial population 0.53) [@Zhu2018]
+
+Scallop P. Maximus @Cortes2021 19% by cooked weight assume no loss of moisture on cooking so assume 19% protein in drained wet tissue weight. DWW:DSTW = `r 1+allparams$species$defaults$P_maximus$parameters$WCT` so protein content = 0.19 * `r 1+allparams$species$defaults$P_maximus$parameters$WCT` = `r 0.14*(1+allparams$species$defaults$P_maximus$parameters$WCT)`
+
+
+### Energy content
+
+Energy content per individual is directly modelled by the DEB model. Energy content is therefore acessible in the model output - scaled to total farm output and per m2 as per other output variables. 

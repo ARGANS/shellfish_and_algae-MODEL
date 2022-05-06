@@ -236,6 +236,8 @@ SF_model <- function(t,y,parms,...) {
     THL<-MHL+0.23*NEA #j/day
     ON<-ON_min+NEA*(ON_max-ON_min)/(MNEA)
     EL<-14*THL/(0.45*ON) # ug NH4-N excreted (note this N is produced arbitrarily by the model - not linked to N content of input but to estimated Oxygen consumption and O:N ratio given conditions of organism...)
+    ExcretaCNratio=6
+    ELC<-EL*(12/14)*ExcretaCNratio
     NEB<-NEA-THL-(EL*0.0248)
     COND<-STE/(STE+SHE)
     
@@ -303,6 +305,7 @@ SF_model <- function(t,y,parms,...) {
                  #TEF=TEF,
                  NEB=NEB,
                  EL=EL,
+                 ELC=ELC,
                  NEA=NEA,
                  SELORG=SELORG,
                  NIRSELORG=NIRSELORG,
@@ -320,6 +323,7 @@ SF_model <- function(t,y,parms,...) {
                  V_INT=V_INT,
                  #output terms
                  NH4_production=EL*per_farm/1e6,#g NH4-N per day  per farm
+                 CO2_production=ELC*per_farm/1e6, #g CO2-C per day per farm
                  DWW_total=DWW*per_farm/1e6, #tonnes per farm
                  DWW_PUA=DWW*per_unit_area/1e3, #kg per m2
                  FW_total=FW*per_farm/1e6,#tonnes per farm
@@ -329,10 +333,13 @@ SF_model <- function(t,y,parms,...) {
                  DSTW_total=(DSTW)*per_farm/1e6,#tonnes per farm
                  DSTW_PUA=(DSTW)*per_unit_area/1e3, #kg per m2
                  POC_uptake_total=POC_uptake*per_farm/1e6,#g per day  per farm
-                 POC_uptake_PUA=POC_uptake*per_unit_area/1e6 #g per m2 per day
+                 POC_uptake_PUA=POC_uptake*per_unit_area/1e6, #g per m2 per day
+                 STE_total=STE*per_farm/1e6, #MJ soft tissue energy per farm
+                 STE_PUA=STE*per_unit_area/1e6, #MJ soft tissue energy per unit area
+                 kcal_PUA=STE*per_unit_area/4184, #kcal sfot tissue per unit area
+                 protein_PUA=DSTW*per_unit_area*protein_DW_fraction/1e3 #kg/m2
                  
                  )
   }) 
 }
 
-#X<-run_SF_model(default_input,runparams,STE0 = 1000, SHE0 = 100)
