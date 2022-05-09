@@ -1,5 +1,4 @@
 ### Shellfish model for EMFF shellfish and algae project
-## Based  on the shellfish component of Dabrowski et al 2013 http://dx.doi.org/10.1016/j.seares.2012.10.012Contents 
 
 ## Full details of scientific rationale can be found in associated ATBD
 # Authors

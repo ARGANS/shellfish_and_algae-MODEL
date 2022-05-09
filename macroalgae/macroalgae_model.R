@@ -22,7 +22,7 @@ library('rootSolve')
 #library('simecol')
 library('tidyverse')
 
-boundary_forcings<-function(input_data, method='linear'){
+boundary_forcings<-function(input_data, method='constant'){
   # This function takes input environmental data for an individual grid square
   # as a data frame of daily average values and generates the necessary functions
   # to return interpolated values at any time point within the range
