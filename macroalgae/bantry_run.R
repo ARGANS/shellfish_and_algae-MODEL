@@ -108,6 +108,8 @@ parms_bantry<-c(
 
 bantry_in<-setup_run_input(input=bantry_input_data)
 bantry_parms<-setup_run_parms(parms=c(parms_bantry_alaria,parms_bantry))
+  parmsjson<-toJSON(as.list(bantry_parms))
+  write(parmsjson,file = 'Bantry_run_model_parms.json')
 bantry_springharvest_parms<-setup_run_parms(parms=c(parms_bantry_alaria,parms_bantry,harvest_winter_growth_run,harvest_method=1))
 bantry_continuousharvest_parms<-setup_run_parms(parms=c(parms_bantry_alaria,parms_bantry,harvest_CCA_run,harvest_method=2))
 
