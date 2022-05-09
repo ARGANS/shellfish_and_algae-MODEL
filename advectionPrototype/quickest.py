@@ -133,7 +133,7 @@ def findNan(dataNO3,nbry):
     return westNanList, eastNanList, upNanList, downNanList, west2NanList, east2NanList, up2NanList, down2NanList,\
            downEastNanList, upWestNanList, downWestNanList, upEastNanList
 
-def createMatE(nbrx, nbry,centuredEwc,eastNanList, westNanList, alpha1, alpha2):
+def createMatE(nbrx, nbry,centuredEwc,eastNanList, westNanList, east2NanList, west2NanList, alpha1, alpha2):
     offset = np.array([0, -1, 1, -2, 2])
     uGreater0 = ((centuredEwc[:, 1:] > 0) * 1).reshape(nbrx * nbry)
     termA = (1 - 2 * alpha1 + alpha2) * uGreater0 - (1 - uGreater0) * (2 * alpha1 + alpha2 - 1)
@@ -150,6 +150,12 @@ def createMatE(nbrx, nbry,centuredEwc,eastNanList, westNanList, alpha1, alpha2):
 
     termA[eastNanList] = 0
     termC[eastNanList] = 0
+
+    termA[west2NanList] = 0
+    termB[west2NanList] = 0
+
+    termA[east2NanList] = 0
+    termC[east2NanList] = 0
     data = np.zeros((5, nbrx * nbry))
     data[0] = termA
     data[1][:-1] = termB[1:]
@@ -161,7 +167,7 @@ def createMatE(nbrx, nbry,centuredEwc,eastNanList, westNanList, alpha1, alpha2):
     return Mat
 
 
-def createMatN(nbrx, nbry, centuredNwc, downNanList, upNanList, alpha1, alpha2):
+def createMatN(nbrx, nbry, centuredNwc, downNanList, upNanList, down2NanList, up2NanList, alpha1, alpha2):
     offset = np.array([0, -nbry, nbry, -2*nbry, 2*nbry])
     vGreater0 = ((centuredNwc[1:] > 0) * 1).reshape(nbrx * nbry)
     termA = (1-2*alpha1+alpha2) * vGreater0 - (1 - vGreater0) * (2*alpha1+alpha2-1)
@@ -175,6 +181,12 @@ def createMatN(nbrx, nbry, centuredNwc, downNanList, upNanList, alpha1, alpha2):
 
     termA[upNanList] = 0
     termC[upNanList] = 0
+
+    termA[down2NanList] = 0
+    termB[down2NanList] = 0
+
+    termA[up2NanList] = 0
+    termC[up2NanList] = 0
     data = np.zeros((5, nbrx * nbry))
     data[0] = termA
     data[1][:-nbry] = termB[nbry:]
@@ -194,14 +206,14 @@ def quickest(dyMeter, dxlist, dt,discr, centuredEwc, centuredNwc, dataNO3, Ks):
     init = time.time()
     westNanList, eastNanList, upNanList, downNanList, west2NanList, east2NanList, up2NanList, down2NanList, \
     downEastNanList, upWestNanList, downWestNanList, upEastNanList = findNan(dataNO3,nbry)
-    listCprim = [dataNO3[0][145, 34]]
-    listC = [dataNO3[0][145, 34]]
+    listCprim = [dataNO3[0][CPlat,CPlon]]
+    listC = [dataNO3[0][CPlat,CPlon]]
     print(nbrStep - 1)
-    for k in range(nbrStep - 1):
+    for k in range(5772):
         dayNbr =  k// (discr)
         if dayNbr>len(dataNO3)-1:
             break
-        if k == 0:
+        '''if k == 0:
             fig, ax = plt.subplots()
             B=np.ones(nbrx * nbry)
             B[downNanList] = 0
@@ -214,18 +226,18 @@ def quickest(dyMeter, dxlist, dt,discr, centuredEwc, centuredNwc, dataNO3, Ks):
             B[upEastNanList] = 0
             B = B.reshape(nbrx,nbry)
             B[maskpos2D] = np.nan
-            plt.imshow(B)
+            plt.imshow(-B)
             plt.colorbar()
             ax.invert_yaxis()
-            plt.show()
+            plt.show()'''
         hNbr = k//discr
         C[maskpos2D] = 0
         CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, centuredEwc[hNbr], centuredNwc[hNbr],nbrx, nbry)
         #print('CFL max: ', max(CFL))
         alpha1 = (1 / 6) * (1 - CFL) * (2 - CFL)
         alpha2 = (1 / 6) * (1 - CFL) * (1 + CFL)
-        matE = createMatE(nbrx, nbry, centuredEwc[hNbr], eastNanList, westNanList, alpha1, alpha2)
-        matN = createMatN(nbrx, nbry, centuredNwc[hNbr], downNanList, upNanList, alpha1, alpha2)
+        matE = createMatE(nbrx, nbry, centuredEwc[hNbr], eastNanList, westNanList, east2NanList, west2NanList, alpha1, alpha2)
+        matN = createMatN(nbrx, nbry, centuredNwc[hNbr], downNanList, upNanList, down2NanList, up2NanList, alpha1, alpha2)
 
         '''B = np.zeros((nbrx , nbry))
         B[158,9] = 1*dt
@@ -237,7 +249,7 @@ def quickest(dyMeter, dxlist, dt,discr, centuredEwc, centuredNwc, dataNO3, Ks):
         B[27,71] = 1*dt
         B[31,16] = 1*dt
         B = B.reshape(nbrx * nbry)'''
-        B = -dt*0.1*(C +dataNO3[dayNbr]).reshape(nbrx * nbry)
+        B = -dt * 0.1 * (C + dataNO3[dayNbr]).reshape(nbrx * nbry)
         B[downNanList] = 0
         B[upNanList] = 0
         B[eastNanList] = 0
@@ -248,35 +260,49 @@ def quickest(dyMeter, dxlist, dt,discr, centuredEwc, centuredNwc, dataNO3, Ks):
         B[downWestNanList] = 0
         B[upEastNanList] = 0
 
-        Cline = C.reshape(nbrx * nbry)
-        Cline = Cline - cy*matN.dot(Cline) - cx*matE.dot(Cline)+(dt/dyMeter)*Ks*matN.dot(matN.dot(Cline))+(dt/dxlist.reshape(nbrx * nbry))*Ks*matE.dot(matN.dot(Cline)) + B
-        C = Cline.reshape(nbrx, nbry)
+        oldCline = C.reshape(nbrx * nbry)
+        Cline = oldCline - cy*matN.dot(oldCline) - cx*matE.dot(oldCline)+(dt/dyMeter)*Ks*matN.dot(matN.dot(oldCline))+(dt/dxlist.reshape(nbrx * nbry))*Ks*matE.dot(matN.dot(oldCline)) + B
 
-        listCprim += [C[145, 34]+dataNO3[dayNbr][145, 34]]
-        listC += [dataNO3[dayNbr][145, 34]]
+        '''Cline[downNanList] = oldCline[downNanList]  + B[downNanList]
+        Cline[upNanList] = oldCline[upNanList] + B[upNanList]
+        Cline[eastNanList] = oldCline[eastNanList] + B[eastNanList]
+        Cline[westNanList] = oldCline[westNanList] + B[westNanList]
+
+        Cline[downEastNanList] = oldCline[downEastNanList] + B[downEastNanList]
+        Cline[upWestNanList] = oldCline[upWestNanList] + B[upWestNanList]
+        Cline[downWestNanList] = oldCline[downWestNanList] + B[downWestNanList]
+        Cline[upEastNanList] = oldCline[upEastNanList] + B[upEastNanList]'''
+        C = np.minimum(Cline.reshape(nbrx, nbry),0)
+        #C = Cline.reshape(nbrx, nbry)
+
+        listCprim += [C[CPlat,CPlon]+dataNO3[dayNbr][CPlat,CPlon]]
+        listC += [dataNO3[dayNbr][CPlat,CPlon]]
         if k % int(30 * discr) == 0:
             print(k / discr)
             print(time.time() - init)
-        if k % int(30*discr) == 0:
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(C)
-            CpnIm[maskpos2D] = np.nan
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            ax.invert_yaxis()
-            ax.set_title('c')
-            plt.show()
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(C +dataNO3[dayNbr])
-            CpnIm[maskpos2D] = np.nan
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            ax.invert_yaxis()
-            ax.set_title('C prim')
-            plt.show()
+
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(C)
+    CpnIm[maskpos2D] = np.nan
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    ax.invert_yaxis()
+    ax.set_title('c')
+    plt.show()
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(C + dataNO3[dayNbr])
+    CpnIm[maskpos2D] = np.nan
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    # plt.scatter([9,34,50,81,90,86,71,16],[158,145,130,110,72,44,27,31], c='red')
+    ax.invert_yaxis()
+    ax.set_title('C prime')
+    plt.show()
+
     fig, ax = plt.subplots()
     ax.plot(listC, label='C')
-    ax.plot(listCprim, label='C prim')
+    #ax.plot(listCprimHourly, label='C prime Hourly')
+    ax.plot(listCprim, label='C prime daily')
     ax.legend()
     ax.set_xlabel('time step')
     ax.set_ylabel('Nitrate')
@@ -302,6 +328,8 @@ if __name__ == "__main__":
     Ks = 1e-4
     Ks *= 60 * 60 * 24
 
+    CPlat,CPlon = 145, 34
+
     dataCmdpath = 'I:/work-he/apps/safi/data/IBI/dataCmd.csv'
     dataNO3, ds = getwantedMergeData('Nitrate', depth, dataCmdpath)
 
@@ -322,19 +350,22 @@ if __name__ == "__main__":
     longitudeMin, latitudeMin = givecoor(dataBaseEwc, lonmin, latmin, 'eastward_Water_current', dataFin)  # we get the indices of the wanted position
     longitudeMax, latitudeMax = givecoor(dataBaseEwc, lonmax, latmax, 'eastward_Water_current', dataFin)  # we get the indices of the wanted position
 
-    #dataNO3 = dataNO3[83:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
-    dataNO3 = dataNO3[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
+    dataNO3 = dataNO3[83:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
+    #dataNO3 = dataNO3[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
     dataNwc = dataBaseNwc[nwcdataName][:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
     dataEwc = dataBaseEwc[ewcdataName][:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
 
     dataEwc, ds = getwantedMergeData('eastward_Water_current', depth, dataCmdpath)
     dataNwc, ds = getwantedMergeData('northward_Water_current', depth, dataCmdpath)
 
-    dataNwc = dataNwc[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
-    dataEwc = dataEwc[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
+    dataNwc = dataNwc[83:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
+    dataEwc = dataEwc[83:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
 
     dataNwc *= 60 * 60 * 24
     dataEwc *= 60 * 60 * 24
+
+    '''mask = dataNO3.mask
+    dataNO3[np.where(mask == False)]=10'''
 
     latRef = np.ones((np.shape(dataEwc[0])[1],np.shape(dataEwc[0])[0]))*np.array(dataBaseEwc[ewcDataLine.iloc[-1]["latName"]][latitudeMin:latitudeMax])
 
@@ -345,6 +376,7 @@ if __name__ == "__main__":
 
     dxlist = dxlist.T
     dylist = dyMeter*np.ones(np.shape(dxlist))
+
 
     quickest(dyMeter, dxlist, dt, discr, centuredEwc, centuredNwc, dataNO3, Ks)
 

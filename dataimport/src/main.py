@@ -2,7 +2,7 @@ from general import readcsv, giveDateslist, getData
 import pandas as pd
 import os
 
-wantedData=['Temperature']
+wantedData=['par']
 dateBeginning = '2021-01-01 00:00:00'
 dateEnd = '2022-01-01 00:00:00'
 zone='IBI'
@@ -26,3 +26,5 @@ for dat in wantedData:
     else:
         DataOutputDirectory = outputDirectory + dat + '/'
         getData(dat, zone, dataFin, deepthmin, deepthmax, DataOutputDirectory)
+
+
