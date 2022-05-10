@@ -21,7 +21,10 @@
             "h_MA"    : ["height of seaweed"                     , "m"],
             "w_MA"    : ["width of seaweed e.g. on rope "        , "m"],
             "r_L"     : ["remineralisation rate"                 , "1/d"],
-            "r_N"     : ["nitrification rate"                    , "1/d"]
+            "r_N"     : ["nitrification rate"                    , "1/d"],
+            "CN_MA"   : ["macroalgal C:N ratio"                  , "mol/mol"],
+            "kcal_MA" : ["nutritional energy content"            , "kcal g-1(dw)"],
+            "prot_MA" : ["protein content"                       , "g g-1(dw)"]
         },
         "options_descriptions": {},
         "defaults": {
@@ -47,7 +50,10 @@
                     "h_MA"    : 2,
                     "w_MA"    : 0.3,
                     "r_L"     : 0.10,
-                    "r_N"     : 0.1
+                    "r_N"     : 0.1,
+                    "CN_MA"   : 21,
+                    "kcal_MA" : 2.29,
+                    "prot_MA" : 0.08
                 },
                 "options": {}
             },
@@ -73,7 +79,10 @@
                     "h_MA"    : 0.4,
                     "w_MA"    : 0.2,
                     "r_L"     : 0.2,
-                    "r_N"     : 0.1
+                    "r_N"     : 0.1,
+                    "CN_MA"   : 21 ,
+                    "kcal_MA" : 2.29,
+                    "prot_MA" : 0.08
                 },
                 "options": {}
             },
@@ -99,7 +108,10 @@
                     "h_MA"    : 0.2,
                     "w_MA"    : 1,
                     "r_L"     : 0.1,
-                    "r_N"     : 0.1
+                    "r_N"     : 0.1,
+                    "CN_MA"   : 15,
+                    "kcal_MA" : 2.16,
+                    "prot_MA" : 0.105
                 },
                 "options": {}
             }

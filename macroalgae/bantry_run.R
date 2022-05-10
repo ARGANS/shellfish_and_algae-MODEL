@@ -108,6 +108,8 @@ parms_bantry<-c(
 
 bantry_in<-setup_run_input(input=bantry_input_data)
 bantry_parms<-setup_run_parms(parms=c(parms_bantry_alaria,parms_bantry))
+  parmsjson<-toJSON(as.list(bantry_parms))
+  write(parmsjson,file = 'Bantry_run_model_parms.json')
 bantry_springharvest_parms<-setup_run_parms(parms=c(parms_bantry_alaria,parms_bantry,harvest_winter_growth_run,harvest_method=1))
 bantry_continuousharvest_parms<-setup_run_parms(parms=c(parms_bantry_alaria,parms_bantry,harvest_CCA_run,harvest_method=2))
 
@@ -136,9 +138,9 @@ bantry_CCA_run<-run_MA_model(input=bantry_in,
 library(reshape2)
 library(ggplot2)
 library(patchwork)
-plot_bantry_results<-function(x.,harvest=FALSE){
+plot_bantry_results<-function(x.,harvest=FALSE,indata=bantry_in){
   
-  x.<-cbind(bantry_in,x.)
+  x.<-cbind(indata,x.)
   #x. is output of run_MA_model
   #melt it to give overlayable plots as needed
   TS<-5 #text size control
@@ -382,7 +384,44 @@ run_monthly_steady_state<-function(month, parms,...){
 monthly_bantry<-cbind(data.frame(month=factor(month.abb,levels=month.abb),as.data.frame(t(sapply(seq(1:12),run_monthly_steady_state,parms=default_parms)))))
 
 plot_monthly_data<-function(x){
-  ggplot(x,aes(x=month,y=B_line/1000))+geom_col()
+  ggplot(x,aes(x=month,y=B_line/1000))+geom_col()+ylab('Biomass (g DW/metre)')
 }
 
 plot_monthly_data(monthly_bantry)
+
+
+
+
+### run prognostic model with daily values averaged to month
+
+days<-seq(from=dmy('01/01/2021'),to=dmy('31/12/2021'),length.out=365)
+
+month(days)
+
+monthlyaveraged_daily<-bantry_monthly_input_data[1,][-1,]
+for(daymonth in month(days)){
+  monthlyaveraged_daily<-rbind(monthlyaveraged_daily,bantry_monthly_input_data[daymonth,])
+}
+
+MAD<-rbind(monthlyaveraged_daily,monthlyaveraged_daily)
+
+MAD$time<-1:730
+
+bantry_MAD_in<-setup_run_input(input=MAD)
+
+bantry_MAD_run<-run_MA_model(input=bantry_MAD_in,
+                         parameters=bantry_parms,
+                         y0=c(NH4=bantry_in$NH4_ext[1],NO3=bantry_in$NO3_ext[1],N_s=100,N_f=100,D=0,Yield_farm=0, Yield_per_m=0)
+)
+
+
+# try with no flow
+
+MADF<-MAD
+MADF$F_in<-0
+bantry_MADF_in<-setup_run_input(input=MADF)
+
+bantry_MADF_run<-run_MA_model(input=bantry_MADF_in,
+                             parameters=bantry_parms,
+                             y0=c(NH4=bantry_in$NH4_ext[1],NO3=bantry_in$NO3_ext[1],N_s=100,N_f=100,D=0,Yield_farm=0, Yield_per_m=0)
+)

@@ -1,5 +1,7 @@
 import datetime
+from utils import import_json
 import numpy as np
+import pandas as pd
 from read_netcdf import *
 from launch_model import *
 import time
@@ -255,9 +257,7 @@ def run_scenario_a(fileName:str, model, y0:list, input_args:dict):
     return n_cells
 
 
-def open_data_input(file_adress:str, zone:str, paramNames:list, fileRef:str):
-
-    dataRef = pd.read_csv(fileRef, delimiter=';')
+def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.DataFrame):
 
     fileNames = [file_adress.format(zone=zone, param=param) for param in paramNames]
 
@@ -289,7 +289,7 @@ if __name__=="__main__":
     input_args = {
         'zone' : "IBI",
         'file_adress' : '/media/share/data/{zone}/{param}/{param}{zone}modelNetCDF2021-01to2022-01.nc',
-        'fileRef' : './dataCmd.csv',
+        'dataRef' : pd.read_csv('./dataCmd.csv', delimiter=';'),
         'paramNames' : ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
     }
     ### Initialize the netcdf reading interface
@@ -320,7 +320,8 @@ if __name__=="__main__":
 
 
     model_params = "macroalgae_model_parameters_input.json"
-    model = MA_model_scipy(model_params)
+    json_data = import_json(model_params)
+    model = MA_model_scipy(json_data['parameters'])
 
     n_slices = 10
 
@@ -341,7 +342,7 @@ if __name__=="__main__":
     t0 = time.time()
     n_cells = pool.starmap_async(run_scenario_a_monthly,
         [(f"/media/share/results/simulations/monthly/monthly_simulations_{i:03d}.nc", 
-            model_params, y0, input_args, 2021, True, True) for i in range(n_slices)]).get()
+            json_data['parameters'], y0, input_args, 2021, True, True) for i in range(n_slices)]).get()
     #n_cells = run_scenario_a_monthly("/media/share/results/complete_simulations_monthly_test_0.nc", model, y0, input_args, 2021)
 
 
