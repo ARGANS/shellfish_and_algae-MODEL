@@ -24,7 +24,8 @@
             "r_N"     : ["nitrification rate"                    , "1/d"],
             "CN_MA"   : ["macroalgal C:N ratio"                  , "mol/mol"],
             "kcal_MA" : ["nutritional energy content"            , "kcal g-1(dw)"],
-            "prot_MA" : ["protein content"                       , "g g-1(dw)"]
+            "prot_MA" : ["protein content"                       , "g g-1(dw)"],
+            "DF_MA"   : ["dry to fresh weight ratio"             , "g g-1"]
         },
         "options_descriptions": {},
         "defaults": {
@@ -53,7 +54,8 @@
                     "r_N"     : 0.1,
                     "CN_MA"   : 21,
                     "kcal_MA" : 2.29,
-                    "prot_MA" : 0.08
+                    "prot_MA" : 0.08,
+                    "DF_MA"   : 0.113
                 },
                 "options": {}
             },
@@ -82,7 +84,8 @@
                     "r_N"     : 0.1,
                     "CN_MA"   : 21 ,
                     "kcal_MA" : 2.29,
-                    "prot_MA" : 0.08
+                    "prot_MA" : 0.08,
+                    "DF_MA"   : 0.2
                 },
                 "options": {}
             },
@@ -111,7 +114,8 @@
                     "r_N"     : 0.1,
                     "CN_MA"   : 15,
                     "kcal_MA" : 2.16,
-                    "prot_MA" : 0.105
+                    "prot_MA" : 0.105,
+                    "DF_MA"   : 0.221
                 },
                 "options": {}
             }
