@@ -6,7 +6,10 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 import numpy.ma as ma
+from scipy import interpolate
 from scipy.sparse import dia_matrix
+import datetime
+from dateutil.relativedelta import *
 
 # extract the data value at depth in the merged files (all the daily data merged in one file)
 from advectionPrototype.climatology_ellipses import degrees_to_meters
@@ -26,6 +29,49 @@ def getwantedMergeData(data, depth, dataCmdpath, mergedFilepath='D:/Profils/mjao
                 ncDataset = nc.Dataset(fn)
                 break
     return extractVarSubset(ncDataset, variable, depth=depth)[0], ncDataset
+
+#sort the list of data from the older to the newer
+def sortDateList(listValue,ldate):
+    sortLval = [] #we define the sorted data list
+    sortldate = [] #we define the sorted date list
+    # we read the list we have to sort
+    for k in range(len(ldate)):
+        i = 0
+        # while we didn't red all the sorted list
+        while i<len(sortLval):
+            # if the list element is graeter than the element we want to place in the list
+            if ldate[k]<sortldate[i]:
+                # we place this element before the element who is greater than it
+                sortldate = sortldate[:i]+[ldate[k]]+sortldate[i:]
+                sortLval = sortLval[:i] + [listValue[k]] + sortLval[i:]
+                i=len(sortLval)+1
+            i+=1
+        if i == len(sortLval)-1 or i == len(sortLval):
+            sortldate += [ldate[k]]
+            sortLval += [listValue[k]]
+    return np.array(sortLval), np.array(sortldate)
+
+def getData(path,data,zone, depth, latitudeMinwc,latitudeMaxwc, longitudeMinwc,longitudeMaxwc):
+    dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
+    wantedDataLine = dataFin.loc[(dataFin["Parameter"] == data) & (dataFin["Place"] == zone)]
+    data = wantedDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
+    listValue = []
+    ldate = []
+    dataTabl = []
+    for r, d, f in os.walk(path):
+        listValue = np.zeros(((len(f)-10)*361,latitudeMaxwc-latitudeMinwc,longitudeMaxwc-longitudeMinwc))
+        for i in range(len(f)-10):
+            fn = path + f[i]
+            print(fn)
+            # we read the file
+            ds = nc.Dataset(fn)
+            # we get the date
+            #ldate += [ds['time'][0]]
+            # we get the data
+            listValue[i*361:(i+1)*361] = ds[data][:, latitudeMinwc:latitudeMaxwc, longitudeMinwc:longitudeMaxwc]
+    #listValue, ldate = sortDateList(listValue, ldate)
+    #dataTabl += [listValue.tolist()]
+    return listValue
 
 #give the indices coresponding to lonval, and latval in the list of coordinates
 def givecoor(ds,lonval,latval,dataName,dataFin):
@@ -197,7 +243,7 @@ def createMatN(nbrx, nbry, centuredNwc, downNanList, upNanList, down2NanList, up
 
     return Mat
 
-def quickest(dyMeter, dxlist, dt,discr, centuredEwc, centuredNwc, dataNO3, Ks):
+def quickest(dyMeter, dxlist, dt,discr, centuredEwc, centuredNwc, dataNO3, Ks, firstday):
     nbrStep = int(len(centuredNwc) * discr)
     C = np.zeros(np.shape(dataNO3[0]))
     (nbrx, nbry) = np.shape(dataNO3[0])
@@ -208,10 +254,13 @@ def quickest(dyMeter, dxlist, dt,discr, centuredEwc, centuredNwc, dataNO3, Ks):
     downEastNanList, upWestNanList, downWestNanList, upEastNanList = findNan(dataNO3,nbry)
     listCprim = [dataNO3[0][CPlat,CPlon]]
     listC = [dataNO3[0][CPlat,CPlon]]
-    print(nbrStep - 1)
-    for k in range(5772):
-        dayNbr =  k// (discr)
-        if dayNbr>len(dataNO3)-1:
+    daylist = [firstday]
+    clist = [0]
+    for k in range(nbrStep):
+        dayNbr =  k// int(discr)
+        daylist += [firstday+ relativedelta(minutes=int(k*24*60/discr))]
+        hNbr = k // int(discr)
+        if hNbr>len(centuredEwc)-1:
             break
         '''if k == 0:
             fig, ax = plt.subplots()
@@ -230,7 +279,6 @@ def quickest(dyMeter, dxlist, dt,discr, centuredEwc, centuredNwc, dataNO3, Ks):
             plt.colorbar()
             ax.invert_yaxis()
             plt.show()'''
-        hNbr = k//discr
         C[maskpos2D] = 0
         CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, centuredEwc[hNbr], centuredNwc[hNbr],nbrx, nbry)
         #print('CFL max: ', max(CFL))
@@ -249,7 +297,7 @@ def quickest(dyMeter, dxlist, dt,discr, centuredEwc, centuredNwc, dataNO3, Ks):
         B[27,71] = 1*dt
         B[31,16] = 1*dt
         B = B.reshape(nbrx * nbry)'''
-        B = -dt * 0.1 * (C + dataNO3[dayNbr]).reshape(nbrx * nbry)
+        B = -dt * 0.5 * (C + dataNO3[dayNbr]).reshape(nbrx * nbry)
         B[downNanList] = 0
         B[upNanList] = 0
         B[eastNanList] = 0
@@ -277,6 +325,7 @@ def quickest(dyMeter, dxlist, dt,discr, centuredEwc, centuredNwc, dataNO3, Ks):
 
         listCprim += [C[CPlat,CPlon]+dataNO3[dayNbr][CPlat,CPlon]]
         listC += [dataNO3[dayNbr][CPlat,CPlon]]
+        clist +=[C[CPlat,CPlon]]
         if k % int(30 * discr) == 0:
             print(k / discr)
             print(time.time() - init)
@@ -286,25 +335,29 @@ def quickest(dyMeter, dxlist, dt,discr, centuredEwc, centuredNwc, dataNO3, Ks):
     CpnIm[maskpos2D] = np.nan
     plt.imshow(CpnIm)
     plt.colorbar()
+    plt.clim(-10, 0)
     ax.invert_yaxis()
     ax.set_title('c')
     plt.show()
+
     fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(C + dataNO3[dayNbr])
+    CpnIm = copy.deepcopy(C + dataNO3[dayNbr-1])
     CpnIm[maskpos2D] = np.nan
     plt.imshow(CpnIm)
     plt.colorbar()
+    plt.clim(0, 20)
     # plt.scatter([9,34,50,81,90,86,71,16],[158,145,130,110,72,44,27,31], c='red')
     ax.invert_yaxis()
-    ax.set_title('C prime')
+    ax.set_title("C'")
     plt.show()
 
+    #print(listCprim)
     fig, ax = plt.subplots()
-    ax.plot(listC, label='C')
-    #ax.plot(listCprimHourly, label='C prime Hourly')
-    ax.plot(listCprim, label='C prime daily')
+    plt.plot(daylist,listC, label='C')
+    #plt.plot(daylist[:len(listCprimHourly)],listCprimHourly, label='C prime Hourly')
+    ax.plot(daylist, listCprim, label="C' daily")
     ax.legend()
-    ax.set_xlabel('time step')
+    ax.set_xlabel('date')
     ax.set_ylabel('Nitrate')
     plt.show()
 
@@ -328,7 +381,7 @@ if __name__ == "__main__":
     Ks = 1e-4
     Ks *= 60 * 60 * 24
 
-    CPlat,CPlon = 145, 34
+    CPlat,CPlon = 121, 70
 
     dataCmdpath = 'I:/work-he/apps/safi/data/IBI/dataCmd.csv'
     dataNO3, ds = getwantedMergeData('Nitrate', depth, dataCmdpath)
@@ -339,6 +392,9 @@ if __name__ == "__main__":
     fileV = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/cmems_mod_ibi_phy_v0.nc'
     dataBaseNwc = nc.Dataset(fileV)
 
+    fileV = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/cmems_mod_ibi_phy_v0.nc'
+    olddataBaseNwc = nc.Dataset(fileV)
+
     dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
 
     ewcDataLine = dataFin.loc[(dataFin["Parameter"] == 'eastward_Water_current') & (dataFin["Place"] == zone)]
@@ -347,25 +403,38 @@ if __name__ == "__main__":
     nwcDataLine = dataFin.loc[(dataFin["Parameter"] == 'northward_Water_current') & (dataFin["Place"] == zone)]
     nwcdataName = nwcDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
 
-    longitudeMin, latitudeMin = givecoor(dataBaseEwc, lonmin, latmin, 'eastward_Water_current', dataFin)  # we get the indices of the wanted position
-    longitudeMax, latitudeMax = givecoor(dataBaseEwc, lonmax, latmax, 'eastward_Water_current', dataFin)  # we get the indices of the wanted position
+    longitudeMin, latitudeMin = givecoor(olddataBaseNwc, lonmin, latmin, 'northward_Water_current', dataFin)  # we get the indices of the wanted position
+    longitudeMax, latitudeMax = givecoor(olddataBaseNwc, lonmax, latmax, 'northward_Water_current', dataFin)  # we get the indices of the wanted position
 
-    dataNO3 = dataNO3[83:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
-    #dataNO3 = dataNO3[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
-    dataNwc = dataBaseNwc[nwcdataName][:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
-    dataEwc = dataBaseEwc[ewcdataName][:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
+    '''longitudeMinwc, latitudeMinwc = givecoor(dataBaseNwc, lonmin, latmin, 'northward_Water_current',
+                                         dataFin)  # we get the indices of the wanted position
+    longitudeMaxwc, latitudeMaxwc = givecoor(dataBaseNwc, lonmax, latmax, 'northward_Water_current',
+                                         dataFin)  # we get the indices of the wanted position'''
+    #we get the hourly data
+    '''dataEwc = getData('D:/Profils/mjaouen/Documents/alternance/EASME/data/eastward_Water_current/', 'eastward_Water_current', zone, depth, latitudeMin, latitudeMax, longitudeMin, longitudeMax)
+    dataNwc = getData('D:/Profils/mjaouen/Documents/alternance/EASME/data/northward_Water_current/',
+                      'northward_Water_current', zone, depth, latitudeMin, latitudeMax, longitudeMin,
+                      longitudeMax)
+    print(np.shape(dataEwc))'''
 
+    #print(np.shape(dataNwc))
+    dataNO3 = dataNO3[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
+
+    #we get daily data
     dataEwc, ds = getwantedMergeData('eastward_Water_current', depth, dataCmdpath)
     dataNwc, ds = getwantedMergeData('northward_Water_current', depth, dataCmdpath)
 
-    dataNwc = dataNwc[83:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
-    dataEwc = dataEwc[83:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
+    dataNwc = dataNwc[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
+    dataEwc = dataEwc[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
 
     dataNwc *= 60 * 60 * 24
     dataEwc *= 60 * 60 * 24
 
-    '''mask = dataNO3.mask
-    dataNO3[np.where(mask == False)]=10'''
+    dataEwc[np.where(np.abs(dataEwc) >1e8)]=0
+    dataNwc[np.where(np.abs(dataNwc) >1e8)] = 0
+
+    print(np.shape(np.array(dataBaseEwc[ewcDataLine.iloc[-1]["latName"]][latitudeMin:latitudeMax])))
+    print(np.shape(dataEwc[0])[1],np.shape(dataEwc[0])[0])
 
     latRef = np.ones((np.shape(dataEwc[0])[1],np.shape(dataEwc[0])[0]))*np.array(dataBaseEwc[ewcDataLine.iloc[-1]["latName"]][latitudeMin:latitudeMax])
 
@@ -377,8 +446,18 @@ if __name__ == "__main__":
     dxlist = dxlist.T
     dylist = dyMeter*np.ones(np.shape(dxlist))
 
+    firstday = datetime.datetime.strptime('2020-01-18', '%Y-%m-%d')
 
-    quickest(dyMeter, dxlist, dt, discr, centuredEwc, centuredNwc, dataNO3, Ks)
+    ''' interdataNO3 = np.zeros((np.shape(dataNO3)[0]*24,np.shape(dataNO3)[1],np.shape(dataNO3)[2]))
+    for i in range(np.shape(dataNO3)[1]):
+        for j in range(np.shape(dataNO3)[2]):
+            inter = interpolate.splrep(np.linspace(0,1,len(dataNO3)), dataNO3[:,i,j])
+            interdataNO3[:,i,j] = interpolate.splev(np.linspace(0,1,len(dataNO3)*24), inter)
+    maskNO3 = np.zeros(np.shape(interdataNO3))
+    maskNO3[np.where(interdataNO3>1e8)] = 1
+    interdataNO3 = ma.masked_array(interdataNO3, mask=maskNO3)'''
+
+    quickest(dyMeter, dxlist, dt, discr, centuredEwc, centuredNwc, dataNO3, Ks, firstday)
 
     fig, ax = plt.subplots()
     plt.imshow(dataNwc[1])

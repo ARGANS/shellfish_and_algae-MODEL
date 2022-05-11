@@ -178,7 +178,7 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
             begDate = splitDate(dateBeginning)
             endDate = splitDate(dateEnd)
             filename = wantedData + zone + (validate(dataFin.iloc[j].get("type"), str) or '') + dataFin.iloc[j][
-                "fileType"] + dateBeginning.strftime("%Y-%m")
+                "fileType"] + dateBeginning.strftime("%Y-%m-%d")+ 'to' + dateEnd.strftime("%Y-%m-%d")
         elif wantedDataLine.iloc[0]["daily"] == 2:
             begDate = splitDate(dateBeginning)
             endDate = splitDate(dateEnd)
@@ -233,7 +233,6 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
                 outputFile)
 
         elif servicetype == 'ftp':
-            print('ok')
             getdataFromFtp(dataFin.iloc[j], outputDirectory)
 
 
@@ -241,6 +240,14 @@ def giveDateslist(dateBeginning, dateEnd, frequency):
     if frequency == 2:
         begList = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
         endList = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
+    elif frequency == 3:
+        datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
+        datetimeEnd = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
+
+        nmonth = ((datetimeEnd.year - datetimeBeginning.year) * 12) + datetimeEnd.month - datetimeBeginning.month
+
+        begList = [(datetimeBeginning + relativedelta(days=15*i)) for i in range(int(nmonth*2))]
+        endList = [(datetimeBeginning + relativedelta(days=15*i)) for i in range(1, int(nmonth*2) + 1)]
     else:
         datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
         datetimeEnd = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
