@@ -57,7 +57,7 @@ farmPostProcess_MA<-function(data,json_file,final_only=TRUE){
     
     #CO2 uptake
     Biomass_CO2<-(N_f/14)*CN_MA*44/1000 #g (CO2) /m^3    (44 is rmm of CO2)
-    CO2_uptake_PUA<-Biomass_CO2*h_MA*density_MA #g (CO2) / m^2
+    CO2_uptake_PUA<-Biomass_CO2*h_MA*density_MA/1000 #kg (CO2) / m^2
     
     
     #data_out<-data.frame(DW,DW_line,DW_PUA,FW,FW_line,FW_PUA,kcal_PUA,protein_PUA,Biomass_CO2,CO2_uptake_PUA)
@@ -80,7 +80,7 @@ farmPostProcess_MA<-function(data,json_file,final_only=TRUE){
                      'kcal_PUA' = 'kcal/m^2',
                      'protein_PUA' = 'kg/m^2',
                      'Biomass_CO2' = 'g (CO2) /m^3',
-                     'CO2_uptake_PUA' = 'g (CO2) / m^2')
+                     'CO2_uptake_PUA' = 'kg (CO2) / m^2')
     
     if(final_only){
       for (var in names(data_out)) {
