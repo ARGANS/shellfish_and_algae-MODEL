@@ -28,7 +28,8 @@ res = farmPostProcess_MA(data, parms_file, TRUE)
 for (interest_var in names(res$data)) {
     new_var = ncvar_def(name = interest_var,
                         units = res$units[[interest_var]],
-                        dim = list(nc$dim$latitude, nc$dim$longitude), 
+                        #dim = list(nc$dim$latitude, nc$dim$longitude), 
+                        dim = list(nc$dim$longitude, nc$dim$latitude), 
                         missval = py_default_fillval)
     nc = ncvar_add(nc, new_var)
     ncvar_put(nc, new_var, res$data[[interest_var]])
