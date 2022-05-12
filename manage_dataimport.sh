@@ -3,9 +3,10 @@ SHARED_VOLUME_NAME='ac_share'
 ## Properties of scripts used to load datasets:
 zone='IBI'
 year=2021
-output_dir='/media/share/data/IBI/'
 deepthmin=0
 deepthmax=20
+
+output_dir="/media/share/data/$zone-$year-$deepthmin-$deepthmax/"
 
 function build_images_for_data_import {
     local dir="./dataimport"

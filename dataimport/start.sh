@@ -1,8 +1,9 @@
 #!/bin/bash
 
 mkdir -p /media/share/
-### rm -rf /media/share/*
-mkdir -p $AC_OUTPUT_DIR/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature}
+rm -rf $AC_OUTPUT_DIR/*
+
+mkdir -p $AC_OUTPUT_DIR/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature,pCO2,disolved_inorganic_carbon,primary_producer_POC}
 echo -n $parameters_json > $AC_OUTPUT_DIR/parameters.json
 
 python start.py || rm $AC_OUTPUT_DIR/parameters.json

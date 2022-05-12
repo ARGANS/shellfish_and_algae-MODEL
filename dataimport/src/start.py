@@ -24,27 +24,28 @@ deepthmax = int(input_parameters['depth_max'])
 
 outputDirectory = cleanFinalSlash(os.getenv('AC_OUTPUT_DIR'))
 
-# TODO remove finalizing / in outputDirectory
-
-wantedData = ['Temperature', 'Nitrate', 'Ammonium', 'eastward_Water_current', 'northward_Water_current']
+wantedData = ['Temperature', 'Nitrate', 'Ammonium', 'eastward_Water_current', 'northward_Water_current', 'pCO2','disolved_inorganic_carbon','primary_producer_POC']
 
 dateBeginning = f'{year}-01-01 00:00:00'
 dateEnd = f'{year + 1}-01-01 00:00:00'
+## Per month
+# frequency = 1
+## Per day
 frequency = 2
 
 dataFin = pd.read_csv('./dataCmd.csv',';')
 datesList = giveDateslist(dateBeginning, dateEnd, frequency)
 
-# print('dataFin')
-# pprint(dataFin)
-# print('datesList')
-# pprint(datesList)
 for dat in wantedData:
     dataOutputDirectory = outputDirectory + '/' + dat + '/'
     dataLine = dataFin.loc[dataFin["Parameter"] == dat]
     print(f'dataLine {dataOutputDirectory}')
     pprint(dataLine)
     if dataLine.iloc[0]["daily"] > 0:
-        getData(dat, zone, dataFin, deepthmin, deepthmax,  dataOutputDirectory, datesList[0], datesList[1],frequency)
+        if frequency == 2:
+            getData(dat, zone, dataFin, deepthmin, deepthmax,  dataOutputDirectory, datesList[0], datesList[1],frequency)
+        elif frequency == 1:
+            for (dateBeg, dateE) in zip(datesList[0], datesList[1]):
+                getData(dat, zone, dataFin, deepthmin, deepthmax, dataOutputDirectory, dateBeg, dateE, frequency)
     else:
         getData(dat, zone, dataFin, deepthmin, deepthmax, dataOutputDirectory)
