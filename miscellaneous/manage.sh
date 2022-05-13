@@ -22,7 +22,7 @@ function build_images_for_model_execution {
     docker build \
         --network host \
         --build-arg BASE_IMAGE="$base_image_tag" \
-        -t $runtime_image_tag:v1 -t $runtime_image_tag:latest \
+        -t $runtime_image_tag:v2 -t $runtime_image_tag:latest \
         -f $runtime_image_dockerfile \
         $dir
 }
@@ -91,17 +91,15 @@ function run_container_for_posttreatment {
     local container_name="$1"
     local image_tag="$2"
 
-    # All model properties received from the application
-    # data=`cat macroalgae/macroalgae_model_parameters_input.json`
-    # -e PARAMETERS_JSON="$data" \
-
+    #--volume "$(pwd)/posttreatment/src:/opt" \
+        
     prepare_runtime $container_name $image_tag
     docker run \
         --rm \
         --name $container_name \
         --volume "$SHARED_VOLUME_NAME:/media/share" \
-        --volume "$(pwd)/posttreatment/src:/opt" \
         -e PYTHONDONTWRITEBYTECODE=1 \
+        -e SOURCE_DIR='/media/share/results/IBI-2021-0-20/521cac05234a4b7afb01d3a624924d53' \
         -it $image_tag:latest
 }
 

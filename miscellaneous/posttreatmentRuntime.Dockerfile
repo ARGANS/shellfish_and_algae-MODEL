@@ -3,9 +3,7 @@ FROM $BASE_IMAGE
 
 WORKDIR /opt
 COPY ./src/ .
+RUN chmod +x *.sh && \
+    chmod +x make_interest_vars.R
 
-
-# COPY ./start.sh .
-# RUN chmod +x *.sh
-# CMD ["/opt/start.sh"]
-CMD ["/bin/bash"]
+CMD ["/opt/start.sh"]
