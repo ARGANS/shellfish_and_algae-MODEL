@@ -1,5 +1,4 @@
 import json
-import os
 from pprint import pprint
 __all__ = ['ModelProperties']
 
@@ -27,8 +26,6 @@ class ModelProperties():
         self.parse_metadata()  
 
     def parse_metadata(self):
-        print('[CALL parse_metadata]')
-        pprint(self.attrs)
         if 'metadata' not in self.attrs:
             raise RuntimeError('Invalid input metadata schema 1')
 

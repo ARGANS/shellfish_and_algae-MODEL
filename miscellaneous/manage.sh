@@ -72,7 +72,8 @@ function run_container_for_model_execution {
     prepare_runtime $container_name $image_tag
 
     # All model properties received from the application
-    data=`cat macroalgae/macroalgae_model_parameters_input.json`
+    # data=`cat macroalgae/macroalgae_model_parameters_input.json`
+    data='{"parameters":{"species":{"alaria":{"options":{},"parameters":{"mu":0.33,"V_NH4":60,"V_NO3":25,"K_NH4":700,"K_NO3":100,"Q_max":70,"Q_min":14,"N_to_P":12,"K_c":7,"T_O":12,"T_min":1,"T_max":25,"I_s":277,"a_cs":0.00036,"d_m":0.003,"h_MA":0.4,"w_MA":0.2,"r_L":0.2,"r_N":0.1}}},"farm":{"default":{"options":{},"parameters":{"y_farm":1000,"density_MA":0.4,"x_farm":1000,"z":2}}},"harvest":{"CCA":{"options":{},"parameters":{"deployment_day":2,"harvest_first":65,"harvest_freq":50,"harvest_fraction":0.75,"deployment_Nf":10000}}},"run":{"default":{"options":{"harvest_method":0,"light_scheme":3},"parameters":{}}}},"metadata":{"name":"user1_Alaria_IBI_04-05-2022","zone":"IBI","_suggested":{"login":"user1","species":"Alaria","zone":"IBI","date":"04-05-2022"},"depth_min":0,"depth_max":"20","year":"2021","data_import_container":"8496183ebd"}}'
 
     # use -d to start a container in detached mode
     # use --entrypoint=/bin/bash \ to override the command
@@ -80,7 +81,7 @@ function run_container_for_model_execution {
         --rm \
         --name $container_name \
         --volume "$SHARED_VOLUME_NAME:/media/share" \
-        -e DATASET_ID="IBI-2021-3-18" \
+        -e DATASET_ID="IBI-2021-0-20" \
         -e TASK_ID="abcdef" \
         -e PARAMETERS_JSON="$data" \
         -e PYTHONDONTWRITEBYTECODE=1 \

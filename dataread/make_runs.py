@@ -1,4 +1,5 @@
 import datetime
+from pprint import pprint
 from utils import import_json
 import numpy as np
 import pandas as pd
@@ -163,11 +164,20 @@ def run_scenario_a_monthly(fileName:str, model_params:str, y0:list, input_args:d
                     't_z': 10,
                     'D_ext': 0.1
                 }
-
-                result = solve_ivp(MA_model_scipy.derivative_fast, (days_start, days_end), y0_array[:,i,j], args=(data_in, lat, model),
+                print('y0_array[:,i,j]')
+                pprint(y0_array[:,i,j])
+                try:
+                    result = solve_ivp(MA_model_scipy.derivative_fast, (days_start, days_end), y0_array[:,i,j], args=(data_in, lat, model),
                                 jac=MA_model_scipy.jacobian_fast, t_eval=[days_end],
                                 rtol=0.05, method='BDF')
-
+                except Exception as exc:
+                    print('y0_array[:,i,j]:')
+                    pprint(y0_array[:,i,j])
+                    print('(days_start, days_end):')
+                    pprint((days_start, days_end))
+                    print('(data_in, lat, model):')
+                    pprint((data_in, lat, model))
+                    raise exc
                 if not result.success:
                     # try again with strict tolerance
                     result = solve_ivp(MA_model_scipy.derivative_fast, (days_start, days_end), y0_array[:,i,j], args=(data_in, lat, model),
