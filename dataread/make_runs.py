@@ -165,13 +165,13 @@ def run_scenario_a_monthly(fileName:str, model_params:str, y0:list, input_args:d
                 }
 
                 result = solve_ivp(MA_model_scipy.derivative_fast, (days_start, days_end), y0_array[:,i,j], args=(data_in, lat, model),
-                                jac=MA_model_scipy.jacobian_fast, t_eval=[days_end],
+                                jac=MA_model_scipy.jacobian_fast,
                                 rtol=0.05, method='BDF')
 
                 if not result.success:
                     # try again with strict tolerance
                     result = solve_ivp(MA_model_scipy.derivative_fast, (days_start, days_end), y0_array[:,i,j], args=(data_in, lat, model),
-                                jac=MA_model_scipy.jacobian_fast, t_eval=[days_end],
+                                jac=MA_model_scipy.jacobian_fast,
                                 method='BDF')
 
                     if not result.success:
@@ -180,7 +180,7 @@ def run_scenario_a_monthly(fileName:str, model_params:str, y0:list, input_args:d
                         print(result.message)
                         continue
 
-                values[:,i,j] = np.squeeze(result.y)
+                values[:,i,j] = np.squeeze(result.y[:,-1])
 
         # Write values to file
         ds = nc.Dataset(fileName, 'a')
