@@ -20,7 +20,7 @@ cp $input_path/concat.nc $tmp_path/concat.nc
 
 
 for variable in 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA'; do
-    gdal_translate NETCDF:$tmp_path/concat.nc:$variable $destination/$variable.tif
+    gdal_translate NETCDF:"$tmp_path/concat.nc":$variable $destination/$variable.tif
 done 
 
 

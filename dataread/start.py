@@ -33,10 +33,10 @@ algaeData = open_data_input(**input_args)
 
 # TODO parametrize sim_area
 sim_area = {
-    'longitude': (-4, -3),
-    'latitude': (48.5, 49),
-    # 'longitude': (-180, 180),
-    # 'latitude': (-90, 90),
+    # 'longitude': (-4, -3),
+    # 'latitude': (48.5, 49),
+    'longitude': (-180, 180),
+    'latitude': (-90, 90),
     'time_index': 0,
     'depth': 3
 }
