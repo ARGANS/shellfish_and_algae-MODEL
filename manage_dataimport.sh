@@ -59,8 +59,8 @@ function run_container_for_data_import {
         --rm \
         --name $container_name \
         --volume "$SHARED_VOLUME_NAME":/media/share \
-        -e AC_OUTPUT_DIR="$output_dir" \
-        -e parameters_json="$data" \
+        -e INPUT_DESTINATION="$output_dir" \
+        -e INPUT_PARAMETERS="$data" \
         -e PYTHONDONTWRITEBYTECODE=1 \
         -it $image_tag:latest
 }
@@ -74,7 +74,7 @@ function run_in_interactive_mode {
         --rm \
         --name $container_name \
         --volume "$SHARED_VOLUME_NAME":/media/share \
-        -e AC_OUTPUT_DIR="$output_dir" \
+        -e INPUT_DESTINATION="$output_dir" \
         -e PYTHONDONTWRITEBYTECODE=1 \
         --entrypoint=/bin/bash \
         -it $image_tag:latest

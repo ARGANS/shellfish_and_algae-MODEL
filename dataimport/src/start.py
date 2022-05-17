@@ -9,7 +9,7 @@ def cleanFinalSlash(value: str) -> str:
 
 # Read dataset parameters
 ### parameters_json_value == {"zone":"Artic","depth_min":0,"depth_max": 0,"year": 2022}
-parameters_json_value:str = os.getenv('parameters_json') 
+parameters_json_value:str = os.getenv('INPUT_PARAMETERS') 
 try:
     input_parameters:dict = json.loads(parameters_json_value)
 except:
@@ -22,7 +22,7 @@ deepthmin = int(input_parameters['depth_min'])
 deepthmax = int(input_parameters['depth_max'])
 
 
-outputDirectory = cleanFinalSlash(os.getenv('AC_OUTPUT_DIR'))
+outputDirectory = cleanFinalSlash(os.getenv('INPUT_DESTINATION'))
 
 wantedData = ['Temperature', 'Nitrate', 'Ammonium', 'eastward_Water_current', 'northward_Water_current', 'pCO2','disolved_inorganic_carbon','primary_producer_POC']
 
