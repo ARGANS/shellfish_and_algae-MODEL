@@ -271,7 +271,7 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
     timeNames = dataRef.iloc[dataRows]['timeName'].fillna('time').tolist()
     depthNames = dataRef.iloc[dataRows]['depthName'].fillna('depth').tolist()
     unitConversions = dataRef.iloc[dataRows]['unitFactor'].fillna(1).tolist()
-    timeUnits = dataRef.iloc[dataRows]['time_units'].fillna(None).tolist()
+    timeUnits = dataRef.iloc[dataRows]['time_units'].tolist()
 
     data = AllData(fileNameList=fileNames,
                    parameterNameList=paramNames,
@@ -280,7 +280,7 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
                    longitudeNameList=longitudeNames,
                    timeNameList=timeNames,
                    depthNameList=depthNames,
-                   unitConversionList=unitConversions
+                   unitConversionList=unitConversions,
                    timeUnitsList=timeUnits
     )
 
