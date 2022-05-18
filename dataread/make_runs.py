@@ -262,6 +262,7 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
     fileNames = [file_adress.format(zone=zone, param=param) for param in paramNames]
 
     #dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][0] for param in paramNames]
+    # TODO: identify one row properly and uniquely, use "frequency" ?
     dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][-1] for param in paramNames]
 
     variableNames = dataRef.iloc[dataRows]['variable'].tolist()
@@ -270,6 +271,7 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
     timeNames = dataRef.iloc[dataRows]['timeName'].fillna('time').tolist()
     depthNames = dataRef.iloc[dataRows]['depthName'].fillna('depth').tolist()
     unitConversions = dataRef.iloc[dataRows]['unitFactor'].fillna(1).tolist()
+    timeUnits = dataRef.iloc[dataRows]['time_units'].fillna(None).tolist()
 
     data = AllData(fileNameList=fileNames,
                    parameterNameList=paramNames,
@@ -279,6 +281,7 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
                    timeNameList=timeNames,
                    depthNameList=depthNames,
                    unitConversionList=unitConversions
+                   timeUnitsList=timeUnits
     )
 
     return data
