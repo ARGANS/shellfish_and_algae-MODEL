@@ -188,6 +188,9 @@ def dateToNum(date, mode):
     elif mode == "seconds_since_1970":
         diff = date - datetime.datetime(1970, 1, 1)
         num = diff.days * 24 * 3600 + diff.seconds
+    elif mode == "days_since_1900":
+        diff = date - datetime.datetime(1900, 1, 1)
+        num = diff.days + diff.seconds / (24 * 3600)
     else:
         print("Invalid time units requested")
 
@@ -201,6 +204,8 @@ def numToDate(num, mode):
         date = datetime.datetime(1900, 1, 1) + datetime.timedelta(seconds = num*60)
     elif mode == "seconds_since_1970":
         date = datetime.datetime(1970, 1, 1) + datetime.timedelta(seconds = num)
+    elif mode == "days_since_1900":
+        date = datetime.datetime(1900, 1, 1) + datetime.timedelta(days = num)
     else:
         print("Invalid time units requested")
 
