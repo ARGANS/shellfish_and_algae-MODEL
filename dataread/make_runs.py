@@ -151,6 +151,11 @@ def run_scenario_a_monthly(fileName:str, model_params:str, y0:list, input_args:d
 
                 data, dims = algaeData.getData(**data_kwargs)
 
+                # The nearest data for one parameter is masked, ignore this point from now on
+                if np.ma.core.MaskedConstant() in data.values():
+                    mask[i,j] = True
+                    continue
+
                 data_in = {
                     'SST': data['Temperature'],
                     'PAR': 500,
@@ -185,7 +190,7 @@ def run_scenario_a_monthly(fileName:str, model_params:str, y0:list, input_args:d
         # Write values to file
         ds = nc.Dataset(fileName, 'a')
         for k, name in enumerate(model.names):
-            ds[name][month-1,:,:] = values[k,:,:]
+            ds[name][month-1,:,:] = np.ma.masked_array(values[k,:,:], mask)
         ds.close()
 
         # pass result as y0 for next step
