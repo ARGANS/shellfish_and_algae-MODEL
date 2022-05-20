@@ -179,6 +179,7 @@ def averageOverMLD(array2D, mld, depthAxis):
 
 def dateToNum(date, mode):
     # Returns the numeric value associated to date in netCDF files
+    # TODO: separate into 2 parameters 'time_step' and 'time_init_year'
     if mode == "hours_since_1950":
         diff = date - datetime.datetime(1950, 1, 1)
         num = diff.days * 24 + diff.seconds / 3600
@@ -191,6 +192,9 @@ def dateToNum(date, mode):
     elif mode == "days_since_1900":
         diff = date - datetime.datetime(1900, 1, 1)
         num = diff.days + diff.seconds / (24 * 3600)
+    elif mode == "seconds_since_1900":
+        diff = date - datetime.datetime(1900, 1, 1)
+        num = diff.days * 24 * 3600 + diff.seconds
     else:
         print("Invalid time units requested")
 
@@ -198,6 +202,7 @@ def dateToNum(date, mode):
 
 def numToDate(num, mode):
     # Returns the date associated to num that is found in netCDF files
+    # TODO: separate into 2 parameters 'time_step' and 'time_init_year'
     if mode == "hours_since_1950":
         date = datetime.datetime(1950, 1, 1) + datetime.timedelta(seconds = num*3600)
     elif mode == "minutes_since_1900":
@@ -206,6 +211,8 @@ def numToDate(num, mode):
         date = datetime.datetime(1970, 1, 1) + datetime.timedelta(seconds = num)
     elif mode == "days_since_1900":
         date = datetime.datetime(1900, 1, 1) + datetime.timedelta(days = num)
+    elif mode == "seconds_since_1900":
+        date = datetime.datetime(1900, 1, 1) + datetime.timedelta(seconds = num)
     else:
         print("Invalid time units requested")
 
