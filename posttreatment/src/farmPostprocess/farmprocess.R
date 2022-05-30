@@ -57,33 +57,44 @@ farmPostProcess_MA<-function(data,json_file,final_only=TRUE){
     
     #CO2 uptake
     Biomass_CO2<-(N_f/14)*CN_MA*44/1000 #g (CO2) /m^3    (44 is rmm of CO2)
-    CO2_uptake_PUA<-Biomass_CO2*h_MA*density_MA #g (CO2) / m^3
+    CO2_uptake_PUA<-Biomass_CO2*h_MA*density_MA/1000 #kg (CO2) / m^2
     
     
-    data_out<-data.frame(DW,DW_line,DW_PUA,FW,FW_line,FW_PUA,kcal_PUA,protein_PUA,Biomass_CO2,CO2_uptake_PUA)
+    #data_out<-data.frame(DW,DW_line,DW_PUA,FW,FW_line,FW_PUA,kcal_PUA,protein_PUA,Biomass_CO2,CO2_uptake_PUA)
+    data_out = list('DW' = DW,
+                    'DW_line' = DW_line,
+                    'DW_PUA' = DW_PUA,
+                    'FW' = FW,
+                    'FW_line' = FW_line,
+                    'FW_PUA' = FW_PUA,
+                    'kcal_PUA' = kcal_PUA,
+                    'protein_PUA' = protein_PUA,
+                    'Biomass_CO2' = Biomass_CO2,
+                    'CO2_uptake_PUA' = CO2_uptake_PUA)
+    units_out = list('DW' = 'gDW m-3',
+                     'DW_line' = 'kg/m',
+                     'DW_PUA' = 'kg/m^2',
+                     'FW' = 'gFW m-3',
+                     'FW_line' = 'kg/m',
+                     'FW_PUA' = 'kg/m^2',
+                     'kcal_PUA' = 'kcal/m^2',
+                     'protein_PUA' = 'kg/m^2',
+                     'Biomass_CO2' = 'g (CO2) /m^3',
+                     'CO2_uptake_PUA' = 'kg (CO2) / m^2')
     
     if(final_only){
-     as.list(data_out[nrow(data_out),])
-    } else{
-      data_out }
-    #ifelse(final_only,data_out[nrow(data_out),],data_out)
-    
-    
-    
-    
-    
-  
-    
-    
-    
+      for (var in names(data_out)) {
+        data_out[[var]] = data_out[[var]][,,dim(data_out[[var]])[3]]
+      }
+    }
+    return(list('data'=data_out, 'units'=units_out))
+
   })
-    
-  
-  
+
 }
 
-test_parms_json_file<-'test_macroalgae_model_parameters_input.json'
-test_data<-read.csv('../../../macroalgae/bantry_data/bantry_run.csv',header=TRUE)
+#test_parms_json_file<-'test_macroalgae_model_parameters_input.json'
+#test_data<-read.csv('../../../macroalgae/bantry_data/bantry_run.csv',header=TRUE)
 
-parmsJSON<-fromJSON(file=test_parms_json_file)
+#parmsJSON<-fromJSON(file=test_parms_json_file)
 

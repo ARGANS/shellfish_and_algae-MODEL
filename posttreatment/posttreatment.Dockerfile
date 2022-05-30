@@ -13,6 +13,13 @@ RUN python -m pip install --upgrade pip
 RUN apt update
 RUN apt -y install nco
 
+# install GDAL
+RUN apt-get update && apt-get install -y build-essential binutils libproj-dev gdal-bin libgdal-dev
+
+# Install R
+RUN apt-get install -y r-base
+RUN R -e "install.packages(c('ncdf4', 'rjson', 'seacarb'))"
+
 RUN mkdir -p /media/share && \
     mkdir -p /media/share/data/IBI/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature} && \
     mkdir -p /media/share/data_merged/IBI/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature} &&\

@@ -24,7 +24,8 @@
             "r_N"     : ["nitrification rate"                    , "1/d"],
             "CN_MA"   : ["macroalgal C:N ratio"                  , "mol/mol"],
             "kcal_MA" : ["nutritional energy content"            , "kcal g-1(dw)"],
-            "prot_MA" : ["protein content"                       , "g g-1(dw)"]
+            "prot_MA" : ["protein content"                       , "g g-1(dw)"],
+            "DF_MA"   : ["dry to fresh weight ratio"             , "g g-1"]
         },
         "options_descriptions": {},
         "defaults": {
@@ -32,7 +33,7 @@
                 "name": "Saccharina",
                 "description": "long blabla",
                 "parameters": {
-                    "mu"      : 0.06,
+                    "mu"      : 0.18,
                     "V_NH4"   : 100,
                     "V_NO3"   : 200,
                     "K_NH4"   : 11,
@@ -53,7 +54,8 @@
                     "r_N"     : 0.1,
                     "CN_MA"   : 21,
                     "kcal_MA" : 2.29,
-                    "prot_MA" : 0.08
+                    "prot_MA" : 0.08,
+                    "DF_MA"   : 0.113
                 },
                 "options": {}
             },
@@ -61,19 +63,19 @@
                 "name": "Alaria",
                 "description": "long blabla",
                 "parameters": {
-                    "mu"      : 0.33,
+                    "mu"      : 0.1,
                     "V_NH4"   : 60,
                     "V_NO3"  : 25,
-                    "K_NH4"   : 700,
-                    "K_NO3"   : 100,
+                    "K_NH4"   : 1,
+                    "K_NO3"   : 5,
                     "Q_max"   : 70,
                     "Q_min"   : 14,
                     "N_to_P"  : 12,
                     "K_c"     : 7,
-                    "T_O"     : 12,
+                    "T_O"     : 5,
                     "T_min"   : 1,
-                    "T_max"   : 25,
-                    "I_s"     : 277,
+                    "T_max"   : 16,
+                    "I_s"     : 60,
                     "a_cs"    : 0.00036,
                     "d_m"     : 0.003,
                     "h_MA"    : 0.4,
@@ -82,7 +84,8 @@
                     "r_N"     : 0.1,
                     "CN_MA"   : 21 ,
                     "kcal_MA" : 2.29,
-                    "prot_MA" : 0.08
+                    "prot_MA" : 0.08,
+                    "DF_MA"   : 0.2
                 },
                 "options": {}
             },
@@ -111,7 +114,8 @@
                     "r_N"     : 0.1,
                     "CN_MA"   : 15,
                     "kcal_MA" : 2.16,
-                    "prot_MA" : 0.105
+                    "prot_MA" : 0.105,
+                    "DF_MA"   : 0.221
                 },
                 "options": {}
             }
