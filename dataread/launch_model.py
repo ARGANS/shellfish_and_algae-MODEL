@@ -151,11 +151,11 @@ class MA_model_scipy:
 
         mu_g_EQT = p.mu * g_E * g_Q * g_T
 
-        f_NH4 = ( p.V_NH4*y['NH4'] / (p.K_NH4 + y['NH4']) ) * ( (p.Q_max - Q) / (p.Q_max - p.Q_min))
-        f_NO3 = ( p.V_NO3*y['NO3'] / (p.K_NO3 + y['NO3']) ) * ( (p.Q_max - Q) / (p.Q_max - p.Q_min))
+        f_NH4 = ( p.V_NH4*y['NH4'] / (p.K_NH4 + y['NH4']) ) * ( (p.Q_max - Q) / (p.Q_max - p.Q_min)) if y['NH4'] > 0 else 0
+        f_NO3 = ( p.V_NO3*y['NO3'] / (p.K_NO3 + y['NO3']) ) * ( (p.Q_max - Q) / (p.Q_max - p.Q_min)) if y['NO3'] > 0 else 0
 
-        NH4_removed = f_NH4 * B - p.r_L * y['D'] + p.r_N * y['NH4'] - p.d_m * y['N_s']
-        NO3_removed = f_NO3 * B - p.r_N * y['NH4']
+        #NH4_removed = f_NH4 * B - p.r_L * y['D'] + p.r_N * y['NH4'] - p.d_m * y['N_s']
+        #NO3_removed = f_NO3 * B - p.r_N * y['NH4']
 
         PO4_tot = data['PO4_ext'] * V_EFF / V_MA
         N_to_P_mg = p.N_to_P * 14
@@ -234,8 +234,8 @@ class MA_model_scipy:
         I_av = ( I_top / absorption ) * (1 - np.exp( - absorption ))
         g_E = I_av / ( p.I_s + I_av)
 
-        f_NH4 = ( p.V_NH4*y['NH4'] / (p.K_NH4 + y['NH4']) ) * ( (p.Q_max - Q) / (p.Q_max - p.Q_min))
-        f_NO3 = ( p.V_NO3*y['NO3'] / (p.K_NO3 + y['NO3']) ) * ( (p.Q_max - Q) / (p.Q_max - p.Q_min))
+        f_NH4 = ( p.V_NH4*y['NH4'] / (p.K_NH4 + y['NH4']) ) * ( (p.Q_max - Q) / (p.Q_max - p.Q_min)) if y['NH4'] > 0 else 0
+        f_NO3 = ( p.V_NO3*y['NO3'] / (p.K_NO3 + y['NO3']) ) * ( (p.Q_max - Q) / (p.Q_max - p.Q_min)) if y['NO3'] > 0 else 0
 
         PO4_tot = data['PO4_ext'] * V_EFF / V_MA
         N_to_P_mg = p.N_to_P * 14
