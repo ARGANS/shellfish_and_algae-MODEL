@@ -241,11 +241,11 @@ class MA_model_scipy:
         N_to_P_mg = p.N_to_P * 14
 
         ### Useful derivatives and values
-        df_NH4_dNH4 = ( (p.V_NH4*p.K_NH4) / (p.K_NH4+y['NH4'])**2 ) * ((p.Q_max-Q)/(p.Q_max-p.Q_min))
-        df_NO3_dNO3 = ( (p.V_NO3*p.K_NO3) / (p.K_NO3+y['NO3'])**2 ) * ((p.Q_max-Q)/(p.Q_max-p.Q_min))
+        df_NH4_dNH4 = ( (p.V_NH4*p.K_NH4) / (p.K_NH4+y['NH4'])**2 ) * ((p.Q_max-Q)/(p.Q_max-p.Q_min)) if y['NH4'] > 0 else 0
+        df_NO3_dNO3 = ( (p.V_NO3*p.K_NO3) / (p.K_NO3+y['NO3'])**2 ) * ((p.Q_max-Q)/(p.Q_max-p.Q_min)) if y['NO3'] > 0 else 0
 
-        df_NH4_dQ = ((p.V_NH4*y['NH4'])/(p.K_NH4+y['NH4'])) * (-1/(p.Q_max-p.Q_min))
-        df_NO3_dQ = ((p.V_NO3*y['NO3'])/(p.K_NO3+y['NO3'])) * (-1/(p.Q_max-p.Q_min))
+        df_NH4_dQ = ((p.V_NH4*y['NH4'])/(p.K_NH4+y['NH4'])) * (-1/(p.Q_max-p.Q_min)) if y['NH4'] > 0 else 0
+        df_NO3_dQ = ((p.V_NO3*y['NO3'])/(p.K_NO3+y['NO3'])) * (-1/(p.Q_max-p.Q_min)) if y['NO3'] > 0 else 0
 
         dQ_dNs = p.Q_min / y['N_f']
         dQ_dNf = - p.Q_min * y['N_s'] / y['N_f']**2
