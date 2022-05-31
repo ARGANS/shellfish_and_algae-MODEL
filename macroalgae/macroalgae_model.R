@@ -63,7 +63,7 @@ setup_solar_angle<-function(latitude, start_day=0, ndays){
   # Calculates max solar incidence angle theta for each day of year given latitude. 
   # Output is ready to be fed into boundary_forcings to generate approxfun
   # when start_day=0 output starts on 1 Jan
-  declin<-23.45*cos(((360/365)*(1:ndays+10+start_day)))*pi/180
+  declin<-23.45*cos(((360/365)*(1:ndays+10+start_day))*pi/180)
   90-(latitude+declin)
 }
 
