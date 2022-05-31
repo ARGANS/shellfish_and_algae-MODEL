@@ -63,7 +63,7 @@ setup_solar_angle<-function(latitude, start_day=0, ndays){
   # Calculates max solar incidence angle theta for each day of year given latitude. 
   # Output is ready to be fed into boundary_forcings to generate approxfun
   # when start_day=0 output starts on 1 Jan
-  declin<-23.45*cos(((360/365)*(1:ndays+10+start_day))*pi/180)
+  declin<-23.45*cos(((360/365)*(1:ndays+10+start_day)))*pi/180
   90-(latitude+declin)
 }
 
@@ -108,7 +108,7 @@ run_MA_model<-function(input,parameters,y0,output='df'){
   #function can be called from R or python, sets up boundary forcing functions from input data and executes the model function, returns a neat data frame of output values
 
   #create boundary forcings
-  input_functions = boundary_forcings(input, "constant")
+  input_functions = boundary_forcings(input, "linear")
   parms = c(parameters, input_functions)
 
   if (!is.numeric(y0)) {
@@ -301,9 +301,9 @@ MA_model <- function(t,y,parms,...) {
     
     output<-list(c(dNH4, dNO3,dN_s,dN_f,dD,dYield_farm,dYield_per_m),
          Nf_change = Nf_change,
-         Farm_NO3_demand = Farm_NO3_demand, #g N per day
-         Farm_NH4_demand = Farm_NH4_demand, #g N per day
-         Farm_CO2_demand = (Farm_NO3_demand+Farm_NH4_demand)*(12/14)*CN_MA, #g C per day 
+         Farm_NO3_demand = Farm_NO3_demand, #g N per day per farm
+         Farm_NH4_demand = Farm_NH4_demand, #g N per day per farm
+         Farm_CO2_demand = (Farm_NO3_demand+Farm_NH4_demand)*(12/14)*CN_MA, #g C per day per farm 
          V_EFF = V_EFF,
          V_INT = V_INT,
          Q         = Q,
@@ -315,8 +315,8 @@ MA_model <- function(t,y,parms,...) {
          mu_g_EQT  = mu_g_EQT,
          f_NH4     = f_NH4,
          f_NO3     = f_NO3,
-         kcal_PUA = B*(h_MA/density_MA)*kcal_MA, # kcal/m2 divide by density to give PUA for whole farm area not just macroalgal lines
-         protein_PUA = B*(h_MA/density_MA)*prot_MA/1000 # kg/m2  
+         kcal_PUA = B*(h_MA*density_MA)*kcal_MA, # kcal/m2 multiply by density to give PUA for whole farm area not just macroalgal lines
+         protein_PUA = B*(h_MA*density_MA)*prot_MA/1000 # kg/m2 
          
     )
   }) 
