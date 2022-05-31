@@ -1,5 +1,4 @@
 #!/bin/bash
-echo $SOURCE_DIR
 input_path="$SOURCE_DIR"
 destination=$input_path/posttreatment
 tmp_path=/tmp/$(basename $input_path)
@@ -10,9 +9,8 @@ mkdir -p $tmp_path
 rm -rf $tmp_path/*
 
 
-now=$(date +%s)
-echo -n "$now" > $destination/start.mark 
-
+echo -n $(date +%s) > $destination/start.mark 
+cp $input_path/parameters.json $destination/parameters.json
 
 #  make_interest_vars.R mutates the inputed data
 cp $input_path/concat.nc $tmp_path/concat.nc
@@ -20,10 +18,9 @@ cp $input_path/concat.nc $tmp_path/concat.nc
 
 
 for variable in 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA'; do
-    gdal_translate NETCDF:$tmp_path/concat.nc:$variable $destination/$variable.tif
+    gdal_translate NETCDF:"$tmp_path/concat.nc":$variable $destination/$variable.tif
 done 
 
 
-now=$(date +%s)
-echo -n "$now" > $destination/end.mark 
+echo -n $(date +%s) > $destination/end.mark 
 rm -rf $tmp_path

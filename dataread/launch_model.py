@@ -173,7 +173,78 @@ class MA_model_scipy:
 
         return np.array([dNH4, dNO3, dN_s, dN_f, dD])
 
+    @staticmethod
+    def derivative_fast_advection(t: float, y: np.array, data: dict, latitude: float, self):
+        """
+        data is a dict of functions giving the value of the data at time t.
 
+        same as derivative(). Used when data can be passed directly to hadley()
+        """
+
+        # yToR = dict(zip(self.names, y)) # 0.001
+
+        out = self.hadley_advection(t, y, data, latitude)
+
+        return out
+
+    def hadley_advection(self, t: float, y, data, latitude: float):
+        """Python implementation of the Hadley model adapted by M. Johnson
+
+            y and data must be subscriptable by names (dict, pd.Series,...)
+        """
+
+        p = SimpleNamespace(**self._parameters)
+
+        V_MA = p.y_farm * p.x_farm * p.density_MA * p.h_MA
+        V_INT = p.y_farm * p.x_farm * data['t_z']
+        V_EFF = p.y_farm * (p.x_farm + data['F_in']) * data['t_z']
+
+        turnover = data['F_in'] / p.x_farm  # lambda is taken in python
+
+        Q = (p.Q_min * (1 + y['N_s'] / y['N_f'])) * (y['N_f'] > 0)
+        B = y['N_f'] / p.Q_min
+        g_Q = np.minimum(1, (Q - p.Q_min) / (Q - p.K_c))
+
+        T_x = p.T_max * (data['SST'] > p.T_O) + p.T_min * (1 - (data['SST'] > p.T_O))
+        g_T = np.exp(-2.3 * ((data['SST'] - p.T_O) / (T_x - p.T_O)) ** 2)
+
+        # Only light scheme == 3 for now
+        # still assumes t=0 is jan 1st
+        declin = 23.45 * np.cos(np.radians((360 / 365) * (t + 10)))
+        theta = 90 - (latitude + declin)
+        sine = np.sin(np.radians(theta))
+        I_top = data['PAR'] * np.exp(-data['K_d'] * (p.z - p.h_MA) / sine)
+        absorption = (data['K_d'] * p.h_MA + y['N_f'] * p.a_cs) / sine
+        I_av = (I_top / absorption) * (1 - np.exp(- absorption))
+        g_E = I_av / (p.I_s + I_av)
+
+        mu_g_EQT = p.mu * g_E * g_Q * g_T
+
+        f_NH4 = (p.V_NH4 * y['NH4'] / (p.K_NH4 + y['NH4'])) * ((p.Q_max - Q) / (p.Q_max - p.Q_min))
+        f_NO3 = (p.V_NO3 * y['NO3'] / (p.K_NO3 + y['NO3'])) * ((p.Q_max - Q) / (p.Q_max - p.Q_min))
+
+        f_NH4 = np.minimum((0.9 * y['NH4'] * V_INT / V_MA + p.r_L * y['D'] - p.r_N * y['NH4'] + p.d_m * y['N_s']) / B,
+                           f_NH4)
+        f_NO3 = np.minimum((0.9 * y['NO3'] * V_INT / V_MA + p.r_N * y['NH4']) / B, f_NO3)
+
+        NH4_removed = f_NH4 * B - p.r_L * y['D'] + p.r_N * y['NH4'] - p.d_m * y['N_s']
+        NO3_removed = f_NO3 * B - p.r_N * y['NH4']
+
+        PO4_tot = data['PO4_ext'] * V_EFF / V_MA
+        N_to_P_mg = p.N_to_P * 14
+
+        # derivatives
+        dNH4 = - (f_NH4 * B - p.r_L * y['D'] + p.r_N * y['NH4'] - p.d_m * y['N_s']) * V_MA / V_INT
+
+        dNO3 = - (f_NO3 * B - p.r_N * y['NH4']) * V_MA / V_INT
+
+        dN_s = (f_NH4 + f_NO3) * B - np.minimum(mu_g_EQT * y['N_f'], PO4_tot * N_to_P_mg) - p.d_m * y['N_s']
+
+        dN_f = np.minimum(mu_g_EQT * y['N_f'], PO4_tot * N_to_P_mg) - p.d_m * y['N_f']
+
+        dD = (p.d_m * y['N_f'] - p.r_L * y['D']) * V_MA / V_INT
+
+        return np.array([dNH4, dNO3, dN_s, dN_f, dD])
 
     @staticmethod
     def jacobian(t: float, y: np.array, data: dict, latitude: float, self):

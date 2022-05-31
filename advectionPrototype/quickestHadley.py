@@ -13,11 +13,14 @@ from dateutil.relativedelta import *
 
 # extract the data value at depth in the merged files (all the daily data merged in one file)
 from advectionPrototype.climatology_ellipses import degrees_to_meters
+from dataread.launch_model import MA_model_scipy
 from dataread.read_netcdf import extractVarSubset
+from dataread.utils import import_json
+
 
 def getwantedMergeData(data, depth, dataCmdpath, mergedFilepath='D:/Profils/mjaouen/Documents/alternance/EASME/data/'):
     csvFile = pd.read_csv(dataCmdpath, ';')
-    DataLine = csvFile.loc[csvFile["Parameter"] == data]
+    DataLine = csvFile.loc[(csvFile["Parameter"] == data) & (csvFile["type"] == 'model')]
     variable = DataLine.iloc[0]["variable"]
     # we search after the file containing the wanted data
     for r, d, f in os.walk(mergedFilepath):
@@ -56,8 +59,6 @@ def getData(path,data,zone, depth, latitudeMinwc,latitudeMaxwc, longitudeMinwc,l
     wantedDataLine = dataFin.loc[(dataFin["Parameter"] == data) & (dataFin["Place"] == zone)]
     data = wantedDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
     listValue = []
-    ldate = []
-    dataTabl = []
     for r, d, f in os.walk(path):
         listValue = np.zeros(((len(f)-10)*361,latitudeMaxwc-latitudeMinwc,longitudeMaxwc-longitudeMinwc))
         for i in range(len(f)-10):
@@ -69,8 +70,6 @@ def getData(path,data,zone, depth, latitudeMinwc,latitudeMaxwc, longitudeMinwc,l
             #ldate += [ds['time'][0]]
             # we get the data
             listValue[i*361:(i+1)*361] = ds[data][:, latitudeMinwc:latitudeMaxwc, longitudeMinwc:longitudeMaxwc]
-    #listValue, ldate = sortDateList(listValue, ldate)
-    #dataTabl += [listValue.tolist()]
     return listValue
 
 #give the indices coresponding to lonval, and latval in the list of coordinates
@@ -97,10 +96,7 @@ def u2d_cgrid_cur(var):
     for i in range(var.shape[1]):
         for j in range(var.shape[2] - 2,-1,-1):
             if ((not ma.is_masked(var[0,i, j])) & (not ma.is_masked(var[0,i, j + 1]))):
-                #varcg[:, i , j+ 1] = 2 * var[:, i , j+ 1] - varcg[:, i, j + 2]
                 varcg[:,i, j ] = (var[:,i, j] + var[:,i, j+1])/2
-                '''            elif ((not ma.is_masked(var[0,i, j+1])) & (ma.is_masked(var[0,i, j + 2]))):
-                                varcg[:, i, j + 1] = var[:, i, j + 1]'''
     return varcg
 
 def v2d_cgrid_cur(var):
@@ -109,7 +105,6 @@ def v2d_cgrid_cur(var):
         for j in range(var.shape[2]):
             if ((not ma.is_masked(var[0,i, j])) & (not ma.is_masked(var[0,i + 1, j]))):
                 varcg[:, i, j] =  (var[:, i, j] + var[:, i + 1, j])/2
-                #varcg[:,i + 1, j] = 2 * var[:,i+1, j] - varcg[:,i+2, j]
     return varcg
 
 def giveCFL(dx,dy,dt,Ewc,Nwc,nbrx,nbry):
@@ -179,9 +174,9 @@ def findNan(dataNO3,nbry):
     return westNanList, eastNanList, upNanList, downNanList, west2NanList, east2NanList, up2NanList, down2NanList,\
            downEastNanList, upWestNanList, downWestNanList, upEastNanList
 
-def createMatE(nbrx, nbry,centuredEwc,eastNanList, westNanList, east2NanList, west2NanList, alpha1, alpha2):
+def createMatE(nbrx, nbry,decenturedEwc,eastNanList, westNanList, east2NanList, west2NanList, alpha1, alpha2):
     offset = np.array([0, -1, 1, -2, 2])
-    uGreater0 = ((centuredEwc[:, 1:] > 0) * 1).reshape(nbrx * nbry)
+    uGreater0 = ((decenturedEwc[:, 1:] > 0) * 1).reshape(nbrx * nbry)
     termA = (1 - 2 * alpha1 + alpha2) * uGreater0 - (1 - uGreater0) * (2 * alpha1 + alpha2 - 1)
     termB = (alpha1 - 2 * alpha2 - 1) * uGreater0 - alpha1 * (1 - uGreater0)
     termC = alpha1 * uGreater0 + (1 - alpha1 - 2 * alpha2) * (1 - uGreater0)
@@ -213,9 +208,9 @@ def createMatE(nbrx, nbry,centuredEwc,eastNanList, westNanList, east2NanList, we
     return Mat
 
 
-def createMatN(nbrx, nbry, centuredNwc, downNanList, upNanList, down2NanList, up2NanList, alpha1, alpha2):
+def createMatN(nbrx, nbry, decenturedNwc, downNanList, upNanList, down2NanList, up2NanList, alpha1, alpha2):
     offset = np.array([0, -nbry, nbry, -2*nbry, 2*nbry])
-    vGreater0 = ((centuredNwc[1:] > 0) * 1).reshape(nbrx * nbry)
+    vGreater0 = ((decenturedNwc[1:] > 0) * 1).reshape(nbrx * nbry)
     termA = (1-2*alpha1+alpha2) * vGreater0 - (1 - vGreater0) * (2*alpha1+alpha2-1)
     termB = (alpha1-2*alpha2-1) * vGreater0 - alpha1 * (1 - vGreater0)
     termC = alpha1 * vGreater0 + (1-alpha1-2*alpha2) * (1 - vGreater0)
@@ -243,113 +238,226 @@ def createMatN(nbrx, nbry, centuredNwc, downNanList, upNanList, down2NanList, up
 
     return Mat
 
-def quickest(dyMeter, dxlist, dt,discr, centuredEwc, centuredNwc, dataNO3, Ks, firstday):
-    nbrStep = int(len(centuredNwc) * discr)
-    C = np.zeros(np.shape(dataNO3[0]))
+def giveEpsilon(day,temp, NH4, NO3,N_s, N_f, D, Nwc, Ewc, latRef, model):
+    data_in = {
+        'SST': temp,
+        'PAR': 500,
+        'NH4_ext': NH4,
+        'NO3_ext': NO3,
+        'PO4_ext': 50,
+        'K_d': 0.1,
+        'F_in': np.sqrt(Nwc ** 2 + Ewc ** 2),
+        'h_z_SML': 30,
+        't_z': 10,
+        'D_ext': 0.1
+    }
+    y = dict(zip(["NH4", "NO3", "N_s", "N_f", "D"],[NH4, NO3, N_s, N_f, D]))
+    return model.derivative_fast_advection(day, y, data_in, latRef, model)
+
+
+def quickest(dyMeter, dxlist, dt,discr, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, dataNH4, dataTemp, Ks, firstday, model):
+    nbrStep = int(len(Nwc) * discr)
+    cNO3 = np.zeros(np.shape(dataNO3[0]))
+    cNH4 = np.zeros(np.shape(dataNH4[0]))
+    N_s = np.zeros(np.shape(dataNH4[0]))
+    N_f = np.ones(np.shape(dataNH4[0]))*1000
+    D = np.ones(np.shape(dataNH4[0]))*0.1
     (nbrx, nbry) = np.shape(dataNO3[0])
     mask = dataNO3.mask
     maskpos2D = np.where(mask[0] == True)
     init = time.time()
     westNanList, eastNanList, upNanList, downNanList, west2NanList, east2NanList, up2NanList, down2NanList, \
     downEastNanList, upWestNanList, downWestNanList, upEastNanList = findNan(dataNO3,nbry)
-    listCprim = [dataNO3[0][CPlat,CPlon]]
-    listC = [dataNO3[0][CPlat,CPlon]]
+
     daylist = [firstday]
-    clist = [0]
 
-    indx = np.random.choice(range(nbrx),int(nbrx*nbry/2))
-    indy = np.random.choice(range(nbry),int(nbrx*nbry/2))
-    posFarm = np.ones((nbrx, nbry))
-    posFarm[indx,indy] = 0
+    listNO3prim = [dataNO3[0][CPlat, CPlon]]
+    listNO3 = [dataNO3[0][CPlat, CPlon]]
 
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(posFarm)
-    CpnIm[maskpos2D] = np.nan
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    ax.invert_yaxis()
-    ax.set_title('Farm position')
-    plt.show()
+    listNH4prim = [dataNH4[0][CPlat, CPlon]]
+    listNH4 = [dataNH4[0][CPlat, CPlon]]
+
+    listDprim = [D[CPlat, CPlon]]
+
+    listN_fprim = [N_f[CPlat, CPlon]]
+
+    listN_sprim = [N_s[CPlat, CPlon]]
 
     for k in range(nbrStep):
         dayNbr =  k// int(discr)
         daylist += [firstday+ relativedelta(minutes=int(k*24*60/discr))]
         hNbr = k // int(discr)
-        if hNbr>len(centuredEwc)-1:
+        if hNbr>len(Ewc)-1:
             break
-        '''if k == 0:
-            fig, ax = plt.subplots()
-            B=np.ones(nbrx * nbry)
-            B[downNanList] = 0
-            B[upNanList] = 0
-            B[eastNanList] = 0
-            B[westNanList] = 0
-            B[downEastNanList] = 0
-            B[upWestNanList] = 0
-            B[downWestNanList] = 0
-            B[upEastNanList] = 0
-            B = B.reshape(nbrx,nbry)
-            B[maskpos2D] = np.nan
-            plt.scatter([CPlon], [CPlat], c='red')
-            plt.imshow(-B)
-            plt.colorbar()
-            ax.invert_yaxis()
-            plt.show()'''
-        C[maskpos2D] = 0
-        CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, centuredEwc[hNbr], centuredNwc[hNbr],nbrx, nbry)
+        cNO3[maskpos2D] = 0
+        cNH4[maskpos2D] = 0
+        D[maskpos2D] = 0
+        N_f[maskpos2D] = 0
+        N_s[maskpos2D] = 0
+        CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, Ewc[hNbr], Nwc[hNbr],nbrx, nbry)
         #print('CFL max: ', max(CFL))
         alpha1 = (1 / 6) * (1 - CFL) * (2 - CFL)
         alpha2 = (1 / 6) * (1 - CFL) * (1 + CFL)
-        matE = createMatE(nbrx, nbry, centuredEwc[hNbr], eastNanList, westNanList, east2NanList, west2NanList, alpha1, alpha2)
-        matN = createMatN(nbrx, nbry, centuredNwc[hNbr], downNanList, upNanList, down2NanList, up2NanList, alpha1, alpha2)
+        matE = createMatE(nbrx, nbry, Ewc[hNbr], eastNanList, westNanList, east2NanList, west2NanList, alpha1, alpha2)
+        matN = createMatN(nbrx, nbry, Nwc[hNbr], downNanList, upNanList, down2NanList, up2NanList, alpha1, alpha2)
 
-        '''B = np.zeros((nbrx , nbry))
-        B[158,9] = 1*dt
-        B[145,34] = 1*dt
-        B[130,50] = 1*dt
-        B[110,81] = 1*dt
-        B[72,90] = 1*dt
-        B[44,86] = 1*dt
-        B[27,71] = 1*dt
-        B[31,16] = 1*dt
-        B = B.reshape(nbrx * nbry)'''
-        B = -dt * 0.5 * (C + dataNO3[dayNbr])
-        B[indx,indy] = 0
-        B = B.reshape(nbrx * nbry)
-        '''B[downNanList] = 0
-        B[upNanList] = 0
-        B[eastNanList] = 0
-        B[westNanList] = 0
+        days = (daylist[-1]-datetime.datetime(daylist[-1].year, 1, 1, 0)).days # we get the number of the day in the year
+        derivArray = giveEpsilon(days, dataTemp[dayNbr], cNH4+dataNH4[dayNbr], cNO3+dataNO3[dayNbr], N_s, N_f, D, centNwc[hNbr], centEwc[hNbr], latRef, model)
 
-        B[downEastNanList] = 0
-        B[upWestNanList] = 0
-        B[downWestNanList] = 0
-        B[upEastNanList] = 0'''
+        oldNO3Cline = cNO3.reshape(nbrx * nbry)
+        CNO3line = oldNO3Cline - cy*matN.dot(oldNO3Cline) - cx*matE.dot(oldNO3Cline)+(dt/dyMeter)*Ks*matN.dot(matN.dot(oldNO3Cline))+(dt/dxlist.reshape(nbrx * nbry))*Ks*matE.dot(matN.dot(oldNO3Cline)) + derivArray[1].reshape(nbrx * nbry)*dt
+        cNO3 = np.minimum(CNO3line.reshape(nbrx, nbry),0)
 
-        oldCline = C.reshape(nbrx * nbry)
-        Cline = oldCline - cy*matN.dot(oldCline) - cx*matE.dot(oldCline)+(dt/dyMeter)*Ks*matN.dot(matN.dot(oldCline))+(dt/dxlist.reshape(nbrx * nbry))*Ks*matE.dot(matN.dot(oldCline)) + B
+        oldNH4Cline = cNH4.reshape(nbrx * nbry)
+        CNH4line = oldNH4Cline - cy * matN.dot(oldNH4Cline) - cx * matE.dot(oldNH4Cline) + (
+                    dt / dyMeter) * Ks * matN.dot(matN.dot(oldNH4Cline)) + (
+                               dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(matN.dot(oldNH4Cline)) + derivArray[0].reshape(nbrx * nbry)*dt
+        cNH4 = np.minimum(CNH4line.reshape(nbrx, nbry), 0)
 
-        '''Cline[downNanList] = oldCline[downNanList]  + B[downNanList]
-        Cline[upNanList] = oldCline[upNanList] + B[upNanList]
-        Cline[eastNanList] = oldCline[eastNanList] + B[eastNanList]
-        Cline[westNanList] = oldCline[westNanList] + B[westNanList]
+        oldDCline = D.reshape(nbrx * nbry)
+        CDline = oldDCline - cy * matN.dot(oldDCline) - cx * matE.dot(oldDCline) + (
+                    dt / dyMeter) * Ks * matN.dot(matN.dot(oldDCline)) + (
+                               dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(matN.dot(oldDCline)) + derivArray[4].reshape(nbrx * nbry)*dt
+        D = CDline.reshape(nbrx, nbry)
 
-        Cline[downEastNanList] = oldCline[downEastNanList] + B[downEastNanList]
-        Cline[upWestNanList] = oldCline[upWestNanList] + B[upWestNanList]
-        Cline[downWestNanList] = oldCline[downWestNanList] + B[downWestNanList]
-        Cline[upEastNanList] = oldCline[upEastNanList] + B[upEastNanList]'''
-        C = np.minimum(Cline.reshape(nbrx, nbry),0)
-        #C = Cline.reshape(nbrx, nbry)
+        N_s += derivArray[2]*dt
 
-        listCprim += [C[CPlat,CPlon]+dataNO3[dayNbr][CPlat,CPlon]]
-        listC += [dataNO3[dayNbr][CPlat,CPlon]]
-        clist +=[C[CPlat,CPlon]]
+        N_f += derivArray[3]*dt
+
+        listNO3prim += [cNO3[CPlat, CPlon] + dataNO3[dayNbr][CPlat, CPlon]]
+        listNO3 += [dataNO3[dayNbr][CPlat, CPlon]]
+
+        listNH4prim += [cNH4[CPlat, CPlon] + dataNH4[dayNbr][CPlat, CPlon]]
+        listNH4 += [dataNH4[dayNbr][CPlat, CPlon]]
+
+        listDprim += [D[CPlat, CPlon]]
+        listN_fprim += [N_f[CPlat, CPlon]]
+        listN_sprim += [N_s[CPlat, CPlon]]
+
         if k % int(30 * discr) == 0:
             print(k / discr)
             print(time.time() - init)
 
+            fig, ax = plt.subplots()
+            CpnIm = copy.deepcopy(cNO3 + dataNO3[dayNbr - 1])
+            plt.imshow(CpnIm)
+            plt.colorbar()
+            plt.clim(0, 20)
+            ax.invert_yaxis()
+            ax.set_title("NO3'")
+
+            fig, ax = plt.subplots()
+            CpnIm = copy.deepcopy(cNH4 + dataNH4[dayNbr - 1])
+            plt.imshow(CpnIm)
+            plt.colorbar()
+            plt.clim(0, 8)
+            ax.invert_yaxis()
+            ax.set_title("NH4'")
+
+            fig, ax = plt.subplots()
+            ImD = copy.deepcopy(D)
+            ImD[maskpos2D] = np.nan
+            plt.imshow(ImD)
+            plt.colorbar()
+            ax.invert_yaxis()
+            ax.set_title("D")
+
+            fig, ax = plt.subplots()
+            CpnIm = copy.deepcopy(N_s)
+            plt.imshow(CpnIm)
+            plt.colorbar()
+            ax.invert_yaxis()
+            ax.set_title("N_s")
+
+            fig, ax = plt.subplots()
+            CpnIm = copy.deepcopy(N_f)
+            plt.imshow(CpnIm)
+            plt.colorbar()
+            ax.invert_yaxis()
+            ax.set_title("N_f")
+
+            fig, ax = plt.subplots()
+            CpnIm = copy.deepcopy(derivArray[1]*dt)
+            plt.imshow(CpnIm)
+            plt.colorbar()
+            plt.clim(0, 20)
+            ax.invert_yaxis()
+            ax.set_title("dNO3'")
+
+            fig, ax = plt.subplots()
+            CpnIm = copy.deepcopy(derivArray[0]*dt)
+            CpnIm[maskpos2D] = np.nan
+            plt.imshow(CpnIm)
+            plt.colorbar()
+            plt.clim(0, 8)
+            ax.invert_yaxis()
+            ax.set_title("dNH4'")
+
+            fig, ax = plt.subplots()
+            CpnIm = copy.deepcopy(derivArray[4]*dt)
+            CpnIm[maskpos2D] = np.nan
+            plt.imshow(CpnIm)
+            plt.colorbar()
+            ax.invert_yaxis()
+            ax.set_title("dD")
+
+            fig, ax = plt.subplots()
+            CpnIm = copy.deepcopy(derivArray[2]*dt)
+            CpnIm[maskpos2D] = np.nan
+            plt.imshow(CpnIm)
+            plt.colorbar()
+            ax.invert_yaxis()
+            ax.set_title("dN_s")
+
+            fig, ax = plt.subplots()
+            CpnIm = copy.deepcopy(derivArray[3]*dt)
+            CpnIm[maskpos2D] = np.nan
+            plt.imshow(CpnIm)
+            plt.colorbar()
+            ax.invert_yaxis()
+            ax.set_title("dN_f")
+
+            plt.show()
+
+            fig, ax = plt.subplots()
+            plt.plot(daylist, listNO3, label='NO3')
+            ax.plot(daylist, listNO3prim, label="NO3' daily")
+            ax.legend()
+            ax.set_xlabel('date')
+            ax.set_ylabel('Nitrate')
+            plt.show()
+
+            fig, ax = plt.subplots()
+            plt.plot(daylist, listNH4, label='NH4')
+            ax.plot(daylist, listNH4prim, label="NH4' daily")
+            ax.legend()
+            ax.set_xlabel('date')
+            ax.set_ylabel('Ammonium')
+            plt.show()
+
+            fig, ax = plt.subplots()
+            ax.plot(daylist, listDprim, label="D daily")
+            ax.legend()
+            ax.set_xlabel('date')
+            ax.set_ylabel('Detritus')
+            plt.show()
+
+            fig, ax = plt.subplots()
+            ax.plot(daylist, listN_fprim, label="N_f' daily")
+            ax.legend()
+            ax.set_xlabel('date')
+            ax.set_ylabel('fixed nitrate')
+            plt.show()
+
+            fig, ax = plt.subplots()
+            ax.plot(daylist, listN_sprim, label="N_s' daily")
+            ax.legend()
+            ax.set_xlabel('date')
+            ax.set_ylabel('stored nitrate')
+            plt.show()
+
     fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(C)
+    CpnIm = copy.deepcopy(cNO3)
     CpnIm[maskpos2D] = np.nan
     plt.imshow(CpnIm)
     plt.colorbar()
@@ -359,25 +467,16 @@ def quickest(dyMeter, dxlist, dt,discr, centuredEwc, centuredNwc, dataNO3, Ks, f
     plt.show()
 
     fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(C + dataNO3[dayNbr-1])
+    CpnIm = copy.deepcopy(cNO3 + dataNO3[dayNbr-1])
     CpnIm[maskpos2D] = np.nan
     plt.imshow(CpnIm)
     plt.colorbar()
     plt.clim(0, 20)
-    # plt.scatter([9,34,50,81,90,86,71,16],[158,145,130,110,72,44,27,31], c='red')
     ax.invert_yaxis()
     ax.set_title("C'")
     plt.show()
 
-    #print(listCprim)
-    fig, ax = plt.subplots()
-    plt.plot(daylist,listC, label='C')
-    #plt.plot(daylist[:len(listCprimHourly)],listCprimHourly, label='C prime Hourly')
-    ax.plot(daylist, listCprim, label="C' daily")
-    ax.legend()
-    ax.set_xlabel('date')
-    ax.set_ylabel('Nitrate')
-    plt.show()
+
 
 if __name__ == "__main__":
 
@@ -401,8 +500,12 @@ if __name__ == "__main__":
 
     CPlat,CPlon = 153, 56
 
+    firstday = datetime.datetime.strptime('2020-01-18', '%Y-%m-%d')
+
     dataCmdpath = 'I:/work-he/apps/safi/data/IBI/dataCmd.csv'
     dataNO3, ds = getwantedMergeData('Nitrate', depth, dataCmdpath)
+    dataNH4, ds = getwantedMergeData('Ammonium', depth, dataCmdpath)
+    dataTemp, ds = getwantedMergeData('Temperature', depth, dataCmdpath)
 
     fileU = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/cmems_mod_ibi_phy_u0.nc'
     dataBaseEwc = nc.Dataset(fileU)
@@ -424,19 +527,10 @@ if __name__ == "__main__":
     longitudeMin, latitudeMin = givecoor(olddataBaseNwc, lonmin, latmin, 'northward_Water_current', dataFin)  # we get the indices of the wanted position
     longitudeMax, latitudeMax = givecoor(olddataBaseNwc, lonmax, latmax, 'northward_Water_current', dataFin)  # we get the indices of the wanted position
 
-    '''longitudeMinwc, latitudeMinwc = givecoor(dataBaseNwc, lonmin, latmin, 'northward_Water_current',
-                                         dataFin)  # we get the indices of the wanted position
-    longitudeMaxwc, latitudeMaxwc = givecoor(dataBaseNwc, lonmax, latmax, 'northward_Water_current',
-                                         dataFin)  # we get the indices of the wanted position'''
-    #we get the hourly data
-    '''dataEwc = getData('D:/Profils/mjaouen/Documents/alternance/EASME/data/eastward_Water_current/', 'eastward_Water_current', zone, depth, latitudeMin, latitudeMax, longitudeMin, longitudeMax)
-    dataNwc = getData('D:/Profils/mjaouen/Documents/alternance/EASME/data/northward_Water_current/',
-                      'northward_Water_current', zone, depth, latitudeMin, latitudeMax, longitudeMin,
-                      longitudeMax)
-    print(np.shape(dataEwc))'''
-
     #print(np.shape(dataNwc))
     dataNO3 = dataNO3[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
+    dataNH4 = dataNH4[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
+    dataTemp = dataTemp[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
 
     #we get daily data
     dataEwc, ds = getwantedMergeData('eastward_Water_current', depth, dataCmdpath)
@@ -451,58 +545,20 @@ if __name__ == "__main__":
     dataEwc[np.where(np.abs(dataEwc) >1e8)]=0
     dataNwc[np.where(np.abs(dataNwc) >1e8)] = 0
 
-    print(np.shape(np.array(dataBaseEwc[ewcDataLine.iloc[-1]["latName"]][latitudeMin:latitudeMax])))
-    print(np.shape(dataEwc[0])[1],np.shape(dataEwc[0])[0])
-
     latRef = np.ones((np.shape(dataEwc[0])[1],np.shape(dataEwc[0])[0]))*np.array(dataBaseEwc[ewcDataLine.iloc[-1]["latName"]][latitudeMin:latitudeMax])
 
-    centuredEwc = u2d_cgrid_cur(dataEwc)
-    centuredNwc = v2d_cgrid_cur(dataNwc)
+    decenturedEwc = u2d_cgrid_cur(dataEwc)
+    decenturedNwc = v2d_cgrid_cur(dataNwc)
 
     dxlist, dyMeter = degrees_to_meters(dxdeg, dydeg, latRef)
 
     dxlist = dxlist.T
     dylist = dyMeter*np.ones(np.shape(dxlist))
 
-    firstday = datetime.datetime.strptime('2020-01-18', '%Y-%m-%d')
 
-    ''' interdataNO3 = np.zeros((np.shape(dataNO3)[0]*24,np.shape(dataNO3)[1],np.shape(dataNO3)[2]))
-    for i in range(np.shape(dataNO3)[1]):
-        for j in range(np.shape(dataNO3)[2]):
-            inter = interpolate.splrep(np.linspace(0,1,len(dataNO3)), dataNO3[:,i,j])
-            interdataNO3[:,i,j] = interpolate.splev(np.linspace(0,1,len(dataNO3)*24), inter)
-    maskNO3 = np.zeros(np.shape(interdataNO3))
-    maskNO3[np.where(interdataNO3>1e8)] = 1
-    interdataNO3 = ma.masked_array(interdataNO3, mask=maskNO3)'''
+    model_params="D:/Profils/mjaouen/Documents/alternance/EASME/gitcode/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
+    json_data=import_json(model_params)
 
-    quickest(dyMeter, dxlist, dt, discr, centuredEwc, centuredNwc, dataNO3, Ks, firstday)
+    model=MA_model_scipy(json_data['parameters'])
 
-    fig, ax = plt.subplots()
-    plt.imshow(dataNwc[1])
-    plt.colorbar()
-    ax.invert_yaxis()
-    # plt.clim(-10, 10)
-    ax.set_title('Northward current')
-
-    fig1, ax1 = plt.subplots()
-    plt.imshow(centuredNwc[1])
-    plt.colorbar()
-    ax1.invert_yaxis()
-    # plt.clim(-10, 10)
-    ax1.set_title('centured Northward current')
-    plt.show()
-
-    fig, ax = plt.subplots()
-    plt.imshow(dataEwc[1])
-    plt.colorbar()
-    ax.invert_yaxis()
-    # plt.clim(-10, 10)
-    ax.set_title('Eastward current')
-
-    fig1, ax1 = plt.subplots()
-    plt.imshow(centuredEwc[1])
-    plt.colorbar()
-    ax1.invert_yaxis()
-    # plt.clim(-10, 10)
-    ax1.set_title('centured Eastward current')
-    plt.show()
+    quickest(dyMeter, dxlist, dt, discr, decenturedEwc, decenturedNwc, dataEwc, dataNwc, latRef.T, dataNO3, dataNH4, dataTemp, Ks, firstday, model)

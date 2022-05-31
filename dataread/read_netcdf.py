@@ -177,18 +177,44 @@ def averageOverMLD(array2D, mld, depthAxis):
 
     return np.average(array2D, 1, weights=weights)
 
-def dateToNum(date, mode='Copernicus'):
+def dateToNum(date, mode):
     # Returns the numeric value associated to date in netCDF files
-    if mode == "Copernicus":
+    # TODO: separate into 2 parameters 'time_step' and 'time_init_year'
+    if mode == "hours_since_1950":
         diff = date - datetime.datetime(1950, 1, 1)
-        num = diff.days * 24 + diff.seconds/3600
+        num = diff.days * 24 + diff.seconds / 3600
+    elif mode == "minutes_since_1900":
+        diff = date - datetime.datetime(1900, 1, 1)
+        num = diff.days * 24 * 60 + diff.seconds / 60
+    elif mode == "seconds_since_1970":
+        diff = date - datetime.datetime(1970, 1, 1)
+        num = diff.days * 24 * 3600 + diff.seconds
+    elif mode == "days_since_1900":
+        diff = date - datetime.datetime(1900, 1, 1)
+        num = diff.days + diff.seconds / (24 * 3600)
+    elif mode == "seconds_since_1900":
+        diff = date - datetime.datetime(1900, 1, 1)
+        num = diff.days * 24 * 3600 + diff.seconds
+    else:
+        print("Invalid time units requested")
 
     return num
 
-def numToDate(num, mode='Copernicus'):
+def numToDate(num, mode):
     # Returns the date associated to num that is found in netCDF files
-    if mode == "Copernicus":
+    # TODO: separate into 2 parameters 'time_step' and 'time_init_year'
+    if mode == "hours_since_1950":
         date = datetime.datetime(1950, 1, 1) + datetime.timedelta(seconds = num*3600)
+    elif mode == "minutes_since_1900":
+        date = datetime.datetime(1900, 1, 1) + datetime.timedelta(seconds = num*60)
+    elif mode == "seconds_since_1970":
+        date = datetime.datetime(1970, 1, 1) + datetime.timedelta(seconds = num)
+    elif mode == "days_since_1900":
+        date = datetime.datetime(1900, 1, 1) + datetime.timedelta(days = num)
+    elif mode == "seconds_since_1900":
+        date = datetime.datetime(1900, 1, 1) + datetime.timedelta(seconds = num)
+    else:
+        print("Invalid time units requested")
 
     return date
 
@@ -202,7 +228,7 @@ class ParamData:
 
     def __init__(self, file_name, variable_name, latitude_name='latitude',
                  longitude_name='longitude', time_name='time', depth_name='depth',
-                 unitConversion=1, date2num=dateToNum, num2date=numToDate):
+                 unitConversion=1, time_units=None):
 
         self.ds = nc.Dataset(file_name)
         self._variableName = variable_name
@@ -214,8 +240,7 @@ class ParamData:
         }
         self._unitConversion = unitConversion
 
-        self.date2num = date2num
-        self.num2date = num2date
+        self.time_units = time_units
 
 
     def getVariable(self, variable=None, averagingDims=None, weighted=True,
@@ -257,9 +282,9 @@ class ParamData:
         # Change the time input(s) for datetime() to numeric values
         if 'time' in kwargs:
             if type(kwargs['time']) is tuple:
-                kwargs['time'] = tuple(self.date2num(date) for date in kwargs['time'])
+                kwargs['time'] = tuple(dateToNum(date, mode=self.time_units) for date in kwargs['time'])
             else:
-                kwargs['time'] = self.date2num(kwargs['time'])
+                kwargs['time'] = dateToNum(kwargs['time'], mode=self.time_units)
 
         newKwargs = {}
         for dim in kwargs.keys():
@@ -282,7 +307,7 @@ class ParamData:
 
         # Change the output from numeric values to datetime() if we output time
         if variable == 'time' and not rawTime:
-            output = np.ma.masked_array([self.num2date(a) for a in output])
+            output = np.ma.masked_array([numToDate(a, mode=self.time_units) for a in output])
 
         # TODO: ensure that the remaining dimensions are always output in the
         # same order, notably (time, depth)
@@ -298,18 +323,21 @@ class ParamData:
 class AllData:
 
     def __init__(self, fileNameList, parameterNameList, variableNameList, latitudeNameList,
-                 longitudeNameList, timeNameList, depthNameList, unitConversionList):
+                 longitudeNameList, timeNameList, depthNameList, unitConversionList,
+                 timeUnitsList):
 
         self.parameterData = {}
         for fileName, parameterName, variableName, latitudeName, longitudeName, timeName, \
-                depthName, unitConversion in \
+                depthName, unitConversion, timeUnits in \
             zip(fileNameList, parameterNameList, variableNameList, latitudeNameList, \
-                longitudeNameList, timeNameList, depthNameList, unitConversionList):
+                longitudeNameList, timeNameList, depthNameList, unitConversionList,
+                timeUnitsList):
 
             self.parameterData[parameterName] = ParamData(file_name=fileName,
                     variable_name=variableName, latitude_name=latitudeName,
                     longitude_name=longitudeName, time_name=timeName,
-                    depth_name=depthName, unitConversion=unitConversion)
+                    depth_name=depthName, unitConversion=unitConversion,
+                    time_units=timeUnits)
 
 
     def getData(self, parameters=None, averagingDims=None, weighted=True, **kwargs):
@@ -463,7 +491,7 @@ if __name__ == "__main__":
     dataRef = pd.read_csv('./dataCmd.csv', delimiter=';')
 
     #paramNames = ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current', 'ocean_mixed_layer_thickness', 'par']
-    paramNames = ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
+    paramNames = ['pCO2', 'disolved_inorganic_carbon', 'primary_producer_POC']
     fileNames = [mainpath + f"{zone}/{param}/{zone}_{param}_merged.nc" for param in paramNames]
 
     #dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][0] for param in paramNames]
@@ -491,9 +519,9 @@ if __name__ == "__main__":
     #df = algaeData.getTimeSeriesInMLD(lat, lon, (startDate, endDate))
     df = algaeData.getTimeSeries(lat, lon, (startDate, endDate), 3)
     #df = algaeData.getTimeSeries(lat, lon, (startDate, endDate), 3, parameters=['Ammonium'])
-    df['current_intensity'] = np.sqrt(df['northward_Water_current']**2 + df['eastward_Water_current']**2)
+    #df['current_intensity'] = np.sqrt(df['northward_Water_current']**2 + df['eastward_Water_current']**2)
     print(df)
-    #df.to_csv(mainpath+'Bantry_data/bantry_3m.csv',
-    #          index=False, sep=';')
+    df.to_csv(mainpath+'bantry_3m_pCO2_DIC_phyC.csv',
+              index=False, sep=';')
 
     del algaeData

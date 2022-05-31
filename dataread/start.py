@@ -33,10 +33,10 @@ algaeData = open_data_input(**input_args)
 
 # TODO parametrize sim_area
 sim_area = {
-    'longitude': (-4, -3),
-    'latitude': (48.5, 49),
-    #'longitude': (-180, 180),
-    #'latitude': (-90, 90),
+    # 'longitude': (-4, -3),
+    # 'latitude': (48.5, 49),
+    'longitude': (-180, 180),
+    'latitude': (-90, 90),
     'time_index': 0,
     'depth': 3
 }
@@ -53,7 +53,7 @@ lon_split = np.array_split(longitudes, n_slices)
 mask_split = np.array_split(mask, n_slices, 1)
 
 model = MA_model_scipy(model_properties.parameters)
-# model_properties.createResultDir()
+
 ### Create datasets for monthly sim
 for i, (lon_arr, mask_arr) in enumerate(zip(lon_split, mask_split)):
     initialize_result(
@@ -73,7 +73,6 @@ n_cells = pool.starmap_async(run_scenario_a_monthly, [(
         True, 
         True
     ) for i in range(n_slices)]).get()
-# n_cells = run_scenario_a_monthly("/media/share/results/complete_simulations_monthly_test_0.nc", model, y0, input_args, 2021)
 
 with open(model_properties.results_dir_path + '/stats.log', 'w') as file:
     file.write(str(n_cells) + '\n')

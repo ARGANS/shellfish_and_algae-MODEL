@@ -151,6 +151,11 @@ def run_scenario_a_monthly(fileName:str, model_params:str, y0:list, input_args:d
 
                 data, dims = algaeData.getData(**data_kwargs)
 
+                # The nearest data for one parameter is masked, ignore this point from now on
+                if np.ma.core.MaskedConstant() in data.values():
+                    mask[i,j] = True
+                    continue
+
                 data_in = {
                     'SST': data['Temperature'],
                     'PAR': 500,
@@ -165,13 +170,13 @@ def run_scenario_a_monthly(fileName:str, model_params:str, y0:list, input_args:d
                 }
 
                 result = solve_ivp(MA_model_scipy.derivative_fast, (days_start, days_end), y0_array[:,i,j], args=(data_in, lat, model),
-                                jac=MA_model_scipy.jacobian_fast, t_eval=[days_end],
+                                jac=MA_model_scipy.jacobian_fast,
                                 rtol=0.05, method='BDF')
 
                 if not result.success:
                     # try again with strict tolerance
                     result = solve_ivp(MA_model_scipy.derivative_fast, (days_start, days_end), y0_array[:,i,j], args=(data_in, lat, model),
-                                jac=MA_model_scipy.jacobian_fast, t_eval=[days_end],
+                                jac=MA_model_scipy.jacobian_fast,
                                 method='BDF')
 
                     if not result.success:
@@ -180,12 +185,12 @@ def run_scenario_a_monthly(fileName:str, model_params:str, y0:list, input_args:d
                         print(result.message)
                         continue
 
-                values[:,i,j] = np.squeeze(result.y)
+                values[:,i,j] = np.squeeze(result.y[:,-1])
 
         # Write values to file
         ds = nc.Dataset(fileName, 'a')
         for k, name in enumerate(model.names):
-            ds[name][month-1,:,:] = values[k,:,:]
+            ds[name][month-1,:,:] = np.ma.masked_array(values[k,:,:], mask)
         ds.close()
 
         # pass result as y0 for next step
@@ -262,6 +267,7 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
     fileNames = [file_adress.format(zone=zone, param=param) for param in paramNames]
 
     #dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][0] for param in paramNames]
+    # TODO: identify one row properly and uniquely, use "frequency" ?
     dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][-1] for param in paramNames]
 
     variableNames = dataRef.iloc[dataRows]['variable'].tolist()
@@ -270,6 +276,7 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
     timeNames = dataRef.iloc[dataRows]['timeName'].fillna('time').tolist()
     depthNames = dataRef.iloc[dataRows]['depthName'].fillna('depth').tolist()
     unitConversions = dataRef.iloc[dataRows]['unitFactor'].fillna(1).tolist()
+    timeUnits = dataRef.iloc[dataRows]['time_units'].tolist()
 
     data = AllData(fileNameList=fileNames,
                    parameterNameList=paramNames,
@@ -278,7 +285,8 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
                    longitudeNameList=longitudeNames,
                    timeNameList=timeNames,
                    depthNameList=depthNames,
-                   unitConversionList=unitConversions
+                   unitConversionList=unitConversions,
+                   timeUnitsList=timeUnits
     )
 
     return data
