@@ -189,21 +189,33 @@
     "run": {
         "section_name": "Simulation options",
         "section_description": "blabla",
-        "parameters_descriptions": {},
+        "parameters_descriptions": {
+            "min_lon"     : ["Minimum longitude"                                     , "degrees east"],
+            "max_lon"     : ["Maximum longitude"                                     , "degrees east"],
+            "min_lat"     : ["Minimum latitude"                                      , "degrees north"],
+            "max_lat"     : ["Maximum latitude"                                      , "degrees north"],
+            "n_cores"     : ["Number of processing cores to use"                    , ""]
+        },
         "options_descriptions": {
             "harvest_method": ["no harvesting",
-                                "single winter deployment",
-                                "cut and come again"],
+                               "single winter deployment",
+                               "cut and come again"],
             "light_scheme":   ["Zollman self-shading scheme",
-                                "Simple vertical light no self shading",
-                                "Solar angle light no self shading",
-                                "Selfshading with solar angle accounted for"]
+                               "Simple vertical light no self shading",
+                               "Solar angle light no self shading",
+                               "Selfshading with solar angle accounted for"]
         },
         "defaults": {
             "default": {
                 "name": "default",
                 "description": "long blabla",
-                "parameters": {},
+                "parameters": {
+                    "min_lon"             : -180,
+                    "max_lon"             : 180,
+                    "min_lat"             : -90,
+                    "max_lat"             : 90,
+                    "n_cores"             : 10
+                },
                 "options": {
                     "harvest_method": 0,
                     "light_scheme": 3
