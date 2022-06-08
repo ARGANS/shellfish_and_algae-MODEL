@@ -14,7 +14,7 @@ from types import SimpleNamespace
 #import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
-from dataread.read_netcdf import *
+from read_netcdf import *
 
 
 class MA_model:
@@ -175,7 +175,7 @@ class MA_model_scipy:
         return np.array([dNH4, dNO3, dN_s, dN_f, dD])
 
     @staticmethod
-    def derivative_fast_advection(t: float, y: np.array, data: dict,cNO3, cNH4, matE, matN, Ks, cx, cy, nbrx, nbry, dt, dxlist, dyMeter, latitude: float, self):
+    def derivative_fast_advection(t: float, y: np.array, data: dict,cNO3, cNH4, advNO3, advNH4, nbrx, nbry, dt, latitude: float, self):
         """
         data is a dict of functions giving the value of the data at time t.
 
@@ -184,11 +184,11 @@ class MA_model_scipy:
 
         # yToR = dict(zip(self.names, y)) # 0.001
 
-        out = self.hadley_advection(t, y, data, cNO3, cNH4, matE, matN, Ks, cx, cy, nbrx, nbry, dt, dxlist, dyMeter, latitude)
+        out = self.hadley_advection(t, y, data, cNO3, cNH4, advNO3, advNH4, nbrx, nbry, dt, latitude)
 
         return out
 
-    def hadley_advection(self, t: float, y, data, cNO3, cNH4, matE, matN, Ks, cx, cy, nbrx, nbry, dt, dxlist, dyMeter, latitude: float):
+    def hadley_advection(self, t: float, y, data, cNO3, cNH4, advNO3, advNH4, nbrx, nbry, dt, latitude: float):
         """Python implementation of the Hadley model adapted by M. Johnson
 
             y and data must be subscriptable by names (dict, pd.Series,...)
@@ -222,13 +222,7 @@ class MA_model_scipy:
         mu_g_EQT = p.mu * g_E * g_Q * g_T
 
         oldNO3Cline = y['NO3'].reshape(nbrx * nbry)
-        advNO3 = - cy * matN.dot(oldNO3Cline) - cx * matE.dot(oldNO3Cline) + (dt / dyMeter) * Ks * matN.dot(
-            matN.dot(oldNO3Cline)) + (dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(matN.dot(oldNO3Cline))
         oldNH4Cline = y['NH4'].reshape(nbrx * nbry)
-
-        advNH4 = - cy * matN.dot(oldNH4Cline) - cx * matE.dot(oldNH4Cline) + (
-                    dt / dyMeter) * Ks * matN.dot(matN.dot(oldNH4Cline)) + (
-                               dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(matN.dot(oldNH4Cline))
 
         f_NH4 = (p.V_NH4 * y['NH4'] / (p.K_NH4 + y['NH4'])) * ((p.Q_max - Q) / (p.Q_max - p.Q_min))
         f_NO3 = (p.V_NO3 * y['NO3'] / (p.K_NO3 + y['NO3'])) * ((p.Q_max - Q) / (p.Q_max - p.Q_min))
