@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import STAP
@@ -13,8 +12,6 @@ from scipy.integrate import solve_ivp
 from types import SimpleNamespace
 #import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
-
-from dataread.read_netcdf import *
 
 
 class MA_model:
