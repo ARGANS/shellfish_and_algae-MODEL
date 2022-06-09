@@ -43,10 +43,10 @@ for dat in wantedData:
     dataLine = dataFin.loc[dataFin["Parameter"] == dat]
     print(f'dataLine {dataOutputDirectory}')
     pprint(dataLine)
-    if DataLine.iloc[0]["daily"] != 'permanent':
-        if frequency == 2:
+    if dataLine.iloc[0]["daily"] != 'permanent':
+        if frequency == 'monthly':
             getData(dat, zone, dataFin, deepthmin, deepthmax,  dataOutputDirectory, datesList[0], datesList[1],frequency)
-        elif frequency == 1:
+        elif frequency == 'daily':
             for (dateBeg, dateE) in zip(datesList[0], datesList[1]):
                 getData(dat, zone, dataFin, deepthmin, deepthmax, dataOutputDirectory, dateBeg, dateE, frequency)
     else:
