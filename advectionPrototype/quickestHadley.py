@@ -267,7 +267,7 @@ def giveEpsilon(day, temp, NH4, NO3,cNO3, cNH4, advNO3, advNH4, N_s, N_f, D, Nwc
         'K_d': 0.1,
         'F_in': np.sqrt(Nwc ** 2 + Ewc ** 2),
         'h_z_SML': 30,
-        't_z': 0.282,
+        't_z': 10,
         'D_ext': 0.1
     }
     y = dict(zip(["NH4", "NO3", "N_s", "N_f", "D"], [NH4, NO3, N_s, N_f, D]))
@@ -579,16 +579,16 @@ if __name__ == "__main__":
     zone = 'IBI'
     depth = 0
 
-    latmin = 43
-    latmax = 48
+    latmin = None
+    latmax = None
 
-    lonmin = -4
-    lonmax = -0.5
+    lonmin = None
+    lonmax = None
 
     dxdeg = 0.028
     dydeg = 0.028
 
-    discr = 48
+    discr = 72
     dt = 1 / discr
 
     Ks = 1e-3
@@ -676,6 +676,14 @@ if __name__ == "__main__":
 
     model = MA_model_scipy(json_data['parameters'])
 
+    maxCFL = 0
+    (nbrx, nbry) = np.shape(dataNO3[0])
+    for i in range(len(dataEwc)):
+        CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, decenturedEwc[i], decenturedNwc[i], nbrx, nbry)
+        if np.max(CFL)>maxCFL:
+            maxCFL = np.max(CFL)
+            print(maxCFL)
+
     NO3field, NH4field,D, N_f, N_s =  quickest(dyMeter, dxlist, dt, discr, decenturedEwc, decenturedNwc, dataEwc, dataNwc, latRef.T, dataNO3, dataNH4,
              dataTemp, Ks, firstday, model)
     xsize, ysize, ulx, uly, xres, yres = getMetadata(ds,latitudeMin,latitudeMax,longitudeMin,longitudeMax)
@@ -688,5 +696,5 @@ if __name__ == "__main__":
                "I:/work-he/apps/safi/data/IBI/N_f.tiff")
     saveAsTiff(N_s, xsize, ysize, ulx, uly, xres, yres,
                "I:/work-he/apps/safi/data/IBI/N_s.tiff")
-    saveAsTiff(N_f/14, xsize, ysize, ulx, uly, xres, yres,
+    saveAsTiff(N_f/10, xsize, ysize, ulx, uly, xres, yres,
                "I:/work-he/apps/safi/data/IBI/biomass.tiff")

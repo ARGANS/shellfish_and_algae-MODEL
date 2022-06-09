@@ -168,23 +168,23 @@ def validate(value, cls):
 
 
 def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, dateBeginning=None, dateEnd=None,
-            frequency=1):
+            frequency='daily'):
     # we select the lines that contains the data on the right zone
     wantedDataLine = dataFin.loc[
         (dataFin["Parameter"] == wantedData) & (dataFin["Place"] == zone) & (dataFin["daily"] == frequency)]
     for j in wantedDataLine.index.values:
         servicetype = dataFin.iloc[j]["source"]
-        if wantedDataLine.iloc[0]["daily"] == 1:
+        if wantedDataLine.iloc[0]["daily"] == 'daily':
             begDate = splitDate(dateBeginning)
             endDate = splitDate(dateEnd)
             filename = wantedData + zone + (validate(dataFin.iloc[j].get("type"), str) or '') + dataFin.iloc[j][
                 "fileType"] + dateBeginning.strftime("%Y-%m-%d")+ 'to' + dateEnd.strftime("%Y-%m-%d")
-        elif wantedDataLine.iloc[0]["daily"] == 2:
+        elif wantedDataLine.iloc[0]["daily"] == 'monthly':
             begDate = splitDate(dateBeginning)
             endDate = splitDate(dateEnd)
             filename = wantedData + zone + (validate(dataFin.iloc[j].get("type"), str) or '') + dataFin.iloc[j][
                 "fileType"] + dateBeginning.strftime("%Y-%m") + 'to' + dateEnd.strftime("%Y-%m")
-        elif wantedDataLine.iloc[0]["daily"] == 3:
+        elif wantedDataLine.iloc[0]["daily"] == 'hourly':
             begDate = splitDate(dateBeginning)
             endDate = splitDate(dateEnd)
             filename = wantedData + zone + (validate(dataFin.iloc[j].get("type"), str) or '') + dataFin.iloc[j][
@@ -237,10 +237,10 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
 
 
 def giveDateslist(dateBeginning, dateEnd, frequency):
-    if frequency == 2:
+    if frequency == 'monthly':
         begList = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
         endList = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
-    elif frequency == 3:
+    elif frequency == 'monthly':
         datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
         datetimeEnd = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
 
