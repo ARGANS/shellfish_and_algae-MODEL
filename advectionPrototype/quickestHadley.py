@@ -13,6 +13,7 @@ from dateutil.relativedelta import *
 
 # extract the data value at depth in the merged files (all the daily data merged in one file)
 from advectionPrototype.climatology_ellipses import degrees_to_meters
+from advectionPrototype.saveAsTiff import saveAsTiff, getMetadata
 from dataread.launch_model import MA_model_scipy
 from dataread.make_runs import open_data_input
 from dataread.read_netcdf import extractVarSubset
@@ -85,14 +86,20 @@ def givecoor(ds, lonval, latval, dataName, dataFin):
     i = 0
     loni = lonList[i]
     # we browse the data until we find a coordiate bigger than the wanted coordiante
-    while i + 1 < len(lonList) and lonval > loni:
-        i += 1
-        loni = lonList[i]
+    if lonval == None:
+        i= None
+    else:
+        while i + 1 < len(lonList) and lonval > loni:
+            i += 1
+            loni = lonList[i]
     j = 0
     lati = latList[j]
-    while j + 1 < len(latList) and latval > lati:
-        j += 1
-        lati = latList[j]
+    if latval == None:
+        j = None
+    else:
+        while j + 1 < len(latList) and latval > lati:
+            j += 1
+            lati = latList[j]
     return i, j
 
 
@@ -250,8 +257,7 @@ def createMatN(nbrx, nbry, decenturedNwc, downNanList, upNanList, down2NanList, 
     return Mat
 
 
-def giveEpsilon(day, temp, NH4, NO3,cNO3, cNH4, N_s, N_f, D, Nwc, Ewc, latRef, model, matE, matN, Ks, cx, cy, nbrx, nbry, dt,
-                dxlist, dyMeter):
+def giveEpsilon(day, temp, NH4, NO3,cNO3, cNH4, advNO3, advNH4, N_s, N_f, D, Nwc, Ewc, latRef, model, nbrx, nbry, dt):
     data_in = {
         'SST': temp,
         'PAR': 500,
@@ -261,11 +267,11 @@ def giveEpsilon(day, temp, NH4, NO3,cNO3, cNH4, N_s, N_f, D, Nwc, Ewc, latRef, m
         'K_d': 0.1,
         'F_in': np.sqrt(Nwc ** 2 + Ewc ** 2),
         'h_z_SML': 30,
-        't_z': 10,
+        't_z': 0.282,
         'D_ext': 0.1
     }
     y = dict(zip(["NH4", "NO3", "N_s", "N_f", "D"], [NH4, NO3, N_s, N_f, D]))
-    return model.derivative_fast_advection(day, y, data_in,cNO3, cNH4, matE, matN, Ks, cx, cy, nbrx, nbry, dt, dxlist, dyMeter,
+    return model.derivative_fast_advection(day, y, data_in,cNO3, cNH4, advNO3, advNH4, nbrx, nbry, dt,
                                            latRef, model)
 
 
@@ -303,13 +309,10 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
     zeroD = np.zeros((nbrx, nbry))
     zeroN_f = np.zeros((nbrx, nbry))
     zeroN_s = np.zeros((nbrx, nbry))
-
+    maxCFL = 0
     for k in range(nbrStep):
         dayNbr = k // int(discr)
-        daylist += [firstday + relativedelta(minutes=int(k * 24 * 60 / discr))]
         hNbr = k // int(discr)
-        if hNbr > len(Ewc) - 1:
-            break
         cNO3[maskpos2D] = 0
         cNH4[maskpos2D] = 0
         D[maskpos2D] = 0
@@ -319,28 +322,31 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
         # print('CFL max: ', max(CFL))
         alpha1 = (1 / 6) * (1 - CFL) * (2 - CFL)
         alpha2 = (1 / 6) * (1 - CFL) * (1 + CFL)
+        if np.max(CFL)>maxCFL:
+            maxCFL = np.max(CFL)
         matE = createMatE(nbrx, nbry, Ewc[hNbr], eastNanList, westNanList, east2NanList, west2NanList, alpha1, alpha2)
         matN = createMatN(nbrx, nbry, Nwc[hNbr], downNanList, upNanList, down2NanList, up2NanList, alpha1, alpha2)
 
         days = (daylist[-1] - datetime.datetime(daylist[-1].year, 1, 1,
                                                 0)).days  # we get the number of the day in the year
-        derivArray = giveEpsilon(days, dataTemp[dayNbr], cNH4 + dataNH4[dayNbr], cNO3 + dataNO3[dayNbr],cNO3, cNH4, N_s, N_f, D,
-                                 centNwc[hNbr], centEwc[hNbr], latRef, model, matE, matN, Ks, cx, cy, nbrx, nbry, dt,
-                                 dxlist, dyMeter)
 
         oldNO3Cline = cNO3.reshape(nbrx * nbry)
-        CNO3line = oldNO3Cline - cy * matN.dot(oldNO3Cline) - cx * matE.dot(oldNO3Cline) + (
-                    dt / dyMeter) * Ks * matN.dot(matN.dot(oldNO3Cline)) + (
-                               dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(matN.dot(oldNO3Cline)) + derivArray[
-                       1].reshape(nbrx * nbry) * dt
+        oldNH4Cline = cNH4.reshape(nbrx * nbry)
+        advNO3 = - cy * matN.dot(oldNO3Cline) - cx * matE.dot(oldNO3Cline) + (dt / dyMeter) * Ks * matN.dot(
+            matN.dot(oldNO3Cline)) + (dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(matN.dot(oldNO3Cline))
+        advNH4 = - cy * matN.dot(oldNH4Cline) - cx * matE.dot(oldNH4Cline) + (
+                dt / dyMeter) * Ks * matN.dot(matN.dot(oldNH4Cline)) + (
+                         dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(matN.dot(oldNH4Cline))
+
+        derivArray = giveEpsilon(days, dataTemp[dayNbr], cNH4 + dataNH4[dayNbr], cNO3 + dataNO3[dayNbr], cNO3, cNH4,
+                                 advNO3, advNH4, N_s, N_f, D,
+                                 centNwc[hNbr], centEwc[hNbr], latRef, model, nbrx, nbry, dt)
+
+        CNO3line = oldNO3Cline +advNO3 + derivArray[1].reshape(nbrx * nbry) * dt
         cNO3 = np.minimum(CNO3line.reshape(nbrx, nbry), 0)
         #cNO3 = CNO3line.reshape(nbrx, nbry)
 
-        oldNH4Cline = cNH4.reshape(nbrx * nbry)
-        CNH4line = oldNH4Cline - cy * matN.dot(oldNH4Cline) - cx * matE.dot(oldNH4Cline) + (
-                dt / dyMeter) * Ks * matN.dot(matN.dot(oldNH4Cline)) + (
-                           dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(matN.dot(oldNH4Cline)) + derivArray[
-                       0].reshape(nbrx * nbry) * dt
+        CNH4line = oldNH4Cline +advNH4 + derivArray[0].reshape(nbrx * nbry) * dt
         cNH4 = np.minimum(CNH4line.reshape(nbrx, nbry), 0)
         #cNH4 = CNH4line.reshape(nbrx, nbry)
 
@@ -356,180 +362,182 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
         N_f += derivArray[3] * dt
 
         N_f = np.maximum(N_f,-1e-6)
-        listNO3prim += [cNO3[CPlat, CPlon] + dataNO3[dayNbr][CPlat, CPlon]]
         listNO3 += [dataNO3[dayNbr][CPlat, CPlon]]
-
-        listNH4prim += [cNH4[CPlat, CPlon] + dataNH4[dayNbr][CPlat, CPlon]]
-        listNH4 += [dataNH4[dayNbr][CPlat, CPlon]]
-
-        listDprim += [D[CPlat, CPlon]]
-        listN_fprim += [N_f[CPlat, CPlon]]
-        listN_sprim += [N_s[CPlat, CPlon]]
 
         zeroNO3[np.where((cNO3 + dataNO3[dayNbr]) < 0)] += 1
         zeroNH4[np.where((cNH4 + dataNH4[dayNbr]) < 0)] += 1
         zeroD[np.where(D < 0)] += 1
         zeroN_f[np.where(N_f < 0)] += 1
         zeroN_s[np.where(N_s < 0)] += 1
+
+        listNH4 += [dataNH4[dayNbr][CPlat, CPlon]]
         if k % int(30 * discr) == 0:
+            daylist += [firstday + relativedelta(minutes=int(k * 24 * 60 / discr))]
             print(k / discr)
             print(time.time() - init)
+            print('Max CFL',maxCFL)
+            listNH4prim += [cNH4[CPlat, CPlon] + dataNH4[dayNbr][CPlat, CPlon]]
+            listNO3prim += [cNO3[CPlat, CPlon] + dataNO3[dayNbr][CPlat, CPlon]]
+            listDprim += [D[CPlat, CPlon]]
+            listN_fprim += [N_f[CPlat, CPlon]]
+            listN_sprim += [N_s[CPlat, CPlon]]
 
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(zeroNO3)
-            CpnIm[maskpos2D] = np.nan
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            ax.invert_yaxis()
-            ax.set_title("zeros NO3")
 
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(zeroNH4)
-            CpnIm[maskpos2D] = np.nan
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            ax.invert_yaxis()
-            ax.set_title("zeros NH4")
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(zeroNO3)
+    CpnIm[maskpos2D] = np.nan
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    ax.invert_yaxis()
+    ax.set_title("zeros NO3")
 
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(zeroN_f)
-            CpnIm[maskpos2D] = np.nan
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            ax.invert_yaxis()
-            ax.set_title("zeros N_f")
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(zeroNH4)
+    CpnIm[maskpos2D] = np.nan
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    ax.invert_yaxis()
+    ax.set_title("zeros NH4")
 
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(zeroN_s)
-            CpnIm[maskpos2D] = np.nan
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            ax.invert_yaxis()
-            ax.set_title("zeros N_s")
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(zeroN_f)
+    CpnIm[maskpos2D] = np.nan
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    ax.invert_yaxis()
+    ax.set_title("zeros N_f")
 
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(zeroD)
-            CpnIm[maskpos2D] = np.nan
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            ax.invert_yaxis()
-            ax.set_title("zeros D")
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(zeroN_s)
+    CpnIm[maskpos2D] = np.nan
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    ax.invert_yaxis()
+    ax.set_title("zeros N_s")
 
-            plt.show()
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(zeroD)
+    CpnIm[maskpos2D] = np.nan
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    ax.invert_yaxis()
+    ax.set_title("zeros D")
 
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(cNO3 + dataNO3[dayNbr - 1])
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            plt.clim(0, 280)
-            ax.invert_yaxis()
-            ax.set_title("NO3'")
+    plt.show()
 
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(cNH4 + dataNH4[dayNbr - 1])
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            plt.clim(0, 140)
-            ax.invert_yaxis()
-            ax.set_title("NH4'")
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(cNO3 + dataNO3[dayNbr - 1])
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    plt.clim(0, 280)
+    ax.invert_yaxis()
+    ax.set_title("NO3'")
 
-            fig, ax = plt.subplots()
-            ImD = copy.deepcopy(D)
-            ImD[maskpos2D] = np.nan
-            plt.imshow(ImD)
-            plt.colorbar()
-            ax.invert_yaxis()
-            ax.set_title("D")
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(cNH4 + dataNH4[dayNbr - 1])
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    plt.clim(0, 140)
+    ax.invert_yaxis()
+    ax.set_title("NH4'")
 
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(N_s)
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            ax.invert_yaxis()
-            ax.set_title("N_s")
+    fig, ax = plt.subplots()
+    ImD = copy.deepcopy(D)
+    ImD[maskpos2D] = np.nan
+    plt.imshow(ImD)
+    plt.colorbar()
+    ax.invert_yaxis()
+    ax.set_title("D")
 
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(N_f)
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            ax.invert_yaxis()
-            ax.set_title("N_f")
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(N_s)
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    ax.invert_yaxis()
+    ax.set_title("N_s")
 
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(derivArray[1] * dt)
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            plt.clim(0, 280)
-            ax.invert_yaxis()
-            ax.set_title("dNO3'")
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(N_f)
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    ax.invert_yaxis()
+    ax.set_title("N_f")
 
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(derivArray[0] * dt)
-            CpnIm[maskpos2D] = np.nan
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            plt.clim(0, 114)
-            ax.invert_yaxis()
-            ax.set_title("dNH4'")
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(derivArray[1] * dt)
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    plt.clim(0, 280)
+    ax.invert_yaxis()
+    ax.set_title("dNO3'")
 
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(derivArray[4] * dt)
-            CpnIm[maskpos2D] = np.nan
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            ax.invert_yaxis()
-            ax.set_title("dD")
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(derivArray[0] * dt)
+    CpnIm[maskpos2D] = np.nan
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    plt.clim(0, 114)
+    ax.invert_yaxis()
+    ax.set_title("dNH4'")
 
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(derivArray[2] * dt)
-            CpnIm[maskpos2D] = np.nan
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            ax.invert_yaxis()
-            ax.set_title("dN_s")
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(derivArray[4] * dt)
+    CpnIm[maskpos2D] = np.nan
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    ax.invert_yaxis()
+    ax.set_title("dD")
 
-            fig, ax = plt.subplots()
-            CpnIm = copy.deepcopy(derivArray[3] * dt)
-            CpnIm[maskpos2D] = np.nan
-            plt.imshow(CpnIm)
-            plt.colorbar()
-            ax.invert_yaxis()
-            ax.set_title("dN_f")
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(derivArray[2] * dt)
+    CpnIm[maskpos2D] = np.nan
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    ax.invert_yaxis()
+    ax.set_title("dN_s")
 
-            plt.show()
+    fig, ax = plt.subplots()
+    CpnIm = copy.deepcopy(derivArray[3] * dt)
+    CpnIm[maskpos2D] = np.nan
+    plt.imshow(CpnIm)
+    plt.colorbar()
+    ax.invert_yaxis()
+    ax.set_title("dN_f")
 
-            fig, ax = plt.subplots()
-            plt.plot(daylist, listNO3, label='NO3')
-            ax.plot(daylist, listNO3prim, label="NO3' daily")
-            ax.legend()
-            ax.set_xlabel('date')
-            ax.set_ylabel('Nitrate')
+    plt.show()
 
-            fig, ax = plt.subplots()
-            plt.plot(daylist, listNH4, label='NH4')
-            ax.plot(daylist, listNH4prim, label="NH4' daily")
-            ax.legend()
-            ax.set_xlabel('date')
-            ax.set_ylabel('Ammonium')
+    '''fig, ax = plt.subplots()
+    plt.plot(daylist, listNO3, label='NO3')
+    ax.plot(daylist, listNO3prim, label="NO3' daily")
+    ax.legend()
+    ax.set_xlabel('date')
+    ax.set_ylabel('Nitrate')
 
-            fig, ax = plt.subplots()
-            ax.plot(daylist, listDprim, label="D daily")
-            ax.legend()
-            ax.set_xlabel('date')
-            ax.set_ylabel('Detritus')
+    fig, ax = plt.subplots()
+    plt.plot(daylist, listNH4, label='NH4')
+    ax.plot(daylist, listNH4prim, label="NH4' daily")
+    ax.legend()
+    ax.set_xlabel('date')
+    ax.set_ylabel('Ammonium')
 
-            fig, ax = plt.subplots()
-            ax.plot(daylist, listN_fprim, label="N_f' daily")
-            ax.legend()
-            ax.set_xlabel('date')
-            ax.set_ylabel('fixed nitrate')
+    fig, ax = plt.subplots()
+    ax.plot(daylist, listDprim, label="D daily")
+    ax.legend()
+    ax.set_xlabel('date')
+    ax.set_ylabel('Detritus')
 
-            fig, ax = plt.subplots()
-            ax.plot(daylist, listN_sprim, label="N_s' daily")
-            ax.legend()
-            ax.set_xlabel('date')
-            ax.set_ylabel('stored nitrate')
-            plt.show()
+    fig, ax = plt.subplots()
+    ax.plot(daylist, listN_fprim, label="N_f' daily")
+    ax.legend()
+    ax.set_xlabel('date')
+    ax.set_ylabel('fixed nitrate')
+
+    fig, ax = plt.subplots()
+    ax.plot(daylist, listN_sprim, label="N_s' daily")
+    ax.legend()
+    ax.set_xlabel('date')
+    ax.set_ylabel('stored nitrate')
+    plt.show()'''
 
     fig, ax = plt.subplots()
     CpnIm = copy.deepcopy(cNO3)
@@ -538,18 +546,33 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
     plt.colorbar()
     plt.clim(-140, 0)
     ax.invert_yaxis()
-    ax.set_title('c')
+    ax.set_title('cNO3')
     plt.show()
 
     fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(cNO3 + dataNO3[dayNbr - 1])
+    CpnIm = copy.deepcopy(cNH4)
     CpnIm[maskpos2D] = np.nan
     plt.imshow(CpnIm)
     plt.colorbar()
-    plt.clim(0, 280)
+    plt.clim(-80, 0)
     ax.invert_yaxis()
-    ax.set_title("C'")
+    ax.set_title('cNH4')
     plt.show()
+    NO3field, NH4field, D, N_f, N_s = cNO3 + dataNO3[dayNbr - 1], cNH4 + dataNH4[dayNbr - 1], D, N_f, N_s
+    NO3field[maskpos2D] = np.nan
+    NH4field[maskpos2D] = np.nan
+    D[maskpos2D] = np.nan
+    N_f[maskpos2D] = np.nan
+    N_s[maskpos2D] = np.nan
+    print(listNH4prim)
+    print(listNO3prim)
+    print(listDprim)
+    print(listN_fprim)
+    print(listN_sprim)
+    print(daylist)
+    return NO3field, NH4field, D, N_f, N_s
+
+
 
 
 if __name__ == "__main__":
@@ -565,7 +588,7 @@ if __name__ == "__main__":
     dxdeg = 0.028
     dydeg = 0.028
 
-    discr = 288
+    discr = 48
     dt = 1 / discr
 
     Ks = 1e-3
@@ -576,8 +599,8 @@ if __name__ == "__main__":
     firstday = datetime.datetime.strptime('2020-01-18', '%Y-%m-%d')
 
     dataCmdpath = 'D:/Profils/mjaouen/Documents/alternance/EASME/gitcode/shellfish_and_algae-MODEL/dataimport/src/dataCmd.csv'
-    '''dataNO3, ds = getwantedMergeData('Nitrate', depth, dataCmdpath)
-    dataNH4, ds = getwantedMergeData('Ammonium', depth, dataCmdpath)
+    _, ds = getwantedMergeData('Nitrate', depth, dataCmdpath)
+    '''dataNH4, ds = getwantedMergeData('Ammonium', depth, dataCmdpath)
     dataTemp, ds = getwantedMergeData('Temperature', depth, dataCmdpath)'''
 
     input_args = {
@@ -608,9 +631,6 @@ if __name__ == "__main__":
     fileV = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/cmems_mod_ibi_phy_v0.nc'
     dataBaseNwc = nc.Dataset(fileV)
 
-    fileV = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/cmems_mod_ibi_phy_v0.nc'
-    olddataBaseNwc = nc.Dataset(fileV)
-
     dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
 
     ewcDataLine = dataFin.loc[(dataFin["Parameter"] == 'eastward_Water_current') & (dataFin["Place"] == zone)]
@@ -619,9 +639,9 @@ if __name__ == "__main__":
     nwcDataLine = dataFin.loc[(dataFin["Parameter"] == 'northward_Water_current') & (dataFin["Place"] == zone)]
     nwcdataName = nwcDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
 
-    longitudeMin, latitudeMin = givecoor(olddataBaseNwc, lonmin, latmin, 'northward_Water_current',
+    longitudeMin, latitudeMin = givecoor(dataBaseNwc, lonmin, latmin, 'northward_Water_current',
                                          dataFin)  # we get the indices of the wanted position
-    longitudeMax, latitudeMax = givecoor(olddataBaseNwc, lonmax, latmax, 'northward_Water_current',
+    longitudeMax, latitudeMax = givecoor(dataBaseNwc, lonmax, latmax, 'northward_Water_current',
                                          dataFin)  # we get the indices of the wanted position
 
     # we get daily data
@@ -656,5 +676,17 @@ if __name__ == "__main__":
 
     model = MA_model_scipy(json_data['parameters'])
 
-    quickest(dyMeter, dxlist, dt, discr, decenturedEwc, decenturedNwc, dataEwc, dataNwc, latRef.T, dataNO3, dataNH4,
+    NO3field, NH4field,D, N_f, N_s =  quickest(dyMeter, dxlist, dt, discr, decenturedEwc, decenturedNwc, dataEwc, dataNwc, latRef.T, dataNO3, dataNH4,
              dataTemp, Ks, firstday, model)
+    xsize, ysize, ulx, uly, xres, yres = getMetadata(ds,latitudeMin,latitudeMax,longitudeMin,longitudeMax)
+    saveAsTiff(NO3field, xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/IBI/NO3field.tiff")
+    saveAsTiff(NH4field, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/IBI/NH4field.tiff")
+    saveAsTiff(D, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/IBI/D.tiff")
+    saveAsTiff(N_f, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/IBI/N_f.tiff")
+    saveAsTiff(N_s, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/IBI/N_s.tiff")
+    saveAsTiff(N_f/14, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/IBI/biomass.tiff")
