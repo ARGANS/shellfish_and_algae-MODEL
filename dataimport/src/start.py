@@ -24,7 +24,9 @@ deepthmax = int(input_parameters['depth_max'])
 
 outputDirectory = cleanFinalSlash(os.getenv('INPUT_DESTINATION'))
 
-wantedData = ['Temperature', 'Nitrate', 'Ammonium', 'eastward_Water_current', 'northward_Water_current', 'pCO2','disolved_inorganic_carbon','primary_producer_POC']
+wantedData = ['Temperature', 'Nitrate', 'Ammonium', 'eastward_Water_current', 
+              'northward_Water_current', 'pCO2','disolved_inorganic_carbon','primary_producer_POC',
+              'ocean_mixed_layer_thickness']
 
 dateBeginning = f'{year}-01-01 00:00:00'
 dateEnd = f'{year + 1}-01-01 00:00:00'

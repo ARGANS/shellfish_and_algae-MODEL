@@ -66,7 +66,7 @@ def initialize_result(fileName:str, times, latitudes, longitudes,
     ds.close()
 
 
-def run_scenario_a_monthly(fileName:str, model_params:str, y0:list, input_args:dict, year:int,
+def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:dict, year:int,
                            farm_at_gridSize=False, data_is_monthly=False):
     """Runs simulation on all the grid points in fileName, reading data from
     inputData, and initializing at y0. The simulations are ran on monthly
@@ -140,8 +140,8 @@ def run_scenario_a_monthly(fileName:str, model_params:str, y0:list, input_args:d
                 data_kwargs = {
                     "longitude": lon,
                     "latitude": lat,
-                    "depth": 3
-                    #"depth": model._parameters["z"]
+                    #"depth": 3
+                    "depth": model._parameters["z"]
                 }
                 if data_is_monthly:
                     data_kwargs["time"] = startTime + datetime.timedelta(days=14)
@@ -164,8 +164,7 @@ def run_scenario_a_monthly(fileName:str, model_params:str, y0:list, input_args:d
                     'PO4_ext': 50,
                     'K_d': 0.1,
                     'F_in': np.sqrt(data['northward_Water_current']**2 + data['eastward_Water_current']**2),
-                    'h_z_SML': 30,
-                    't_z': 10,
+                    't_z': data['ocean_mixed_layer_thickness'],
                     'D_ext': 0.1
                 }
 
@@ -268,7 +267,8 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
 
     #dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][0] for param in paramNames]
     # TODO: identify one row properly and uniquely, use "frequency" ?
-    dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][-1] for param in paramNames]
+    #dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][-1] for param in paramNames]
+    dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone) & (dataRef['type']=='model') & (dataRef['daily']==2)][0] for param in paramNames]
 
     variableNames = dataRef.iloc[dataRows]['variable'].tolist()
     latitudeNames = dataRef.iloc[dataRows]['latName'].fillna('latitude').tolist()

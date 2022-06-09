@@ -23,7 +23,7 @@ input_args = {
     'zone' : model_properties.attrs['metadata']['zone'],
     'file_adress' : model_properties.file_template,
     'dataRef' : dataRef,
-    'paramNames' : ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
+    'paramNames' : ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current', 'ocean_mixed_layer_thickness']
 }
 
 ### Initialize the netcdf reading interface
@@ -31,12 +31,14 @@ algaeData = open_data_input(**input_args)
 
 ### get the copernicus grid and mask
 
+parms_run = model_properties.parameters['run']['default']['parameters']
+
 # TODO parametrize sim_area
 sim_area = {
     # 'longitude': (-4, -3),
     # 'latitude': (48.5, 49),
-    'longitude': (-180, 180),
-    'latitude': (-90, 90),
+    'longitude': (parms_run['min_lon'], parms_run['max_lon']),
+    'latitude': (parms_run['min_lat'], parms_run['max_lat']),
     'time_index': 0,
     'depth': 3
 }
@@ -48,7 +50,7 @@ mask1 = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0].mask
 mask2 = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0].mask
 mask3 = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0].mask
 mask = np.logical_or(mask1, np.logical_or(mask2, mask3))
-n_slices = 10
+n_slices = parms_run['n_cores']
 lon_split = np.array_split(longitudes, n_slices)
 mask_split = np.array_split(mask, n_slices, 1)
 
@@ -60,7 +62,7 @@ for i, (lon_arr, mask_arr) in enumerate(zip(lon_split, mask_split)):
         model_properties.getMonthlySimulationsPath(i), 
         np.array(range(1,13)), latitudes, lon_arr, model.names, mask_arr)
 
-pool = mp.Pool(10)
+pool = mp.Pool(parms_run['n_cores'])
 y0 = np.array([0, 0, 0, 1000, 0], dtype=np.float64)
 t0 = time.time()
 
