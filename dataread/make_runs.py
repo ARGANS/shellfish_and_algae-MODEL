@@ -158,7 +158,7 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
 
                 data_in = {
                     'SST': data['Temperature'],
-                    'PAR': 500,
+                    'PAR': data['par'],
                     'NH4_ext': data['Ammonium'],
                     'NO3_ext': data['Nitrate'],
                     'PO4_ext': data['Phosphate'],
