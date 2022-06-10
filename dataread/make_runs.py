@@ -161,7 +161,7 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
                     'PAR': 500,
                     'NH4_ext': data['Ammonium'],
                     'NO3_ext': data['Nitrate'],
-                    'PO4_ext': 50,
+                    'PO4_ext': data['Phosphate'],
                     'K_d': 0.1,
                     'F_in': np.sqrt(data['northward_Water_current']**2 + data['eastward_Water_current']**2),
                     't_z': data['ocean_mixed_layer_thickness'],
@@ -265,10 +265,9 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
 
     fileNames = [file_adress.format(zone=zone, param=param) for param in paramNames]
 
-    #dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][0] for param in paramNames]
-    # TODO: identify one row properly and uniquely, use "frequency" ?
-    #dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone)][-1] for param in paramNames]
-    dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone) & (dataRef['type']=='model') & (dataRef['daily']==2)][0] for param in paramNames]
+    dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone) &
+                              (dataRef['type']=='model') & (dataRef['daily']=='monthly')][0]
+                    for param in paramNames]
 
     variableNames = dataRef.iloc[dataRows]['variable'].tolist()
     latitudeNames = dataRef.iloc[dataRows]['latName'].fillna('latitude').tolist()
