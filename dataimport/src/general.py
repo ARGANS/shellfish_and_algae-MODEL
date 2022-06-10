@@ -238,9 +238,9 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
 
 def giveDateslist(dateBeginning, dateEnd, frequency):
     if frequency == 'monthly':
-        begList = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
-        endList = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
-    elif frequency == 'monthly':
+        begList = [datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')]
+        endList = [datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')]
+    elif frequency == 'hourly':
         datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
         datetimeEnd = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
 
