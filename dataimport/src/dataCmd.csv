@@ -152,7 +152,7 @@ model;eastward_Water_current;BS;https://nrt.cmems-du.eu/motu-web/Motu;BLKSEA_ANA
 model;northward_Water_current;BS;https://nrt.cmems-du.eu/motu-web/Motu;BLKSEA_ANALYSISFORECAST_PHY_007_001-TDS;bs-cmcc-cur-an-fc-m;27.25;42;40.5;47;2.5*2.5;4;01/01/2019;present;marineCopernicus;vo;https://resources.marine.copernicus.eu/product-detail/BLKSEA_ANALYSISFORECAST_PHY_007_001/INFORMATION;0;0.5002;2258.949;NetCDF;;lat;lon;depth;time;monthly;86400;seconds_since_1970
 model;Nitrate;BS;https://nrt.cmems-du.eu/motu-web/Motu;BLKSEA_ANALYSIS_FORECAST_BIO_007_010-TDS;bs-ulg-nut-an-fc-m;27.37;41.9626;40.86;46.8044;3.7*2.8;4;25/11/2019;present;marineCopernicus;no3;https://resources.marine.copernicus.eu/product-detail/BLKSEA_ANALYSIS_FORECAST_BIO_007_010/INFORMATION;0;2.5011;2140.0208;NetCDF;;latitude;longitude;depth;time;monthly;14;seconds_since_1900
 model;Phosphate;BS;https://nrt.cmems-du.eu/motu-web/Motu;BLKSEA_ANALYSIS_FORECAST_BIO_007_010-TDS;bs-ulg-nut-an-fc-m;27.37;41.9626;40.86;46.8044;3.7*2.8;4;25/11/2019;present;marineCopernicus;po4;https://resources.marine.copernicus.eu/product-detail/BLKSEA_ANALYSIS_FORECAST_BIO_007_010/INFORMATION;0;2.5011;2140.0208;NetCDF;;latitude;longitude;depth;time;monthly;;seconds_since_1900
-model;Ammonium;BS;https://nrt.cmems-du.eu/motu-web/Motu;BLKSEA_ANALYSIS_FORECAST_BIO_007_010-TDS;bs-ulg-nut-an-fc-m;27.37;41.9626;40.86;46.8044;3.7*2.8;4;25/11/2019;present;marineCopernicus;no3;https://resources.marine.copernicus.eu/product-detail/BLKSEA_ANALYSIS_FORECAST_BIO_007_010/INFORMATION;0;2.5011;2140.0208;NetCDF;;latitude;longitude;depth;time;monthly;1.4;seconds_since_1900
+model;Ammonium;BS;https://nrt.cmems-du.eu/motu-web/Motu;BLKSEA_ANALYSIS_FORECAST_BIO_007_010-TDS;bs-ulg-nut-an-fc-m;27.37;41.9626;40.86;46.8044;3.7*2.8;4;25/11/2019;present;marineCopernicus;nh4;https://resources.marine.copernicus.eu/product-detail/BLKSEA_ANALYSIS_FORECAST_BIO_007_010/INFORMATION;0;2.5011;2140.0208;NetCDF;;latitude;longitude;depth;time;monthly;1.4;seconds_since_1900
 model;eastward_Water_current;IBI;https://nrt.cmems-du.eu/motu-web/Motu;IBI_ANALYSISFORECAST_PHY_005_001-TDS;cmems_mod_ibi_phy_anfc_0.027deg-2D_PT1H-m ;-19;5;26;56;2.8*2.8;4;25/04/2020;present;marineCopernicus;uo;https://resources.marine.copernicus.eu/product-detail/IBI_ANALYSISFORECAST_PHY_005_001/INFORMATION;0;;;NetCDF;;latitude;longitude;;time;hourly;86400;hours_since_1950
 model;northward_Water_current;IBI;https://nrt.cmems-du.eu/motu-web/Motu;IBI_ANALYSISFORECAST_PHY_005_001-TDS;cmems_mod_ibi_phy_anfc_0.027deg-2D_PT1H-m ;-19;5;26;56;2.8*2.8;4;25/04/2020;present;marineCopernicus;vo;https://resources.marine.copernicus.eu/product-detail/IBI_ANALYSISFORECAST_PHY_005_001/INFORMATION;0;;;NetCDF;;latitude;longitude;;time;hourly;86400;hours_since_1950
 model;disolved_inorganic_carbon;IBI;https://nrt.cmems-du.eu/motu-web/Motu;IBI_ANALYSISFORECAST_BGC_005_004-TDS;cmems_mod_ibi_bgc_anfc_0.027deg-3D_P1D-m;-19;5;26;56;2.8*2.8;4;02/05/2020;present;marineCopernicus;dissic;https://resources.marine.copernicus.eu/product-detail/IBI_ANALYSISFORECAST_BGC_005_004/INFORMATION;0;0.494;5727.917;NetCDF;;latitude;longitude;depth;time;daily;;hours_since_1950
@@ -167,24 +167,24 @@ model;pCO2;BS;https://nrt.cmems-du.eu/motu-web/Motu;BLKSEA_ANALYSIS_FORECAST_BIO
 reanalysis;windu;IBI;;reanalysis-era5-single-levels;10m_u_component_of_wind;-19;5;26;56;;;;;cdsapi;;;;;;grib;12:00;;;;;daily;;
 reanalysis;windv;IBI;;reanalysis-era5-single-levels;10m_v_component_of_wind;-19;5;26;56;;;;;cdsapi;;;;;;grib;12:00;;;;;daily;;
 ;seabed;IBI;;1.0.0;;-19;5;26;56;;;;;WFS;;https://ows.emodnet-seabedhabitats.eu/geoserver/emodnet_open/wfs;;;;;;;;;;permanent;;
-;par;IBI;ftp_hermes;hermes%;772045375;-19;5;26;56;;;;;ftp;PAR_mean;ftp.hermes.acri.fr;;;;NetCDF;;lat;lon;;;monthly;11.574;
+;par;IBI;ftp_hermes;hermes%;799264971;-19;5;26;56;;;;;ftp;PAR_mean;ftp.hermes.acri.fr;;;;NetCDF;;lat;lon;;;monthly;11.574;
 ;bathymetry;NWS;;1.0.0;;-19.8889;12.9997;40.0667;65.0013;;;;;WCS;emodnet:mean;http://ows.emodnet-bathymetry.eu/wcs?;;;;GeoTIFF;;;;;;permanent;;
 reanalysis;windu;NWS;;reanalysis-era5-single-levels;10m_u_component_of_wind;-19.8889;12.9997;40.0667;65.0013;;;;;cdsapi;;;;;;grib;12:00;;;;;daily;;
 reanalysis;windv;NWS;;reanalysis-era5-single-levels;10m_v_component_of_wind;-19.8889;12.9997;40.0667;65.0013;;;;;cdsapi;;;;;;grib;12:00;;;;;daily;;
 ;seabed;NWS;;1.0.0;;-19.8889;12.9997;40.0667;65.0013;;;;;WFS;;https://ows.emodnet-seabedhabitats.eu/geoserver/emodnet_open/wfs;;;;;;;;;;permanent;;
-;par;NWS;ftp_hermes;hermes%;772045375;-19.8889;12.9997;40.0667;65.0013;;;;;ftp;PAR_mean;ftp.hermes.acri.fr;;;;NetCDF;;lat;lon;;;daily;11.574;
+;par;NWS;ftp_hermes;hermes%;799264971;-19.8889;12.9997;40.0667;65.0013;;;;;ftp;PAR_mean;ftp.hermes.acri.fr;;;;NetCDF;;lat;lon;;;monthly;11.574;
 ;bathymetry;Baltic;;1.0.0;;9.0416;30.2087;53.0083;65.891;;;;;WCS;emodnet:mean;http://ows.emodnet-bathymetry.eu/wcs?;;;;GeoTIFF;;;;;;permanent;;
 reanalysis;windu;Baltic;;reanalysis-era5-single-levels;10m_u_component_of_wind;9.0416;30.2087;53.0083;65.891;;;;;cdsapi;;;;;;grib;12:00;;;;;daily;;
 reanalysis;windv;Baltic;;reanalysis-era5-single-levels;10m_v_component_of_wind;9.0416;30.2087;53.0083;65.891;;;;;cdsapi;;;;;;grib;12:00;;;;;daily;;
 ;seabed;Baltic;;1.0.0;;9.0416;30.2087;53.0083;65.891;;;;;WFS;;https://ows.emodnet-seabedhabitats.eu/geoserver/emodnet_open/wfs;;;;;;;;;;permanent;;
-;par;Baltic;ftp_hermes;hermes%;772045375;9.0416;30.2087;53.0083;65.891;;;;;ftp;PAR_mean;ftp.hermes.acri.fr;;;;NetCDF;;lat;lon;;;daily;11.574;
+;par;Baltic;ftp_hermes;hermes%;799264971;9.0416;30.2087;53.0083;65.891;;;;;ftp;PAR_mean;ftp.hermes.acri.fr;;;;NetCDF;;lat;lon;;;monthly;11.574;
 ;bathymetry;MED;;1.0.0;;-17.2917;36.2917;30.1875;45.9792;;;;;WCS;emodnet:mean;http://ows.emodnet-bathymetry.eu/wcs?;;;;GeoTIFF;;;;;;permanent;;
 reanalysis;windu;MED;;reanalysis-era5-single-levels;10m_u_component_of_wind;-17.2917;36.2917;30.1875;45.9792;;;;;cdsapi;;;;;;grib;12:00;;;;;daily;;
 reanalysis;windv;MED;;reanalysis-era5-single-levels;10m_v_component_of_wind;-17.2917;36.2917;30.1875;45.9792;;;;;cdsapi;;;;;;grib;12:00;;;;;daily;;
 ;seabed;MED;;1.0.0;;-17.2917;36.2917;30.1875;45.9792;;;;;WFS;;https://ows.emodnet-seabedhabitats.eu/geoserver/emodnet_open/wfs;;;;;;;;;;permanent;;
-;par;MED;ftp_hermes;hermes%;772045375;-17.2917;36.2917;30.1875;45.9792;;;;;ftp;PAR_mean;ftp.hermes.acri.fr;;;;NetCDF;;lat;lon;;;daily;11.574;
+;par;MED;ftp_hermes;hermes%;799264971;-17.2917;36.2917;30.1875;45.9792;;;;;ftp;PAR_mean;ftp.hermes.acri.fr;;;;NetCDF;;lat;lon;;;monthly;11.574;
 ;bathymetry;BS;;1.0.0;;27.37;41.9626;40.86;46.8044;;;;;WCS;emodnet:mean;http://ows.emodnet-bathymetry.eu/wcs?;;;;GeoTIFF;;;;;;permanent;;
 reanalysis;windu;BS;;reanalysis-era5-single-levels;10m_u_component_of_wind;27.37;41.9626;40.86;46.8044;;;;;cdsapi;;;;;;grib;12:00;;;;;daily;;
 reanalysis;windv;BS;;reanalysis-era5-single-levels;10m_v_component_of_wind;27.37;41.9626;40.86;46.8044;;;;;cdsapi;;;;;;grib;12:00;;;;;daily;;
 ;seabed;BS;;1.0.0;;27.37;41.9626;40.86;46.8044;;;;;WFS;;https://ows.emodnet-seabedhabitats.eu/geoserver/emodnet_open/wfs;;;;;;;;;;permanent;;
-;par;BS;ftp_hermes;hermes%;772045375;27.37;41.9626;40.86;46.8044;;;;;ftp;PAR_mean;ftp.hermes.acri.fr;;;;NetCDF;;lat;lon;;;daily;11.574;
+;par;BS;ftp_hermes;hermes%;799264971;27.37;41.9626;40.86;46.8044;;;;;ftp;PAR_mean;ftp.hermes.acri.fr;;;;NetCDF;;lat;lon;;;monthly;11.574;
