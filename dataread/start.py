@@ -23,7 +23,7 @@ input_args = {
     'zone' : model_properties.attrs['metadata']['zone'],
     'file_adress' : model_properties.file_template,
     'dataRef' : dataRef,
-    'paramNames' : ['Ammonium', 'Nitrate', 'Phosphate', 'Temperature', 'northward_Water_current', 'eastward_Water_current', 'ocean_mixed_layer_thickness', 'par']
+    'paramNames' : ['Ammonium', 'Nitrate', 'Phosphate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
 }
 
 ### Initialize the netcdf reading interface
@@ -31,39 +31,47 @@ algaeData = open_data_input(**input_args)
 
 ### get the copernicus grid and mask
 
-parms_run = model_properties.parameters['run']['default']['parameters']
+parms_run = list(model_properties.parameters['run'].values())[0]['parameters']
+parms_farm = list(model_properties.parameters['farm'].values())[0]['parameters']
+harvest_type, parms_harvest = list(model_properties.parameters['harvest'].items())[0]['parameters']
 
-# TODO parametrize sim_area
 sim_area = {
     # 'longitude': (-4, -3),
     # 'latitude': (48.5, 49),
     'longitude': (parms_run['min_lon'], parms_run['max_lon']),
     'latitude': (parms_run['min_lat'], parms_run['max_lat']),
     'time_index': 0,
-    'depth': 3
+    'depth': parms_farm['z']
 }
 
 longitudes, _ = algaeData.parameterData['Temperature'].getVariable('longitude', **sim_area)
 latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **sim_area)
 
 mask1 = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0].mask
-mask2 = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0].mask
-mask3 = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0].mask
-mask = np.logical_or(mask1, np.logical_or(mask2, mask3))
+#mask2 = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0].mask
+#mask3 = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0].mask
+#mask = np.logical_or(mask1, np.logical_or(mask2, mask3))
+
 n_slices = parms_run['n_cores']
 lon_split = np.array_split(longitudes, n_slices)
-mask_split = np.array_split(mask, n_slices, 1)
+mask_split = np.array_split(mask1, n_slices, 1)
 
 model = MA_model_scipy(model_properties.parameters)
+
+if harvest_type == "Summer_growth":
+    time_axis = np.array(range(parms_harvest.deployment_month, parms_harvest.harvesting_month + 1))
+elif harvest_type == "Winter_growth":
+    time_axis = np.array(list(range(parms_harvest.deployment_month, 13)) +
+                         list(range(1, parms_harvest.harvesting_month + 1)))
 
 ### Create datasets for monthly sim
 for i, (lon_arr, mask_arr) in enumerate(zip(lon_split, mask_split)):
     initialize_result(
-        model_properties.getMonthlySimulationsPath(i), 
-        np.array(range(1,13)), latitudes, lon_arr, model.names, mask_arr)
+        model_properties.getMonthlySimulationsPath(i),
+        time_axis, latitudes, lon_arr, model.names, mask_arr)
 
 pool = mp.Pool(parms_run['n_cores'])
-y0 = np.array([0, 0, 0, 1000, 0], dtype=np.float64)
+y0 = np.array([0, 0, 0, parms_harvest['deployment_Nf'], 0], dtype=np.float64)
 t0 = time.time()
 
 n_cells = pool.starmap_async(run_scenario_a_monthly, [(
@@ -72,7 +80,7 @@ n_cells = pool.starmap_async(run_scenario_a_monthly, [(
         y0, 
         input_args, 
         model_properties.year, 
-        True, 
+        False, 
         True
     ) for i in range(n_slices)]).get()
 

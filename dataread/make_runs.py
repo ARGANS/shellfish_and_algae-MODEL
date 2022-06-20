@@ -93,17 +93,20 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
     mask = ds['NH4'][0,:,:].mask
     latitudes = ds['latitude'][:]
     longitudes = ds['longitude'][:]
+    times = ds['times'][:]
     ds.close()
 
     y0_array = np.tile(np.expand_dims(y0,(1,2)), (1, len(latitudes), len(longitudes)))
     full_mask = np.repeat(np.expand_dims(mask, 0), len(y0), axis=0)
 
-    initTime = datetime.datetime(year, 1, 1, 0)
+    initTime = datetime.datetime(year, 1, 1, 0) # still initiating at 1st january for the light scheme
 
     gridLat = latitudes[1] - latitudes[0]
     gridLon = longitudes[1] - longitudes[0]
 
-    for month in range(1,13):
+    harvest_type, parms_harvest = list(model_params['harvest'].items())[0]['parameters']
+
+    for i_month, month in enumerate(times): # month is integer 1-12
         #print(f"MONTH: {month}")
         startTime = datetime.datetime(year, month, 1, 0)
         if month == 12:
@@ -134,7 +137,7 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
                 if mask[i, j]:
                     continue
 
-                if month==1:
+                if i_month==0:
                     n_cells += 1
 
                 data_kwargs = {
@@ -164,7 +167,7 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
                     'PO4_ext': data['Phosphate'],
                     'K_d': 0.1,
                     'F_in': np.sqrt(data['northward_Water_current']**2 + data['eastward_Water_current']**2),
-                    't_z': data['ocean_mixed_layer_thickness'],
+                    't_z': 1.4 * model._parameters["z"],
                     'D_ext': 0.1
                 }
 
@@ -189,7 +192,7 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
         # Write values to file
         ds = nc.Dataset(fileName, 'a')
         for k, name in enumerate(model.names):
-            ds[name][month-1,:,:] = np.ma.masked_array(values[k,:,:], mask)
+            ds[name][i_month,:,:] = np.ma.masked_array(values[k,:,:], mask)
         ds.close()
 
         # pass result as y0 for next step
@@ -266,7 +269,7 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
     fileNames = [file_adress.format(zone=zone, param=param) for param in paramNames]
 
     dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone) &
-                              (dataRef['type']=='model') & (dataRef['daily']=='monthly')][0]
+                              (dataRef['daily']=='monthly')][0]
                     for param in paramNames]
 
     variableNames = dataRef.iloc[dataRows]['variable'].tolist()
