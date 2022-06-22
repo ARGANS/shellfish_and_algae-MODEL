@@ -93,7 +93,7 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
     mask = ds['NH4'][0,:,:].mask
     latitudes = ds['latitude'][:]
     longitudes = ds['longitude'][:]
-    times = ds['times'][:]
+    times = ds['time'][:]
     ds.close()
 
     y0_array = np.tile(np.expand_dims(y0,(1,2)), (1, len(latitudes), len(longitudes)))
@@ -104,9 +104,11 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
     gridLat = latitudes[1] - latitudes[0]
     gridLon = longitudes[1] - longitudes[0]
 
-    harvest_type, parms_harvest = list(model_params['harvest'].items())[0]['parameters']
+    #parms_harvest = list(model_params['harvest'].values())[0]['parameters']
+    #harvest_type = list(model_params['harvest'].keys())[0]
 
     for i_month, month in enumerate(times): # month is integer 1-12
+        month = int(month)
         #print(f"MONTH: {month}")
         startTime = datetime.datetime(year, month, 1, 0)
         if month == 12:
@@ -161,7 +163,7 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
 
                 data_in = {
                     'SST': data['Temperature'],
-                    'PAR': data['par'],
+                    'PAR': 500,
                     'NH4_ext': data['Ammonium'],
                     'NO3_ext': data['Nitrate'],
                     'PO4_ext': data['Phosphate'],

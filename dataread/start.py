@@ -33,7 +33,8 @@ algaeData = open_data_input(**input_args)
 
 parms_run = list(model_properties.parameters['run'].values())[0]['parameters']
 parms_farm = list(model_properties.parameters['farm'].values())[0]['parameters']
-harvest_type, parms_harvest = list(model_properties.parameters['harvest'].items())[0]['parameters']
+parms_harvest = list(model_properties.parameters['harvest'].values())[0]['parameters']
+harvest_type = list(model_properties.parameters['harvest'].keys())[0]
 
 sim_area = {
     # 'longitude': (-4, -3),
@@ -59,10 +60,10 @@ mask_split = np.array_split(mask1, n_slices, 1)
 model = MA_model_scipy(model_properties.parameters)
 
 if harvest_type == "Summer_growth":
-    time_axis = np.array(range(parms_harvest.deployment_month, parms_harvest.harvesting_month + 1))
+    time_axis = np.array(range(parms_harvest['deployment_month'], parms_harvest['harvesting_month'] + 1))
 elif harvest_type == "Winter_growth":
-    time_axis = np.array(list(range(parms_harvest.deployment_month, 13)) +
-                         list(range(1, parms_harvest.harvesting_month + 1)))
+    time_axis = np.array(list(range(parms_harvest['deployment_month'], 13)) +
+                         list(range(1, parms_harvest['harvesting_month'] + 1)))
 
 ### Create datasets for monthly sim
 for i, (lon_arr, mask_arr) in enumerate(zip(lon_split, mask_split)):
