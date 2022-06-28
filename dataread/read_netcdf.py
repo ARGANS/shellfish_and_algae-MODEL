@@ -177,44 +177,17 @@ def averageOverMLD(array2D, mld, depthAxis):
 
     return np.average(array2D, 1, weights=weights)
 
-def dateToNum(date, mode):
+def dateToNum(date, zero: datetime.datetime, step:datetime.timedelta):
     # Returns the numeric value associated to date in netCDF files
-    # TODO: separate into 2 parameters 'time_step' and 'time_init_year'
-    if mode == "hours_since_1950":
-        diff = date - datetime.datetime(1950, 1, 1)
-        num = diff.days * 24 + diff.seconds / 3600
-    elif mode == "minutes_since_1900":
-        diff = date - datetime.datetime(1900, 1, 1)
-        num = diff.days * 24 * 60 + diff.seconds / 60
-    elif mode == "seconds_since_1970":
-        diff = date - datetime.datetime(1970, 1, 1)
-        num = diff.days * 24 * 3600 + diff.seconds
-    elif mode == "days_since_1900":
-        diff = date - datetime.datetime(1900, 1, 1)
-        num = diff.days + diff.seconds / (24 * 3600)
-    elif mode == "seconds_since_1900":
-        diff = date - datetime.datetime(1900, 1, 1)
-        num = diff.days * 24 * 3600 + diff.seconds
-    else:
-        print("Invalid time units requested")
+
+    num = (date - zero) / step
 
     return num
 
-def numToDate(num, mode):
+def numToDate(num, zero: datetime.datetime, step:datetime.timedelta):
     # Returns the date associated to num that is found in netCDF files
-    # TODO: separate into 2 parameters 'time_step' and 'time_init_year'
-    if mode == "hours_since_1950":
-        date = datetime.datetime(1950, 1, 1) + datetime.timedelta(seconds = num*3600)
-    elif mode == "minutes_since_1900":
-        date = datetime.datetime(1900, 1, 1) + datetime.timedelta(seconds = num*60)
-    elif mode == "seconds_since_1970":
-        date = datetime.datetime(1970, 1, 1) + datetime.timedelta(seconds = num)
-    elif mode == "days_since_1900":
-        date = datetime.datetime(1900, 1, 1) + datetime.timedelta(days = num)
-    elif mode == "seconds_since_1900":
-        date = datetime.datetime(1900, 1, 1) + datetime.timedelta(seconds = num)
-    else:
-        print("Invalid time units requested")
+
+    date = zero + num * step
 
     return date
 
@@ -228,7 +201,7 @@ class ParamData:
 
     def __init__(self, file_name, variable_name, latitude_name='latitude',
                  longitude_name='longitude', time_name='time', depth_name='depth',
-                 unitConversion=1, time_units=None):
+                 unit_conversion=1, time_zero=None, time_step=None):
 
         self.ds = nc.Dataset(file_name)
         self._variableName = variable_name
@@ -238,9 +211,10 @@ class ParamData:
             'time': time_name,
             'depth': depth_name
         }
-        self._unitConversion = unitConversion
+        self._unitConversion = unit_conversion
 
-        self.time_units = time_units
+        self._time_zero = time_zero # datetime.datetime object
+        self._time_step = time_step # datetime.timedelta object
 
 
     def getVariable(self, variable=None, averagingDims=None, weighted=True,
@@ -282,9 +256,9 @@ class ParamData:
         # Change the time input(s) for datetime() to numeric values
         if 'time' in kwargs:
             if type(kwargs['time']) is tuple:
-                kwargs['time'] = tuple(dateToNum(date, mode=self.time_units) for date in kwargs['time'])
+                kwargs['time'] = tuple(dateToNum(date, self._time_zero, self._time_step) for date in kwargs['time'])
             else:
-                kwargs['time'] = dateToNum(kwargs['time'], mode=self.time_units)
+                kwargs['time'] = dateToNum(kwargs['time'], self._time_zero, self._time_step)
 
         newKwargs = {}
         for dim in kwargs.keys():
@@ -307,7 +281,7 @@ class ParamData:
 
         # Change the output from numeric values to datetime() if we output time
         if variable == 'time' and not rawTime:
-            output = np.ma.masked_array([numToDate(a, mode=self.time_units) for a in output])
+            output = np.ma.masked_array([numToDate(a, self._time_zero, self._time_step) for a in output])
 
         # TODO: ensure that the remaining dimensions are always output in the
         # same order, notably (time, depth)
@@ -322,22 +296,16 @@ class ParamData:
 
 class AllData:
 
-    def __init__(self, fileNameList, parameterNameList, variableNameList, latitudeNameList,
-                 longitudeNameList, timeNameList, depthNameList, unitConversionList,
-                 timeUnitsList):
+    def __init__(self, parameter_dict):
+        """
+        parameter_dict is in the form: {"par_name":{args}, "par_name_2":{args2}}
+        where par_name can be any string and args must be named arguments that
+        are passed to ParamData().
+        """
 
         self.parameterData = {}
-        for fileName, parameterName, variableName, latitudeName, longitudeName, timeName, \
-                depthName, unitConversion, timeUnits in \
-            zip(fileNameList, parameterNameList, variableNameList, latitudeNameList, \
-                longitudeNameList, timeNameList, depthNameList, unitConversionList,
-                timeUnitsList):
-
-            self.parameterData[parameterName] = ParamData(file_name=fileName,
-                    variable_name=variableName, latitude_name=latitudeName,
-                    longitude_name=longitudeName, time_name=timeName,
-                    depth_name=depthName, unitConversion=unitConversion,
-                    time_units=timeUnits)
+        for parameterName, dataArgs in parameter_dict.items():
+            self.parameterData[parameterName] = ParamData(**dataArgs)
 
 
     def getData(self, parameters=None, averagingDims=None, weighted=True, **kwargs):
@@ -348,7 +316,7 @@ class AllData:
         ----------
         parameters: list[str]
             Any number of parameter names, as they have been specified in
-            parameterNameList. If None, then all parameters are returned.
+            __init__. If None, then all parameters are returned.
         averagingDims: tuple[str]
             If specified then the function will average the results over the
             specified dimension(s)

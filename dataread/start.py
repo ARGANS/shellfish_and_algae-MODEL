@@ -23,7 +23,8 @@ input_args = {
     'zone' : model_properties.attrs['metadata']['zone'],
     'file_adress' : model_properties.file_template,
     'dataRef' : dataRef,
-    'paramNames' : ['Ammonium', 'Nitrate', 'Phosphate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
+    'paramNames' : ['Ammonium', 'Nitrate', 'Phosphate', 'Temperature', 'northward_Water_current', 'eastward_Water_current'],
+    'with_PAR': model_properties.year
 }
 
 ### Initialize the netcdf reading interface

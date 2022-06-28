@@ -145,7 +145,6 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
                 data_kwargs = {
                     "longitude": lon,
                     "latitude": lat,
-                    #"depth": 3
                     "depth": model._parameters["z"]
                 }
                 if data_is_monthly:
@@ -163,7 +162,7 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
 
                 data_in = {
                     'SST': data['Temperature'],
-                    'PAR': 500,
+                    'PAR': data['PAR'],
                     'NH4_ext': data['Ammonium'],
                     'NO3_ext': data['Nitrate'],
                     'PO4_ext': data['Phosphate'],
@@ -266,32 +265,64 @@ def run_scenario_a(fileName:str, model, y0:list, input_args:dict):
     return n_cells
 
 
-def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.DataFrame):
-
-    fileNames = [file_adress.format(zone=zone, param=param) for param in paramNames]
+def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.DataFrame, with_PAR=None):
 
     dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone) &
                               (dataRef['daily']=='monthly')][0]
                     for param in paramNames]
 
-    variableNames = dataRef.iloc[dataRows]['variable'].tolist()
-    latitudeNames = dataRef.iloc[dataRows]['latName'].fillna('latitude').tolist()
-    longitudeNames = dataRef.iloc[dataRows]['longName'].fillna('longitude').tolist()
-    timeNames = dataRef.iloc[dataRows]['timeName'].fillna('time').tolist()
-    depthNames = dataRef.iloc[dataRows]['depthName'].fillna('depth').tolist()
-    unitConversions = dataRef.iloc[dataRows]['unitFactor'].fillna(1).tolist()
-    timeUnits = dataRef.iloc[dataRows]['time_units'].tolist()
+    # Gives the argument to ParamData() corresponding to a column in dataRef
+    columns_arguments = {
+        'variable': 'variable_name',
+        'latName': 'latitude_name',
+        'longName': 'longitude_name',
+        'timeName': 'time_name',
+        'depthName': 'depth_name',
+        'unitFactor': 'unit_conversion'
+    }
 
-    data = AllData(fileNameList=fileNames,
-                   parameterNameList=paramNames,
-                   variableNameList=variableNames,
-                   latitudeNameList=latitudeNames,
-                   longitudeNameList=longitudeNames,
-                   timeNameList=timeNames,
-                   depthNameList=depthNames,
-                   unitConversionList=unitConversions,
-                   timeUnitsList=timeUnits
-    )
+    # Gives the default value corresponding to a column in dataRef
+    fill_na = {
+        'variable': 'N/A',
+        'latName': 'latitude',
+        'longName': 'longitude',
+        'timeName': 'time',
+        'depthName': 'depth',
+        'unitFactor': 1
+    }
+
+    parameter_dict = {parName: {} for parName in paramNames}
+    for parName, iRow in zip(paramNames, dataRows):
+
+        parameter_dict[parName]['file_name'] = file_adress.format(zone=zone, param=parName)
+
+        # Fill all argNames except file_name, time_zero, and time_step
+        for colName, argName in columns_arguments.items():
+            parameter_dict[parName][argName] = dataRef[colName].fillna(fill_na[colName])[iRow]
+
+        # time_units format is assumed to be "days/hours/minutes/seconds_since_YYYY"
+        time_units = dataRef['time_units'][iRow].split('_')
+        parameter_dict[parName]['time_zero'] = datetime.datetime(int(time_units[2]), 1, 1)
+        parameter_dict[parName]['time_step'] = datetime.timedelta(**{time_units[0]: 1})
+
+    if with_PAR is not None:
+        # with_PAR is an integer corresponding to the simulation year
+        # TODO: Make a different file for each year ?
+        # TODO: rework the time units if we are doing to call PAR with daily
+        #       increments instead of the 15th of the month
+        parameter_dict['PAR'] = {
+            'file_name':'/media/share/PAR/reference_monthly_PAR_2021_filled_4_max0.nc',
+            'variable_name': 'PAR_mean',
+            'latitude_name': 'lat',
+            'longitude_name': 'lon',
+            'time_name': 'time',
+            'depth_name': 'depth',
+            'unit_conversion': 11.574,
+            'time_zero': datetime.datetime(with_PAR, 1, 1) - datetime.timedelta(days=15),
+            'time_step': datetime.timedelta(days=30.4)
+        }
+
+    data = AllData(parameter_dict)
 
     return data
 
