@@ -135,6 +135,9 @@ def extractWithAverage(ncDataset, variable, averagingDims, weighted=True, **kwar
 
     dataArray, dataDims = extractVarSubset(ncDataset, variable, **kwargs)
 
+    # Restrict the averaging dims to only the existing names
+    averagingDims = tuple(dim for dim in averagingDims if dim in dataDims)
+
     weights = np.ones(dataArray.shape)
     if weighted:
         for nameAxis in averagingDims:

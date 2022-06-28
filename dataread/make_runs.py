@@ -145,13 +145,14 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
                 data_kwargs = {
                     "longitude": lon,
                     "latitude": lat,
-                    "depth": model._parameters["z"]
+                    "depth": (0, 1.4 * model._parameters["z"])
                 }
                 if data_is_monthly:
                     data_kwargs["time"] = startTime + datetime.timedelta(days=14)
+                    data_kwargs["averagingDims"] = ("depth",)
                 else:
                     data_kwargs["time"] = (startTime, endTime)
-                    data_kwargs["averaging_dims"] = ("time",)
+                    data_kwargs["averagingDims"] = ("time", "depth")
 
                 data, dims = algaeData.getData(**data_kwargs)
 
