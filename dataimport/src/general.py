@@ -168,10 +168,10 @@ def validate(value, cls):
 
 
 def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, dateBeginning=None, dateEnd=None,
-            frequency='daily'):
+            frequency='daily', type='model'):
     # we select the lines that contains the data on the right zone
     wantedDataLine = dataFin.loc[
-        (dataFin["Parameter"] == wantedData) & (dataFin["Place"] == zone) & (dataFin["daily"] == frequency)]
+        (dataFin["Parameter"] == wantedData) & (dataFin["Place"] == zone) & (dataFin["daily"] == frequency) & (dataFin["type"] == type)]
     for j in wantedDataLine.index.values:
         servicetype = dataFin.iloc[j]["source"]
         if wantedDataLine.iloc[0]["daily"] == 'daily':

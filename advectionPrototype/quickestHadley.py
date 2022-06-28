@@ -20,7 +20,7 @@ from dataread.read_netcdf import extractVarSubset
 from dataread.utils import import_json
 
 
-def getwantedMergeData(data, depth, dataCmdpath, mergedFilepath='D:/Profils/mjaouen/Documents/alternance/EASME/data/'):
+def getwantedMergeData(data, depth, dataCmdpath, mergedFilepath='D:/Profils/mjaouen/Documents/alternance/EASME/data/MED/'):
     csvFile = pd.read_csv(dataCmdpath, ';')
     DataLine = csvFile.loc[(csvFile["Parameter"] == data) & (csvFile["type"] == 'model')]
     variable = DataLine.iloc[0]["variable"]
@@ -78,8 +78,8 @@ def getData(path, data, zone, depth, latitudeMinwc, latitudeMaxwc, longitudeMinw
 
 
 # give the indices coresponding to lonval, and latval in the list of coordinates
-def givecoor(ds, lonval, latval, dataName, dataFin):
-    DataLine = dataFin.loc[dataFin["Parameter"] == dataName]
+def givecoor(ds, lonval, latval, dataName, dataFin,zone):
+    DataLine = dataFin.loc[(dataFin["Parameter"] == dataName) & (dataFin["Place"] == zone)]
     # we get the longitude and latitude list
     lonList = ds[DataLine.iloc[0]["longName"]][:]
     latList = ds[DataLine.iloc[0]["latName"]][:]
@@ -267,7 +267,7 @@ def giveEpsilon(day, temp, NH4, NO3,cNO3, cNH4, advNO3, advNH4, N_s, N_f, D, Nwc
         'K_d': 0.1,
         'F_in': np.sqrt(Nwc ** 2 + Ewc ** 2),
         'h_z_SML': 30,
-        't_z': 10,
+        't_z': 2.8,
         'D_ext': 0.1
     }
     y = dict(zip(["NH4", "NO3", "N_s", "N_f", "D"], [NH4, NO3, N_s, N_f, D]))
@@ -283,6 +283,9 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
     N_s = np.ones(np.shape(dataNH4[0])) * 1000
     N_f = np.ones(np.shape(dataNH4[0])) * 1000
     D = np.ones(np.shape(dataNH4[0])) * 0.1
+
+    totalNH4deficit = np.zeros(np.shape(dataNH4[0]))
+    totalNO3deficit = np.zeros(np.shape(dataNO3[0]))
     (nbrx, nbry) = np.shape(dataNO3[0])
     mask = dataNO3.mask
     maskpos2D = np.where(mask[0] == True)
@@ -346,9 +349,13 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
         cNO3 = np.minimum(CNO3line.reshape(nbrx, nbry), 0)
         #cNO3 = CNO3line.reshape(nbrx, nbry)
 
+        totalNO3deficit += derivArray[1]
+
         CNH4line = oldNH4Cline +advNH4 + derivArray[0].reshape(nbrx * nbry) * dt
         cNH4 = np.minimum(CNH4line.reshape(nbrx, nbry), 0)
         #cNH4 = CNH4line.reshape(nbrx, nbry)
+
+        totalNH4deficit += derivArray[0]
 
         oldDCline = D.reshape(nbrx * nbry)
         CDline = oldDCline - cy * matN.dot(oldDCline) - cx * matE.dot(oldDCline) + (
@@ -570,23 +577,23 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
     print(listN_fprim)
     print(listN_sprim)
     print(daylist)
-    return NO3field, NH4field, D, N_f, N_s
+    return NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit
 
 
 
 
 if __name__ == "__main__":
-    zone = 'IBI'
+    zone = 'MED'
     depth = 0
 
     latmin = None
     latmax = None
 
-    lonmin = None
+    lonmin = -5.5417
     lonmax = None
 
-    dxdeg = 0.028
-    dydeg = 0.028
+    dxdeg = 0.042
+    dydeg = 0.042
 
     discr = 72
     dt = 1 / discr
@@ -596,7 +603,7 @@ if __name__ == "__main__":
 
     CPlat, CPlon = 153, 56
 
-    firstday = datetime.datetime.strptime('2020-01-18', '%Y-%m-%d')
+    firstday = datetime.datetime.strptime('2021-01-01', '%Y-%m-%d')
 
     dataCmdpath = 'D:/Profils/mjaouen/Documents/alternance/EASME/gitcode/shellfish_and_algae-MODEL/dataimport/src/dataCmd.csv'
     _, ds = getwantedMergeData('Nitrate', depth, dataCmdpath)
@@ -604,8 +611,8 @@ if __name__ == "__main__":
     dataTemp, ds = getwantedMergeData('Temperature', depth, dataCmdpath)'''
 
     input_args = {
-        'zone': "IBI",
-        'file_adress': 'D:/Profils/mjaouen/Documents/alternance/EASME/data/merged_{param}_{zone}.nc',
+        'zone': "MED",
+        'file_adress': 'D:/Profils/mjaouen/Documents/alternance/EASME/data/MED/merged_{param}_{zone}.nc',
         'dataRef': pd.read_csv(dataCmdpath, delimiter=';'),
         'paramNames': ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
     }
@@ -625,10 +632,10 @@ if __name__ == "__main__":
     dataNwc = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0]
     dataEwc = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0]
 
-    fileU = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/cmems_mod_ibi_phy_u0.nc'
+    fileU = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/MED/merged_eastward_Water_current_MED.nc'
     dataBaseEwc = nc.Dataset(fileU)
 
-    fileV = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/cmems_mod_ibi_phy_v0.nc'
+    fileV = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/MED/merged_northward_Water_current_MED.nc'
     dataBaseNwc = nc.Dataset(fileV)
 
     dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
@@ -640,9 +647,9 @@ if __name__ == "__main__":
     nwcdataName = nwcDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
 
     longitudeMin, latitudeMin = givecoor(dataBaseNwc, lonmin, latmin, 'northward_Water_current',
-                                         dataFin)  # we get the indices of the wanted position
+                                         dataFin,zone)  # we get the indices of the wanted position
     longitudeMax, latitudeMax = givecoor(dataBaseNwc, lonmax, latmax, 'northward_Water_current',
-                                         dataFin)  # we get the indices of the wanted position
+                                         dataFin,zone)  # we get the indices of the wanted position
 
     # we get daily data
     '''dataEwc, ds = getwantedMergeData('eastward_Water_current', depth, dataCmdpath)
@@ -678,15 +685,20 @@ if __name__ == "__main__":
 
     maxCFL = 0
     (nbrx, nbry) = np.shape(dataNO3[0])
+    print(np.shape(dataNO3[0]))
+    print(np.shape(decenturedEwc[0]))
+    print(np.shape(decenturedNwc[0]))
+    print(np.shape(dxlist))
     for i in range(len(dataEwc)):
         CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, decenturedEwc[i], decenturedNwc[i], nbrx, nbry)
         if np.max(CFL)>maxCFL:
             maxCFL = np.max(CFL)
             print(maxCFL)
-
-    NO3field, NH4field,D, N_f, N_s =  quickest(dyMeter, dxlist, dt, discr, decenturedEwc, decenturedNwc, dataEwc, dataNwc, latRef.T, dataNO3, dataNH4,
+    xsize, ysize, ulx, uly, xres, yres = getMetadata(ds)
+    saveAsTiff(dataNO3[0], xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/IBI/test.tiff")
+    NO3field, NH4field,D, N_f, N_s, totalNH4deficit, totalNO3deficit =  quickest(dyMeter, dxlist, dt, discr, decenturedEwc, decenturedNwc, dataEwc, dataNwc, latRef.T, dataNO3, dataNH4,
              dataTemp, Ks, firstday, model)
-    xsize, ysize, ulx, uly, xres, yres = getMetadata(ds,latitudeMin,latitudeMax,longitudeMin,longitudeMax)
+
     saveAsTiff(NO3field, xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/IBI/NO3field.tiff")
     saveAsTiff(NH4field, xsize, ysize, ulx, uly, xres, yres,
                "I:/work-he/apps/safi/data/IBI/NH4field.tiff")
@@ -698,3 +710,7 @@ if __name__ == "__main__":
                "I:/work-he/apps/safi/data/IBI/N_s.tiff")
     saveAsTiff(N_f/10, xsize, ysize, ulx, uly, xres, yres,
                "I:/work-he/apps/safi/data/IBI/biomass.tiff")
+    saveAsTiff(totalNH4deficit, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/IBI/totalNH4deficit.tiff")
+    saveAsTiff(totalNO3deficit, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/IBI/totalNO3deficit.tiff")
