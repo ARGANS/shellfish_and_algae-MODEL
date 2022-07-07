@@ -36,3 +36,25 @@ ncra -d depth,0.,10. merged.nc averaged.nc
 # Then average over depth
 ncwa -O -a depth averaged.nc averaged.nc
 # TODO: weights ?
+
+### For PAR ocean color
+# In combination with some commands from the hermes PAR process
+
+# Add a time dimension like for hermes PAR
+# clean filename
+file_clean=${filename##*/}
+# get the starting and ending day from the file name
+starting=${file_clean:5:3}
+ending=${file_clean:12:3}
+# Compute the time at the middle of the month, in "days since 2020(or other)-01-01 at 00:00:00"
+# it requires "bc" to be installed (with apt-get)
+day=$(echo "($starting+$ending-1)/2" | bc -l)
+# add the computed day
+ncap2 -O -s 'time[time]='$day test.nc test.nc
+# concatenate like hermes
+# reverse lat like hermes
+# add units attribute to time
+ncatted -O -a units,time,c,c,"days since 2020-01-01 00:00:00" test.nc
+# Cut data over 63°N in January, over 68° in February
+ncap2 -O -s '*par_jan=par(0,:,:); where(lat>63) par_jan=par@_FillValue; par(0,:,:)=par_jan; ram_delete(par_jan)' test.nc test.nc
+ncap2 -O -s '*par_feb=par(1,:,:); where(lat>68) par_feb=par@_FillValue; par(1,:,:)=par_feb; ram_delete(par_feb)' test.nc test.nc
