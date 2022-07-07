@@ -19,10 +19,10 @@ from dataread.make_runs import open_data_input
 from dataread.read_netcdf import extractVarSubset
 from dataread.utils import import_json
 
-
-def getwantedMergeData(data, depth, dataCmdpath, mergedFilepath='D:/Profils/mjaouen/Documents/alternance/EASME/data/MED/'):
+# return an array with all the data for the year
+def getwantedMergeData(data, depth, dataCmdpath, zone, mergedFilepath='D:/Profils/mjaouen/Documents/alternance/EASME/data/MED/'):
     csvFile = pd.read_csv(dataCmdpath, ';')
-    DataLine = csvFile.loc[(csvFile["Parameter"] == data) & (csvFile["type"] == 'model')]
+    DataLine = csvFile.loc[(csvFile["Parameter"] == data) & (csvFile["type"] == 'model') & (csvFile["Place"] == zone)]
     variable = DataLine.iloc[0]["variable"]
     # we search after the file containing the wanted data
     for r, d, f in os.walk(mergedFilepath):
@@ -58,25 +58,6 @@ def sortDateList(listValue, ldate):
     return np.array(sortLval), np.array(sortldate)
 
 
-def getData(path, data, zone, depth, latitudeMinwc, latitudeMaxwc, longitudeMinwc, longitudeMaxwc):
-    dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
-    wantedDataLine = dataFin.loc[(dataFin["Parameter"] == data) & (dataFin["Place"] == zone)]
-    data = wantedDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
-    listValue = []
-    for r, d, f in os.walk(path):
-        listValue = np.zeros(((len(f) - 10) * 361, latitudeMaxwc - latitudeMinwc, longitudeMaxwc - longitudeMinwc))
-        for i in range(len(f) - 10):
-            fn = path + f[i]
-            print(fn)
-            # we read the file
-            ds = nc.Dataset(fn)
-            # we get the date
-            # ldate += [ds['time'][0]]
-            # we get the data
-            listValue[i * 361:(i + 1) * 361] = ds[data][:, latitudeMinwc:latitudeMaxwc, longitudeMinwc:longitudeMaxwc]
-    return listValue
-
-
 # give the indices coresponding to lonval, and latval in the list of coordinates
 def givecoor(ds, lonval, latval, dataName, dataFin,zone):
     DataLine = dataFin.loc[(dataFin["Parameter"] == dataName) & (dataFin["Place"] == zone)]
@@ -102,7 +83,7 @@ def givecoor(ds, lonval, latval, dataName, dataFin,zone):
             lati = latList[j]
     return i, j
 
-
+#this function decentralize the u speeds
 def u2d_cgrid_cur(var):
     varcg = np.zeros((var.shape[0], var.shape[1], var.shape[2] + 1))
     for i in range(var.shape[1]):
@@ -111,7 +92,7 @@ def u2d_cgrid_cur(var):
                 varcg[:, i, j] = (var[:, i, j] + var[:, i, j + 1]) / 2
     return varcg
 
-
+#this function decentralize the u speeds
 def v2d_cgrid_cur(var):
     varcg = np.zeros((var.shape[0], var.shape[1] + 1, var.shape[2]))
     for i in range(var.shape[1] - 2, -1, -1):
@@ -120,13 +101,13 @@ def v2d_cgrid_cur(var):
                 varcg[:, i, j] = (var[:, i, j] + var[:, i + 1, j]) / 2
     return varcg
 
-
+#return the CFL number, cx and cy
 def giveCFL(dx, dy, dt, Ewc, Nwc, nbrx, nbry):
     Cx = np.abs(Ewc[:, 1:] * dt / dx)
     Cy = np.abs(Nwc[1:] * dt / dy)
     return np.maximum(Cx, Cy).reshape(nbrx * nbry), Cx.reshape(nbrx * nbry), Cy.reshape(nbrx * nbry)
 
-
+#take as input a mask (tuple), and return the position of the masked values in a vector (dim x * dim y)
 def createListNan(maskPosition, nbry):
     listeNan = []
     for k in range(len(maskPosition[0])):
@@ -135,7 +116,7 @@ def createListNan(maskPosition, nbry):
         listeNan += [n]
     return listeNan
 
-
+#return the nan or masked data position
 def findNan(dataNO3, nbry):
     dataNO3Copy = copy.deepcopy(dataNO3)
     mask = dataNO3Copy.mask
@@ -191,7 +172,7 @@ def findNan(dataNO3, nbry):
     return westNanList, eastNanList, upNanList, downNanList, west2NanList, east2NanList, up2NanList, down2NanList, \
            downEastNanList, upWestNanList, downWestNanList, upEastNanList
 
-
+#creates the matrix to compute the flux in u direction
 def createMatE(nbrx, nbry, decenturedEwc, eastNanList, westNanList, east2NanList, west2NanList, alpha1, alpha2):
     offset = np.array([0, -1, 1, -2, 2])
     uGreater0 = ((decenturedEwc[:, 1:] > 0) * 1).reshape(nbrx * nbry)
@@ -225,7 +206,7 @@ def createMatE(nbrx, nbry, decenturedEwc, eastNanList, westNanList, east2NanList
 
     return Mat
 
-
+#creates the matrix to compute the flux in v direction
 def createMatN(nbrx, nbry, decenturedNwc, downNanList, upNanList, down2NanList, up2NanList, alpha1, alpha2):
     offset = np.array([0, -nbry, nbry, -2 * nbry, 2 * nbry])
     vGreater0 = ((decenturedNwc[1:] > 0) * 1).reshape(nbrx * nbry)
@@ -256,28 +237,51 @@ def createMatN(nbrx, nbry, decenturedNwc, downNanList, upNanList, down2NanList, 
 
     return Mat
 
-
-def giveEpsilon(day, temp, NH4, NO3,cNO3, cNH4, advNO3, advNH4, N_s, N_f, D, Nwc, Ewc, latRef, model, nbrx, nbry, dt):
+#return the variation of each quantities in the algae model
+def giveEpsilon(day, temp, NH4, NO3,cNO3, cNH4, advNO3, advNH4, N_s, N_f, D, Nwc, Ewc, PAR, latRef, model, nbrx, nbry, dt, Zmix):
     data_in = {
         'SST': temp,
-        'PAR': 500,
+        'PAR': PAR,
         'NH4_ext': NH4,
         'NO3_ext': NO3,
         'PO4_ext': 50,
         'K_d': 0.1,
         'F_in': np.sqrt(Nwc ** 2 + Ewc ** 2),
         'h_z_SML': 30,
-        't_z': 2.8,
+        't_z': Zmix,
         'D_ext': 0.1
     }
     y = dict(zip(["NH4", "NO3", "N_s", "N_f", "D"], [NH4, NO3, N_s, N_f, D]))
     return model.derivative_fast_advection(day, y, data_in,cNO3, cNH4, advNO3, advNH4, nbrx, nbry, dt,
                                            latRef, model)
 
+#resample "variable" data (it can be better to use gdal translate than this function)
+def getGesampleData(ds,nbrDay,Zmix,variable,zone):
+    latitudes = ds['latitude'][:]
+    longitudes = ds['longitude'][:]
+    dataArray = np.zeros((nbrDay,len(latitudes),len(longitudes)))
+    for i, lat in enumerate(latitudes):
+        for j, lon in enumerate(longitudes):
+            input_args = {
+                'zone': zone,
+                'file_adress': 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_{param}_{zone}.nc',
+                'dataRef': pd.read_csv(dataCmdpath, delimiter=';'),
+                'paramNames': [variable]
+            }
+            algaeData = open_data_input(**input_args)
+            sim_area = {
+                'longitude': lon,
+                'latitude':lat,
+                'depth': (0, Zmix)
+            }
+            dataArray[:,i,j] = np.mean(algaeData.parameterData[variable].getVariable(**sim_area)[0], axis=1)
+    return dataArray
 
-def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, dataNH4, dataTemp, Ks, firstday,
-             model):
-    nbrStep = int(len(Nwc) * discr)
+#apply the quickest scheme
+def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, dataNH4, dataTemp, dataPAR, Ks, firstday,
+             model, Zmix):
+    #we initate the variables
+    nbrStep = int(len(dataTemp) * discr)
     cNO3 = np.zeros(np.shape(dataNO3[0]))
     cNH4 = np.zeros(np.shape(dataNH4[0]))
     N_s = np.ones(np.shape(dataNH4[0])) * 1000
@@ -313,14 +317,18 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
     zeroN_f = np.zeros((nbrx, nbry))
     zeroN_s = np.zeros((nbrx, nbry))
     maxCFL = 0
+    #for each time step
     for k in range(nbrStep):
+        #we compute the day, hour and month number
         dayNbr = k // int(discr)
-        hNbr = k // int(discr)
-        cNO3[maskpos2D] = 0
-        cNH4[maskpos2D] = 0
-        D[maskpos2D] = 0
-        N_f[maskpos2D] = 0
-        N_s[maskpos2D] = 0
+        hNbr = k // int(discr) #if we don't use hourly speeds, hNbr = dayNbr
+        month = k // int(30.5*discr)
+        cNO3[maskpos2D] = 1e-5
+        cNH4[maskpos2D] = 1e-5
+        D[maskpos2D] = 1e-5
+        N_f[maskpos2D] = 1e-5
+        N_s[maskpos2D] = 1e-5
+        #we compute the CFL
         CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, Ewc[hNbr], Nwc[hNbr], nbrx, nbry)
         # print('CFL max: ', max(CFL))
         alpha1 = (1 / 6) * (1 - CFL) * (2 - CFL)
@@ -335,15 +343,16 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
 
         oldNO3Cline = cNO3.reshape(nbrx * nbry)
         oldNH4Cline = cNH4.reshape(nbrx * nbry)
-        advNO3 = - cy * matN.dot(oldNO3Cline) - cx * matE.dot(oldNO3Cline) + (dt / dyMeter) * Ks * matN.dot(
-            matN.dot(oldNO3Cline)) + (dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(matN.dot(oldNO3Cline))
-        advNH4 = - cy * matN.dot(oldNH4Cline) - cx * matE.dot(oldNH4Cline) + (
-                dt / dyMeter) * Ks * matN.dot(matN.dot(oldNH4Cline)) + (
-                         dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(matN.dot(oldNH4Cline))
+        no3Hatu = matE.dot(oldNO3Cline)
+        no3Hatv = matN.dot(oldNO3Cline)
+        nh4Hatu = matE.dot(oldNH4Cline)
+        nh4Hatv = matN.dot(oldNH4Cline)
+        advNO3 = - cy * no3Hatv - cx * no3Hatu + (dt / dyMeter) * Ks * matN.dot(no3Hatv) + (dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(no3Hatu)
+        advNH4 = - cy * nh4Hatv - cx * nh4Hatu + (dt / dyMeter) * Ks * matN.dot(nh4Hatv) + (dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(nh4Hatu)
 
         derivArray = giveEpsilon(days, dataTemp[dayNbr], cNH4 + dataNH4[dayNbr], cNO3 + dataNO3[dayNbr], cNO3, cNH4,
                                  advNO3, advNH4, N_s, N_f, D,
-                                 centNwc[hNbr], centEwc[hNbr], latRef, model, nbrx, nbry, dt)
+                                 centNwc[hNbr], centEwc[hNbr], dataPAR[month], latRef, model, nbrx, nbry, dt,Zmix)
 
         CNO3line = oldNO3Cline +advNO3 + derivArray[1].reshape(nbrx * nbry) * dt
         cNO3 = np.minimum(CNO3line.reshape(nbrx, nbry), 0)
@@ -369,6 +378,7 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
         N_f += derivArray[3] * dt
 
         N_f = np.maximum(N_f,-1e-6)
+        N_s = np.maximum(N_s, -1e-6)
         listNO3 += [dataNO3[dayNbr][CPlat, CPlon]]
 
         zeroNO3[np.where((cNO3 + dataNO3[dayNbr]) < 0)] += 1
@@ -390,7 +400,7 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
             listN_sprim += [N_s[CPlat, CPlon]]
 
 
-    fig, ax = plt.subplots()
+    '''fig, ax = plt.subplots()
     CpnIm = copy.deepcopy(zeroNO3)
     CpnIm[maskpos2D] = np.nan
     plt.imshow(CpnIm)
@@ -511,7 +521,7 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
     ax.invert_yaxis()
     ax.set_title("dN_f")
 
-    plt.show()
+    plt.show()'''
 
     '''fig, ax = plt.subplots()
     plt.plot(daylist, listNO3, label='NO3')
@@ -546,7 +556,7 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
     ax.set_ylabel('stored nitrate')
     plt.show()'''
 
-    fig, ax = plt.subplots()
+    '''fig, ax = plt.subplots()
     CpnIm = copy.deepcopy(cNO3)
     CpnIm[maskpos2D] = np.nan
     plt.imshow(CpnIm)
@@ -564,13 +574,15 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
     plt.clim(-80, 0)
     ax.invert_yaxis()
     ax.set_title('cNH4')
-    plt.show()
+    plt.show()'''
     NO3field, NH4field, D, N_f, N_s = cNO3 + dataNO3[dayNbr - 1], cNH4 + dataNH4[dayNbr - 1], D, N_f, N_s
     NO3field[maskpos2D] = np.nan
     NH4field[maskpos2D] = np.nan
     D[maskpos2D] = np.nan
     N_f[maskpos2D] = np.nan
     N_s[maskpos2D] = np.nan
+    totalNH4deficit[maskpos2D] = np.nan
+    totalNO3deficit[maskpos2D] = np.nan
     print(listNH4prim)
     print(listNO3prim)
     print(listDprim)
@@ -580,22 +592,27 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
     return NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit
 
 
-
-
 if __name__ == "__main__":
-    zone = 'MED'
+    zone = "IBI"
     depth = 0
+    PAR_year = 2020
 
     latmin = None
     latmax = None
 
-    lonmin = -5.5417
+    lonmin = None
     lonmax = None
 
-    dxdeg = 0.042
-    dydeg = 0.042
+    dxdeg = 0.028
+    dydeg = 0.028
 
-    discr = 72
+    #dxmeter = 2000
+    #dymeter = 2000
+
+    Zmix = 2.8
+
+    # discr = 144
+    discr = 72  # Baltic
     dt = 1 / discr
 
     Ks = 1e-3
@@ -603,18 +620,27 @@ if __name__ == "__main__":
 
     CPlat, CPlon = 153, 56
 
-    firstday = datetime.datetime.strptime('2021-01-01', '%Y-%m-%d')
+    # paramNames = ['Nitrate','northward_Water_current', 'eastward_Water_current', 'Temperature'] #NWS and BS
+    paramNames = ['Nitrate', 'northward_Water_current', 'Ammonium', 'eastward_Water_current',
+                  'Temperature']  # IBI, Baltic and MED
+
+    firstday = datetime.datetime.strptime('2020-01-01', '%Y-%m-%d')
 
     dataCmdpath = 'D:/Profils/mjaouen/Documents/alternance/EASME/gitcode/shellfish_and_algae-MODEL/dataimport/src/dataCmd.csv'
-    _, ds = getwantedMergeData('Nitrate', depth, dataCmdpath)
+    mergedFilepath = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/'.format(zone=zone)
+
+    _, ds = getwantedMergeData('northward_Water_current', depth, dataCmdpath,zone, mergedFilepath)
     '''dataNH4, ds = getwantedMergeData('Ammonium', depth, dataCmdpath)
     dataTemp, ds = getwantedMergeData('Temperature', depth, dataCmdpath)'''
 
     input_args = {
-        'zone': "MED",
-        'file_adress': 'D:/Profils/mjaouen/Documents/alternance/EASME/data/MED/merged_{param}_{zone}.nc',
+        'zone': zone,
+        'file_adress': 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_{param}_{zone}.nc',
         'dataRef': pd.read_csv(dataCmdpath, delimiter=';'),
-        'paramNames': ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
+        'paramNames': ['Nitrate','northward_Water_current','Ammonium', 'eastward_Water_current', 'Temperature'],
+        'frequency': 'daily',
+        'with_PAR': PAR_year,
+        'PAR_file': 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/PAR_{zone}NewGrid.nc'.format(zone = zone)
     }
 
     ### Initialize the netcdf reading interface
@@ -623,19 +649,63 @@ if __name__ == "__main__":
     sim_area = {
         'longitude': (lonmin, lonmax),
         'latitude': (latmin, latmax),
-        'depth': depth
+        'depth': (0, Zmix),
+        'averagingDims': ('depth',),
+        'weighted': False
     }
 
     dataNO3 = algaeData.parameterData['Nitrate'].getVariable(**sim_area)[0]
+    #dataNH4 = dataNO3*0.1
     dataNH4 = algaeData.parameterData['Ammonium'].getVariable(**sim_area)[0]
     dataTemp = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0]
     dataNwc = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0]
     dataEwc = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0]
+    dataPAR = algaeData.parameterData['PAR'].getVariable(**sim_area)[0]
 
-    fileU = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/MED/merged_eastward_Water_current_MED.nc'
+    print(np.shape(dataNO3))
+    print(np.shape(dataNH4))
+    print(np.shape(dataTemp))
+    print(np.shape(dataNwc))
+    print(np.shape(dataPAR))
+
+    dataNH4 = ma.masked_outside(dataNH4, -1e4, 1e4)
+    dataNO3 = ma.masked_outside(dataNO3, -1e4, 1e4)
+    dataTemp = ma.masked_outside(dataTemp, -1e4, 1e4)
+    dataPAR = ma.masked_outside(dataPAR, -1e-2, 1e4)
+
+    fig1, ax1 = plt.subplots()
+    plt.imshow(dataNO3[0])
+    ax1.set_title('Nitrate')
+    ax1.invert_yaxis()
+    plt.colorbar()
+
+    fig1, ax1 = plt.subplots()
+    plt.imshow(dataNH4[0])
+    ax1.set_title('Ammonium')
+    ax1.invert_yaxis()
+    plt.colorbar()
+
+    fig1, ax1 = plt.subplots()
+    plt.imshow(dataNwc[0])
+    ax1.set_title('NWS')
+    ax1.invert_yaxis()
+    plt.colorbar()
+
+    fig1, ax1 = plt.subplots()
+    plt.imshow(dataTemp[0])
+    ax1.set_title('Temperature')
+    ax1.invert_yaxis()
+    plt.colorbar()
+    plt.show()
+
+    print(type(dataTemp[0]))
+    print(type(dataNwc[0]))
+    print(type(dataNH4[0]))
+
+    fileU = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_eastward_Water_current_{zone}.nc'.format(zone=zone)
     dataBaseEwc = nc.Dataset(fileU)
 
-    fileV = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/MED/merged_northward_Water_current_MED.nc'
+    fileV = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_northward_Water_current_{zone}.nc'.format(zone=zone)
     dataBaseNwc = nc.Dataset(fileV)
 
     dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
@@ -674,6 +744,7 @@ if __name__ == "__main__":
     decenturedNwc = v2d_cgrid_cur(dataNwc)
 
     dxlist, dyMeter = degrees_to_meters(dxdeg, dydeg, latRef)
+    #dxlist, dyMeter = dxmeter * np.ones(np.shape(dataNwc[0])), dymeter  # baltic
 
     dxlist = dxlist.T
     dylist = dyMeter * np.ones(np.shape(dxlist))
@@ -685,32 +756,34 @@ if __name__ == "__main__":
 
     maxCFL = 0
     (nbrx, nbry) = np.shape(dataNO3[0])
-    print(np.shape(dataNO3[0]))
-    print(np.shape(decenturedEwc[0]))
-    print(np.shape(decenturedNwc[0]))
-    print(np.shape(dxlist))
     for i in range(len(dataEwc)):
         CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, decenturedEwc[i], decenturedNwc[i], nbrx, nbry)
-        if np.max(CFL)>maxCFL:
+        if np.max(CFL) > maxCFL:
             maxCFL = np.max(CFL)
             print(maxCFL)
-    xsize, ysize, ulx, uly, xres, yres = getMetadata(ds)
+    xsize, ysize, ulx, uly, xres, yres = getMetadata(ds, ewcDataLine.iloc[-1]["latName"],
+                                                     nwcDataLine.iloc[-1]["longName"])
     saveAsTiff(dataNO3[0], xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/IBI/test.tiff")
-    NO3field, NH4field,D, N_f, N_s, totalNH4deficit, totalNO3deficit =  quickest(dyMeter, dxlist, dt, discr, decenturedEwc, decenturedNwc, dataEwc, dataNwc, latRef.T, dataNO3, dataNH4,
-             dataTemp, Ks, firstday, model)
+    NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlist, dt, discr,
+                                                                                 decenturedEwc, decenturedNwc, dataEwc,
+                                                                                 dataNwc, latRef.T, dataNO3, dataNH4,
+                                                                                 dataTemp, dataPAR, Ks, firstday, model,
+                                                                                 Zmix)
 
-    saveAsTiff(NO3field, xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/IBI/NO3field.tiff")
+    saveAsTiff(NO3field, xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/{zone}/NO3field.tiff".format(zone = zone))
     saveAsTiff(NH4field, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/IBI/NH4field.tiff")
+               "I:/work-he/apps/safi/data/{zone}/NH4field.tiff".format(zone = zone))
     saveAsTiff(D, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/IBI/D.tiff")
+               "I:/work-he/apps/safi/data/{zone}/D.tiff".format(zone = zone))
     saveAsTiff(N_f, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/IBI/N_f.tiff")
+               "I:/work-he/apps/safi/data/{zone}/N_f.tiff".format(zone = zone))
     saveAsTiff(N_s, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/IBI/N_s.tiff")
-    saveAsTiff(N_f/10, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/IBI/biomass.tiff")
+               "I:/work-he/apps/safi/data/{zone}/N_s.tiff".format(zone = zone))
+    saveAsTiff(N_f / 10, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/{zone}/biomass.tiff".format(zone = zone))
     saveAsTiff(totalNH4deficit, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/IBI/totalNH4deficit.tiff")
+               "I:/work-he/apps/safi/data/{zone}/totalNH4deficit.tiff".format(zone = zone))
     saveAsTiff(totalNO3deficit, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/IBI/totalNO3deficit.tiff")
+               "I:/work-he/apps/safi/data/{zone}/totalNO3deficit.tiff".format(zone = zone))
+    saveAsTiff(N_f * 0.8 / 10000, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/{zone}/DWperm2.tiff".format(zone = zone))

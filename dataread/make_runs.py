@@ -266,7 +266,7 @@ def run_scenario_a(fileName:str, model, y0:list, input_args:dict):
     return n_cells
 
 
-def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.DataFrame, with_PAR=None, frequency = 'monthly', type='model'):
+def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.DataFrame, with_PAR=None, frequency = 'monthly', type='model', PAR_file='/media/share/PAR/reference_monthly_PAR_2021_filled_4_max0.nc'):
 
     dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone) &
                               (dataRef['daily']==frequency) & (dataRef['type']==type)][0]
@@ -312,7 +312,7 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
         # TODO: rework the time units if we are doing to call PAR with daily
         #       increments instead of the 15th of the month
         parameter_dict['PAR'] = {
-            'file_name':'/media/share/PAR/reference_monthly_PAR_2021_filled_4_max0.nc',
+            'file_name':PAR_file,
             'variable_name': 'PAR_mean',
             'latitude_name': 'lat',
             'longitude_name': 'lon',
