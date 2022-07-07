@@ -124,6 +124,7 @@ function action_bash {
     docker run \
         --rm \
         --volume "$SHARED_VOLUME_NAME:/media/share" \
+        --volume "${HOME}:/media/home" \
         --workdir=/media/share \
         -e PYTHONDONTWRITEBYTECODE=1 \
         --entrypoint=/bin/bash \
