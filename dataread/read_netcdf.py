@@ -441,6 +441,13 @@ class AllData:
 
         return df
 
+    def __add__(self, other):
+        # Merges two AllData objects
+        # Caution: the result still references the same ParamData objects.
+        if isinstance(other, self.__class__):
+            fusion = AllData({})
+            fusion.parameterData = {**self.parameterData, **other.parameterData}
+            return fusion
 
     def __del__(self):
         for _, parData in enumerate(self.parameterData):
