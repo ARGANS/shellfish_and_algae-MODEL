@@ -118,6 +118,18 @@ function run_container_for_posttreatment {
         -it $image_tag:latest
 }
 
+function action_bash {
+    local image_tag="ac-posttreatment/runtime"
+
+    docker run \
+        --rm \
+        --volume "$SHARED_VOLUME_NAME:/media/share" \
+        --workdir=/media/share \
+        -e PYTHONDONTWRITEBYTECODE=1 \
+        --entrypoint=/bin/bash \
+        -it $image_tag:latest
+}
+
 function handle_arguments {
     local command="$1"
 
@@ -140,11 +152,15 @@ function handle_arguments {
         'execute_posttreatment')
             run_container_for_posttreatment "ac-posttreatment_run" "ac-posttreatment/runtime"
             ;;
+        'bash')
+            action_bash
+            ;;
         *)
             echo 'commands:'
             echo 'build_dataread, execute_dataread'
             echo 'ls, ls2'
             echo 'build_posttreatment'
+            echo 'bash'
             ;;
     esac
 }

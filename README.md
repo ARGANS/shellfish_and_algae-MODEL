@@ -12,6 +12,13 @@
 ./miscellaneous/manage.sh build_posttreatment
 ```
 
+## /miscellaneous/manage.sh bash
+
+Use one of the following commands to access the volume:
+- `source miscellaneous/manage.sh bash`
+- `. miscellaneous/manage.sh bash`
+
+
 ## Description of tasks in terms of manual execution step by step in order to debug the pipeline:
 
 1) Data Import
