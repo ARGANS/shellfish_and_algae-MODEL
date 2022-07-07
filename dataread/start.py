@@ -1,12 +1,13 @@
 from make_runs import open_data_input, initialize_result, run_scenario_a_monthly
 import pandas as pd
 import numpy as np
+import datetime
 import time
 import os
 import multiprocessing as mp
 from launch_model import MA_model_scipy
 from models.ModelProperties import ModelProperties
-import datetime
+from read_netcdf import *
 
 # TODO get dataCmd.csv from a mounted volume
 dataRef: pd.DataFrame = pd.read_csv('./dataCmd.csv', delimiter=';')
@@ -20,14 +21,17 @@ except:
 if not model_properties.isDataDownloadTaskCompleted():
     raise RuntimeError('Data not downloaded')
 
-#TODO: make a different PAR file for each year ?
-#TODO: build a fusion between AllData/ParamData objects as an overload of '+'
 input_args = {
     'zone' : model_properties.attrs['metadata']['zone'],
     'file_adress' : model_properties.file_template,
     'dataRef' : dataRef,
-    'paramNames' : ['Ammonium', 'Nitrate', 'Phosphate', 'Temperature', 'northward_Water_current', 'eastward_Water_current'],
-    'with_PAR': {
+    'paramNames' : ['Ammonium', 'Nitrate', 'Phosphate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
+}
+
+dict_to_AllData = open_data_input(**input_args)
+
+#TODO: make a different PAR file for each year ?
+dict_to_AllData['PAR'] = {
             'file_name': '/media/share/PAR/PAR_ref_OC_2020.nc',
             'variable_name': 'par',
             'latitude_name': 'lat',
@@ -37,11 +41,10 @@ input_args = {
             'unit_conversion': 11.574,
             'time_zero': datetime.datetime(model_properties.year, 1, 1),
             'time_step': datetime.timedelta(days=1)
-        },
-}
+        }
 
 ### Initialize the netcdf reading interface
-algaeData = open_data_input(**input_args)
+algaeData = AllData(dict_to_AllData)
 
 ### get the copernicus grid and mask
 
@@ -93,7 +96,7 @@ n_cells = pool.starmap_async(run_scenario_a_monthly, [(
         model_properties.getMonthlySimulationsPath(i),
         model_properties.parameters, 
         y0, 
-        input_args, 
+        dict_to_AllData, 
         model_properties.year, 
         False, 
         True

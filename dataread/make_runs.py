@@ -72,7 +72,7 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
     inputData, and initializing at y0. The simulations are ran on monthly
     averaged data.
     Writes the results in fileName.
-    input_args are passed to open_data_input() to open an AllData object.
+    input_args is passed to AllData() to open an AllData object.
 
     farm_at_gridSize: If True, the farm size parameters in the model are
         overruled and instead, a square farm with an area equal to the grid size
@@ -85,7 +85,7 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
         15th of each month.
     """
 
-    algaeData = open_data_input(**input_args)
+    algaeData = AllData(input_args)
 
     n_cells = 0
 
@@ -266,7 +266,7 @@ def run_scenario_a(fileName:str, model, y0:list, input_args:dict):
     return n_cells
 
 
-def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.DataFrame, frequency='monthly', type='model', with_PAR=None):
+def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.DataFrame, frequency='monthly', type='model'):
 
     dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone) &
                               (dataRef['daily']==frequency) & (dataRef['type']==type)][0]
@@ -306,13 +306,7 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
         parameter_dict[parName]['time_zero'] = datetime.datetime(int(time_units[2]), 1, 1)
         parameter_dict[parName]['time_step'] = datetime.timedelta(**{time_units[0]: 1})
 
-    if with_PAR is not None:
-        # with_PAR is a dictionary containing fields that can be used as input to ParamDate()
-        parameter_dict['PAR'] = with_PAR
-
-    data = AllData(parameter_dict)
-
-    return data
+    return parameter_dict
 
 
 if __name__=="__main__":
