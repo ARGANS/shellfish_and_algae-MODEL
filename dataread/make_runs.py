@@ -266,7 +266,7 @@ def run_scenario_a(fileName:str, model, y0:list, input_args:dict):
     return n_cells
 
 
-def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.DataFrame, with_PAR=None, frequency = 'monthly', type='model', PAR_file='/media/share/PAR/reference_monthly_PAR_2021_filled_4_max0.nc'):
+def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.DataFrame, frequency='monthly', type='model', with_PAR=None):
 
     dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone) &
                               (dataRef['daily']==frequency) & (dataRef['type']==type)][0]
@@ -307,21 +307,8 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
         parameter_dict[parName]['time_step'] = datetime.timedelta(**{time_units[0]: 1})
 
     if with_PAR is not None:
-        # with_PAR is an integer corresponding to the simulation year
-        # TODO: Make a different file for each year ?
-        # TODO: rework the time units if we are doing to call PAR with daily
-        #       increments instead of the 15th of the month
-        parameter_dict['PAR'] = {
-            'file_name':PAR_file,
-            'variable_name': 'PAR_mean',
-            'latitude_name': 'lat',
-            'longitude_name': 'lon',
-            'time_name': 'time',
-            'depth_name': 'depth',
-            'unit_conversion': 11.574,
-            'time_zero': datetime.datetime(with_PAR, 1, 1) - datetime.timedelta(days=15),
-            'time_step': datetime.timedelta(days=30.4)
-        }
+        # with_PAR is a dictionary containing fields that can be used as input to ParamDate()
+        parameter_dict['PAR'] = with_PAR
 
     data = AllData(parameter_dict)
 

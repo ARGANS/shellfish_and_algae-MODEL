@@ -6,6 +6,7 @@ import os
 import multiprocessing as mp
 from launch_model import MA_model_scipy
 from models.ModelProperties import ModelProperties
+import datetime
 
 # TODO get dataCmd.csv from a mounted volume
 dataRef: pd.DataFrame = pd.read_csv('./dataCmd.csv', delimiter=';')
@@ -19,12 +20,24 @@ except:
 if not model_properties.isDataDownloadTaskCompleted():
     raise RuntimeError('Data not downloaded')
 
+#TODO: make a different PAR file for each year ?
+#TODO: build a fusion between AllData/ParamData objects as an overload of '+'
 input_args = {
     'zone' : model_properties.attrs['metadata']['zone'],
     'file_adress' : model_properties.file_template,
     'dataRef' : dataRef,
     'paramNames' : ['Ammonium', 'Nitrate', 'Phosphate', 'Temperature', 'northward_Water_current', 'eastward_Water_current'],
-    'with_PAR': model_properties.year
+    'with_PAR': {
+            'file_name': '/media/share/PAR/PAR_ref_OC_2020.nc',
+            'variable_name': 'par',
+            'latitude_name': 'lat',
+            'longitude_name': 'lon',
+            'time_name': 'time',
+            'depth_name': 'depth',
+            'unit_conversion': 11.574,
+            'time_zero': datetime.datetime(model_properties.year, 1, 1),
+            'time_step': datetime.timedelta(days=1)
+        },
 }
 
 ### Initialize the netcdf reading interface
