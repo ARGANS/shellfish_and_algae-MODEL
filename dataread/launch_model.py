@@ -198,8 +198,7 @@ class MA_model_scipy:
         V_EFF = p.y_farm * (p.x_farm + data['F_in']) * data['t_z']
 
         turnover = data['F_in'] / p.x_farm  # lambda is taken in python
-
-        Q = (p.Q_min * (1 + y['N_s'] / y['N_f'])) * (y['N_f'] > 0)
+        Q = (p.Q_min * (1 + y['N_s'] / np.maximum(y['N_f'],1e-6))) * (y['N_f'] > 0)
         B = y['N_f'] / p.Q_min
         g_Q = np.minimum(1, (Q - p.Q_min) / (Q - p.K_c))
 

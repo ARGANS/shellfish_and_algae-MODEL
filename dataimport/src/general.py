@@ -236,8 +236,12 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
             getdataFromFtp(dataFin.iloc[j], outputDirectory)
 
 
-def giveDateslist(dateBeginning, dateEnd, frequency):
-    if frequency == 'monthly':
+def giveDateslist(dateBeginning, dateEnd, frequency, timestep = None):
+    if timestep:
+        ndays = (dateEnd - dateBeginning).days
+        begList = [(dateBeginning + datetime.timedelta(days=timestep)) for i in range(int(ndays/timestep))]
+        endList = [(dateBeginning + datetime.timedelta(days=timestep)) for i in range(1, int(ndays/timestep) + 1)]
+    elif frequency == 'monthly':
         begList = [datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')]
         endList = [datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')]
     elif frequency == 'hourly':
