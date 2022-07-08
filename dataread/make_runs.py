@@ -104,8 +104,7 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
     gridLat = latitudes[1] - latitudes[0]
     gridLon = longitudes[1] - longitudes[0]
 
-    #parms_harvest = list(model_params['harvest'].values())[0]['parameters']
-    #harvest_type = list(model_params['harvest'].keys())[0]
+    parms_run = list(model_params['run'].values())[0]['parameters']
 
     for i_month, month in enumerate(times): # month is integer 1-12
         month = int(month)
@@ -145,7 +144,7 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
                 data_kwargs = {
                     "longitude": lon,
                     "latitude": lat,
-                    "depth": (0, 1.4 * model._parameters["z"])
+                    "depth": (0, (1 + parms_run['Von_Karman']) * model._parameters["z"])
                 }
                 if data_is_monthly:
                     data_kwargs["time"] = startTime + datetime.timedelta(days=14)
@@ -167,10 +166,10 @@ def run_scenario_a_monthly(fileName:str, model_params:dict, y0:list, input_args:
                     'NH4_ext': data['Ammonium'],
                     'NO3_ext': data['Nitrate'],
                     'PO4_ext': data['Phosphate'],
-                    'K_d': 0.1,
+                    'K_d': parms_run['K_d490'],
                     'F_in': np.sqrt(data['northward_Water_current']**2 + data['eastward_Water_current']**2),
-                    't_z': 1.4 * model._parameters["z"],
-                    'D_ext': 0.1
+                    't_z': (1 + parms_run['Von_Karman']) * model._parameters["z"],
+                    'D_ext': parms_run['Detritus']
                 }
 
                 result = solve_ivp(MA_model_scipy.derivative_fast, (days_start, days_end), y0_array[:,i,j], args=(data_in, lat, model),
