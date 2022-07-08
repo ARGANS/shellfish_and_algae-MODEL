@@ -115,8 +115,8 @@ def weightsForAverage(sortedDim, leftLimit, rightLimit):
     fullDim = np.append(fullDim, rightLimit)
 
     weights = ( fullDim[2:] - fullDim[:-2] ) / 2
-    weights[0] = (sortedDim[0] + sortedDim[1]) / 2 - leftLimit
-    weights[-1] = rightLimit - (sortedDim[-2] + sortedDim[-1]) / 2
+    weights[0] = (fullDim[1] + fullDim[2]) / 2 - leftLimit
+    weights[-1] = rightLimit - (fullDim[-3] + fullDim[-2]) / 2
 
     # normalize the result
     return weights / np.sum(weights)
