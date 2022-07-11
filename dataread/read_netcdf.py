@@ -87,9 +87,21 @@ def extractVarSubset(ncDataset, variable, **kwargs):
                 sliceList[iDim] = slice(iLower, iUpper+1, None)
             else:
                 # get the index where the dimension is nearest
-                iSlice = iNearest(kwargs[dim.name], ncDataset[dim.name])
+                iSlice = iNearest(kwargs[dim.name], ncDataset[dim.name][:])
                 sliceList[iDim] = iSlice
-                if kwargs[dim.name] < min(ncDataset[dim.name]) or kwargs[dim.name] > max(ncDataset[dim.name]):
+
+                dim_attributes = ncDataset[dim.name].ncattrs()
+
+                #if "valid_min" in dim_attributes and kwargs[dim.name] < ncDataset[dim.name].valid_min:
+                #    asked_OOB = True
+                #if "valid_max" in dim_attributes and kwargs[dim.name] > ncDataset[dim.name].valid_max:)
+                #    asked_OOB = True
+
+                # Detect if data was asked OOB of dim.name with a gridsize margin.
+                lower_bound = ncDataset[dim.name][0] - (ncDataset[dim.name][1] - ncDataset[dim.name][0])
+                higher_bound = ncDataset[dim.name][-1] + (ncDataset[dim.name][-1] - ncDataset[dim.name][-2])
+                if kwargs[dim.name] < lower_bound or kwargs[dim.name] > higher_bound:
+                    print(f'Warning: Value "{kwargs[dim.name]}" is out of bound for dimension "{dim.name}", this happened when trying to read the "{variable} variable."')
                     asked_OOB = True
 
         elif dim.name+'_index' in kwargs:
@@ -111,10 +123,7 @@ def extractVarSubset(ncDataset, variable, **kwargs):
     if asked_OOB:
         # a dimension was required by a single value that is out of the dimension bounds.
         # return only FillValue(s)
-        if type(extraction) is np.ma.core.MaskedArray:
-            extraction.mask = True
-        else: #It was extracted down to a scalar
-            extraction = np.ma.core.MaskedConstant()
+        extraction.mask = True
 
     return extraction, remainingDims
 
