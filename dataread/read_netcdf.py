@@ -33,45 +33,48 @@ def iNearest(value, sortedArray, mode="closest"):
         return iInsert
 
 def extractVarSubset(ncDataset, variable, **kwargs):
-    # Extract a subset of ncDataset[variable] along any number of dimensions
-    # to be specified in **kwargs. Returns the subset and a tuple containing
-    # the names of the dimensions remaining in the subset.
-    #
-    # The argument/value pairs can be:
-    #   - argument: either the name of a dimension of variable or one such
-    #               name followed by the '_index' suffix.
-    #   - value: either a single value or a pair of values in a tuple
-    #
-    # For example: 
-    #   - 'longitude=54.3' will subset ncDataset[variable] along the value of
-    #     longitude that is nearest 54.3.
-    #   - 'longitude=(50.2, 56.4)' will get the data along all longitudes
-    #     between 50.2 and 56.4, including the former and excluding the latter.
-    #
-    # The indices can also be specified directly: 
-    #   - 'longitude_index=5' will get the data along the value of longitude at
-    #     index 5.
-    #   - 'longitude_index=(3, 14)' will get the data where the index of the
-    #     longitude dimension is between 3 and 14, including the former and
-    #     excluding the latter.
-    #   - 'longitude_index=(3, 14, 2)' will get the data where the index of the
-    #     longitude dimension is between 3 and 14, including the former and
-    #     excluding the latter, with a step of 2.
-    #
-    # Note: any dimension name that is passed that is not a dimension of 
-    #       variable will be silently ignored.
-    # Note: If both 'dimension=...' and 'dimension_index=...' are used then
-    #       the 'dimension_index=...' call will be ignored.
-    # Note: tuple slices can contain None at one end or the other to extract
-    #       all data to/from a given value/index. When subsetting by indices,
-    #       negative indices can be used to count from the end, a negative step
-    #       will also be accepted.
-    # WARNING: when slicing a dimension by its value(s), this function
-    #          assumes that the values that the dimnesion takes are in ascending
-    #          order.
+    """
+    Extract a subset of ncDataset[variable] along any number of dimensions
+    to be specified in **kwargs. Returns the subset and a tuple containing
+    the names of the dimensions remaining in the subset.`
+
+    The argument/value pairs can be:
+        - argument: either the name of a dimension of variable or one such
+            name followed by the '_index' suffix.
+        - value: either a single value or a pair of values in a tuple
+
+    For example: 
+        - 'longitude=54.3' will subset ncDataset[variable] along the value of
+            longitude that is nearest 54.3.
+        - 'longitude=(50.2, 56)' will get the data along all longitudes between
+            50.2 and 56, including the former and excluding the latter.
+
+    The indices can also be specified directly:
+        - 'longitude_index=5' will get the data along the value of longitude at
+            index 5.
+        - 'longitude_index=(3, 14)' will get the data where the index of the
+            longitude dimension is between 3 and 14, including the former and
+            excluding the latter.
+        - 'longitude_index=(3, 14, 2)' will get the data where the index of the
+            longitude dimension is between 3 and 14, including the former and
+            excluding the latter, with a step of 2.
+
+    Note: any dimension name that is passed that is not a dimension of 
+        variable will be silently ignored.
+    Note: If both 'dimension=...' and 'dimension_index=...' are used then
+        the 'dimension_index=...' call will be ignored.
+    Note: tuple slices can contain None at one end or the other to extract
+        all data to/from a given value/index. When subsetting by indices,
+        negative indices can be used to count from the end, a negative step
+        will also be accepted.
+    WARNING: when slicing a dimension by its value(s), this function
+        assumes that the values that the dimnesion takes are in ascending
+        order.
+    """
 
     dimensions = ncDataset[variable].get_dims()
     sliceList = [slice(None)] * len(dimensions)
+    asked_OOB = False
     for iDim, dim in enumerate(dimensions):
         if dim.name in kwargs:
             sliceVal = kwargs[dim.name]
@@ -86,6 +89,8 @@ def extractVarSubset(ncDataset, variable, **kwargs):
                 # get the index where the dimension is nearest
                 iSlice = iNearest(kwargs[dim.name], ncDataset[dim.name])
                 sliceList[iDim] = iSlice
+                if kwargs[dim.name] < min(ncDataset[dim.name]) or kwargs[dim.name] > max(ncDataset[dim.name]):
+                    asked_OOB = True
 
         elif dim.name+'_index' in kwargs:
             sliceVal = kwargs[dim.name+'_index']
@@ -93,6 +98,7 @@ def extractVarSubset(ncDataset, variable, **kwargs):
                 byArg = sliceVal[2] if (len(sliceVal) >= 3) else None
                 sliceList[iDim] = slice(sliceVal[0], sliceVal[1], byArg)
             else:
+                # If sliceVal is outside of dimmension, an error will raise itself
                 sliceList[iDim] = sliceVal
 
     # Find the dims that will remain after slicing (all except the dims where
@@ -100,7 +106,17 @@ def extractVarSubset(ncDataset, variable, **kwargs):
     dimRemains = [type(a) is slice for a in sliceList]
     remainingDims = tuple(dim.name for i,dim in enumerate(dimensions) if dimRemains[i])
 
-    return ncDataset[variable][tuple(sliceList)], remainingDims
+    extraction = ncDataset[variable][tuple(sliceList)]
+
+    if asked_OOB:
+        # a dimension was required by a single value that is out of the dimension bounds.
+        # return only FillValue(s)
+        if type(extraction) is np.ma.core.MaskedArray:
+            extraction.mask = True
+        else: #It was extracted down to a scalar
+            extraction = np.ma.core.MaskedConstant()
+
+    return extraction, remainingDims
 
 
 def weightsForAverage(sortedDim, leftLimit, rightLimit):
