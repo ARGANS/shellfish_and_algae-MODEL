@@ -10,9 +10,9 @@ import datetime
 from dataread.read_netcdf import extractWithAverage
 
 #return ds metadatas
-def getMetadata(ds,latname = 'latitude',lonname='longitude'):
-    lats = ds[latname][:]
-    lons = ds[lonname][:]
+def getMetadata(ds,latname = 'latitude',lonname='longitude', latitudeMin=None, latitudeMax=None, longitudeMin=None, longitudeMax=None):
+    lats = ds[latname][latitudeMin:latitudeMax]
+    lons = ds[lonname][longitudeMin:longitudeMax]
 
     xres = lons[1] - lons[0]
     yres = lats[1] - lats[0]
