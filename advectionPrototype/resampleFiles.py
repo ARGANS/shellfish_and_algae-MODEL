@@ -25,7 +25,7 @@ def getwantedMergeData(data, depth, dataCmdpath, zone, mergedFilepath='D:/Profil
 
 if __name__ == "__main__":
     zone = 'Arctic'
-    variableName = 'Temperature'
+    variableName = 'eastward_Water_current'
     depth = 0
     dataCmdpath = 'D:/Profils/mjaouen/Documents/alternance/EASME/gitcode/shellfish_and_algae-MODEL/dataimport/src/dataCmd.csv'
     mergedFilepath = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/'.format(zone=zone)
@@ -41,25 +41,35 @@ if __name__ == "__main__":
     longMax = ulx + xsize * xres
     latiMini = uly - ysize * yres
     variable = (dataFin.loc[(dataFin["Parameter"] == variableName) & (dataFin["Place"] == zone)]).iloc[-1]["variable"]
-    ficInitial = f"D:/Profils/mjaouen/Documents/alternance/EASME/data/Arctic/merged_{variableName}_ArcticStere.nc".format(variableName = variableName)
-    #ficInitial = '"D:/Profils/mjaouen/Documents/alternance/EASME/data/reference_monthly_PAR_2021_filled_4_max0.nc"'
+    print(variable)
+    #variable = 'par'
+    #ficInitial = f"D:/Profils/mjaouen/Documents/alternance/EASME/data/PAR_ref_OC_filled_max0.nc"
+    ficInitial = f"D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_{variableName}_{zone}Stere.nc".format(zone= zone, variableName = variableName)
     ficin = "I:/work-he/apps/safi/data/{zone}/{variableName}_Stereo.tiff".format(zone= zone, variableName = variableName)
     ficout = "I:/work-he/apps/safi/data/{zone}/{variableName}_EPSG.tiff".format(zone= zone, variableName = variableName)
     ngtiffFile = "I:/work-he/apps/safi/data/{zone}/{variableName}_NewGrid.tiff".format(zone= zone, variableName = variableName)
     ficFinal = "I:/work-he/apps/safi/data/{zone}/{variableName}_NewGrid.nc".format(zone= zone, variableName = variableName)
 
     fillval = str(nc.Dataset(ficInitial).variables[variable]._FillValue)
+    scaleFact = str(nc.Dataset(ficInitial).variables[variable].scale_factor)
+    offset = str(nc.Dataset(ficInitial).variables[variable].add_offset)
 
     print(fillval, type(fillval))
 
-    os.system("gdal_translate -a_nodata "+'"'+fillval+'"'+" NETCDF:"+ ficInitial +":"+variable+" " + ficin)
-    #os.system("gdal_translate -of GTiff -a_nodata "+'"-999"'+" "+ficInitial +" "+ ficin)
+    os.system("gdal_translate -ot Float64 NETCDF:"+ ficInitial +":"+variable+" -unscale " + ficin)
+    #os.system("gdal_translate -unscale"+'"'+fillval+'"'+" NETCDF:"+ ficInitial +":"+variable+" " + ficin)
+
+    #os.system("gdal_translate -of GTiff -a_nodata "+'"-999"'+" "+ficInitial +" "+ ficout)
 
     '''os.system('gdalwarp -s_srs ' + ficInitial + ' -tr ' + str(xres) + ' ' + str(
         yres) + ' -r cubicspline -srcnodata ' + '"-999"' + ' -te ' + str(longMini) + ' ' + str(latiMini) + ' ' + str(
         longMax) + ' ' + str(latiMax) + ' ' + ficout + ' -t_srs EPSG:4326')'''
     # To get the data in EPSG:4326 .tiff from Stereographic .nc
-    os.system('gdalwarp -s_srs "+proj=stere +lat_0=90 +lat_ts=90 +lon_0=-45 +k=0.00001 +x_0=0 +y_0=0 +a=6378273 +b=6378273  +units=m +no_defs" '+ficin+' -srcnodata ' +'"'+fillval+'"'+ ' -t_srs EPSG:4326  "'+ ficout+'" -overwrite')
-    os.system('gdalwarp '+ ficout+' -tr '+str(xres)+' '+str(yres)+' -r cubicspline -srcnodata '+'"'+fillval+'"'+' -te '+str(longMini)+' '+str(latiMini)+' '+str(longMax)+' '+str(latiMax)+' '+ngtiffFile+' -t_srs EPSG:4326')
+    os.system('gdalwarp -s_srs "+proj=stere +lat_0=90 +lat_ts=90 +lon_0=-45 +k=0.00001 +x_0=0 +y_0=0 +a=6378273 +b=6378273  +units=m +no_defs" '+ficin+' -srcnodata ' +'"'+ficout+'"'+ ' -t_srs EPSG:4326  "'+ ficout+'" -overwrite')
+    '''os.system(
+        "gdal_edit -scale " + scaleFact + " -offset " + offset + " " + ficout)'''
+    os.system('gdalwarp '+ ficout+' -tr '+str(xres)+' '+str(yres)+' -r near -srcnodata '+'"'+fillval+'"'+' -te '+str(longMini)+' '+str(latiMini)+' '+str(longMax)+' '+str(latiMax)+' '+ngtiffFile+' -t_srs EPSG:4326')
 
+    '''os.system(
+        "gdal_edit -scale " + scaleFact + " -offset " + offset + " " + ngtiffFile)'''
     os.system("gdal_translate -a_nodata "+'"'+fillval+'"'+" -of NetCDF "+ ngtiffFile + " " + ficFinal)
