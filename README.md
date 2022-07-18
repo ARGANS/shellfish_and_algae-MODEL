@@ -1,13 +1,13 @@
 # shellfish_and_algae-MODEL
 
 ## Data downloading subtask 
-- command to build docker image: `./manage_dataimport.sh build`
-- command to run container from the image created by the command above: `./manage_dataimport.sh run`
+- command to build docker image: `./miscellaneous/manage.sh build_dataimport`
+- command to run container from the image created by the command above: `./miscellaneous/manage.sh run_dataimport`
 
 
 ## Commands to deploy
 ```
-./manage_dataimport.sh build
+./miscellaneous/manage.sh build_dataimport
 ./miscellaneous/manage.sh build_dataread
 ./miscellaneous/manage.sh build_posttreatment
 ```
@@ -22,16 +22,11 @@ Use one of the following commands to access the volume:
 ## Description of tasks in terms of manual execution step by step in order to debug the pipeline:
 
 1) Data Import
-1.1) Imagine that you need a new dataset, so you need to tweek the manage_dataimport.sh script.
-You must specify the desired property values in variables:
-	zone='IBI'
-	year=2021
-	deepthmin=0
-	deepthmax=20
+1.1) Imagine that you need a new dataset, so you need to tweek the `miscellaneous/manage.sh` script.
 1.2) In future tasks, this data set will be identified as a collection of its properties: IBI-2021-0-20. 
 1.3) Then you need to build the image with the current code and run the container:
-- `./manage_dataimport.sh build`
-- `./manage_dataimport.sh execute`
+- `./miscellaneous/manage.sh build_dataimport`
+- `./miscellaneous/manage.sh execute_dataimport`
 1.4) When the command completes, you should be able to find the new files in the docker volume directory:
 `sudo ls /var/lib/docker/volumes/ac_share/_data/data/IBI-2021-0-20`
 	

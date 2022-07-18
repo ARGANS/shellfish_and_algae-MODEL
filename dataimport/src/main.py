@@ -15,7 +15,7 @@ frequency = 'daily'
 #outputDirectory = 'I:/work-he/apps/safi/data/Baltic/'
 outputDirectory = '/media/share/data/IBI/'
 
-dataFin=pd.read_csv('./dataCmd.csv',';')
+dataFin=pd.read_csv('/media/global/dataCmd.csv',';')
 
 datesList=giveDateslist(dateBeginning,dateEnd,frequency)
 
