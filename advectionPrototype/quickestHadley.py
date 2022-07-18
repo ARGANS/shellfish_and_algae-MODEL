@@ -277,9 +277,25 @@ def getGesampleData(ds,nbrDay,Zmix,variable,zone):
             dataArray[:,i,j] = np.mean(algaeData.parameterData[variable].getVariable(**sim_area)[0], axis=1)
     return dataArray
 
+def giveResol(dataLine):
+    resolString = dataLine.iloc[-1]["resolution"]
+    splitedString = resolString.split('*')
+    if len(splitedString[0].split('km'))==2:
+        return float(splitedString[0].split('km')[0])*1e3, float(splitedString[1].split('km')[0])*1e3, True
+    else:
+        return float(splitedString[0])*1e-2, float(splitedString[1])*1e-2, False
+
+def prepareDerivArrayScenC(derivArray,nanLists):
+    for i in range(len(derivArray)):
+        for nanL in nanLists:
+            derivArrayLine = derivArray[i].reshape(nbrx*nbry)
+            derivArrayLine[nanL] = 1e-10
+            derivArray[i] = derivArrayLine.reshape(nbrx,nbry)
+    return derivArray
+
 #apply the quickest scheme
 def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, dataNH4, dataTemp, dataPAR, Ks, firstday,
-             model, Zmix):
+             model, Zmix, scenC):
     #we initate the variables
     nbrStep = int(len(dataTemp) * discr)
     cNO3 = np.zeros(np.shape(dataNO3[0]))
@@ -317,6 +333,7 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
     zeroN_f = np.zeros((nbrx, nbry))
     zeroN_s = np.zeros((nbrx, nbry))
     maxCFL = 0
+    dx = dxlist.reshape(nbrx * nbry)
     #for each time step
     for k in range(nbrStep):
         #we compute the day, hour and month number
@@ -347,12 +364,16 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
         no3Hatv = matN.dot(oldNO3Cline)
         nh4Hatu = matE.dot(oldNH4Cline)
         nh4Hatv = matN.dot(oldNH4Cline)
-        advNO3 = - cy * no3Hatv - cx * no3Hatu + (dt / dyMeter) * Ks * matN.dot(no3Hatv) + (dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(no3Hatu)
-        advNH4 = - cy * nh4Hatv - cx * nh4Hatu + (dt / dyMeter) * Ks * matN.dot(nh4Hatv) + (dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(nh4Hatu)
+        advNO3 = - cy * no3Hatv - cx * no3Hatu + (dt / dyMeter) * Ks * matN.dot(no3Hatv) + (
+                    dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(no3Hatu)
+        advNH4 = - cy * nh4Hatv - cx * nh4Hatu + (dt / dyMeter) * Ks * matN.dot(nh4Hatv) + (
+                    dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(nh4Hatu)
 
         derivArray = giveEpsilon(days, dataTemp[dayNbr], cNH4 + dataNH4[dayNbr], cNO3 + dataNO3[dayNbr], cNO3, cNH4,
                                  advNO3, advNH4, N_s, N_f, D,
                                  centNwc[hNbr], centEwc[hNbr], dataPAR[month], latRef, model, nbrx, nbry, dt,Zmix)
+        if scenC:
+            derivArray = prepareDerivArrayScenC(derivArray,[westNanList, eastNanList, upNanList, downNanList, west2NanList, east2NanList, up2NanList, down2NanList,downEastNanList, upWestNanList, downWestNanList, upEastNanList])
 
         CNO3line = oldNO3Cline +advNO3 + derivArray[1].reshape(nbrx * nbry) * dt
         cNO3 = np.minimum(CNO3line.reshape(nbrx, nbry), 0)
@@ -612,6 +633,8 @@ if __name__ == "__main__":
 
     Zmix = 2.8
 
+    scenC = True
+
     # discr = 144
     discr = 72  # Baltic, NWS
     dt = 1 / discr
@@ -729,6 +752,8 @@ if __name__ == "__main__":
 
     nwcDataLine = dataFin.loc[(dataFin["Parameter"] == 'northward_Water_current') & (dataFin["Place"] == zone)]
     nwcdataName = nwcDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
+    resx, resy, km = giveResol(nwcDataLine)
+    print(resx, resy, km)
 
     longitudeMin, latitudeMin = givecoor(dataBaseNwc, lonmin, latmin, 'northward_Water_current',
                                          dataFin,zone)  # we get the indices of the wanted position
@@ -757,10 +782,12 @@ if __name__ == "__main__":
     decenturedEwc = u2d_cgrid_cur(dataEwc)
     decenturedNwc = v2d_cgrid_cur(dataNwc)
 
-    dxlist, dyMeter = degrees_to_meters(dxdeg, dydeg, latRef)
-    #dxlist, dyMeter = dxmeter * np.ones(np.shape(dataNwc[0])), dymeter  # baltic
+    if km:
+        dxlist, dyMeter = resx * np.ones(np.shape(dataNwc[0])), resy  # baltic
+    else:
+        dxlist, dyMeter = degrees_to_meters(resx, resy, latRef)
+        dxlist = dxlist.T
 
-    dxlist = dxlist.T
     dylist = dyMeter * np.ones(np.shape(dxlist))
 
     model_params = "D:/Profils/mjaouen/Documents/alternance/EASME/gitcode/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
@@ -795,7 +822,7 @@ if __name__ == "__main__":
                                                                                  decenturedEwc, decenturedNwc, dataEwc,
                                                                                  dataNwc, latRef.T, dataNO3, dataNH4,
                                                                                  dataTemp, dataPAR, Ks, firstday, model,
-                                                                                 Zmix)
+                                                                                 Zmix,scenC)
 
     DW = N_f / Q_min  # gDW m-3
     DW_line = DW * h_MA * w_MA / 1000  # kg/m (i.e. per m of rope)
