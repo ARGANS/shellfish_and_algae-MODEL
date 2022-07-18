@@ -16,7 +16,7 @@ from advectionPrototype.climatology_ellipses import degrees_to_meters
 from advectionPrototype.saveAsTiff import saveAsTiff, getMetadata
 from dataread.launch_model import MA_model_scipy
 from dataread.make_runs import open_data_input
-from dataread.read_netcdf import extractVarSubset
+from dataread.read_netcdf import extractVarSubset , AllData
 from dataread.utils import import_json
 
 # return an array with all the data for the year
@@ -33,7 +33,7 @@ def getwantedMergeData(data, depth, dataCmdpath, zone, mergedFilepath='D:/Profil
                 fn = mergedFilepath + f[i]
                 ncDataset = nc.Dataset(fn)
                 break
-    return extractVarSubset(ncDataset, variable, depth=depth)[0], ncDataset
+    return 0, ncDataset
 
 
 # sort the list of data from the older to the newer
@@ -596,6 +596,7 @@ if __name__ == "__main__":
     zone = "IBI"
     depth = 0
     PAR_year = 2020
+    getAmmonium = True
 
     latmin = None
     latmax = None
@@ -612,7 +613,7 @@ if __name__ == "__main__":
     Zmix = 2.8
 
     # discr = 144
-    discr = 72  # Baltic
+    discr = 72  # Baltic, NWS
     dt = 1 / discr
 
     Ks = 1e-3
@@ -620,9 +621,11 @@ if __name__ == "__main__":
 
     CPlat, CPlon = 153, 56
 
-    # paramNames = ['Nitrate','northward_Water_current', 'eastward_Water_current', 'Temperature'] #NWS and BS
-    paramNames = ['Nitrate', 'northward_Water_current', 'Ammonium', 'eastward_Water_current',
-                  'Temperature']  # IBI, Baltic and MED
+    if getAmmonium:
+        paramNames = ['Nitrate', 'northward_Water_current', 'Ammonium', 'eastward_Water_current',
+                      'Temperature']  # IBI, Baltic and MED
+    else:
+        paramNames = ['Nitrate', 'northward_Water_current', 'eastward_Water_current', 'Temperature']  # NWS and BS
 
     firstday = datetime.datetime.strptime('2020-01-01', '%Y-%m-%d')
 
@@ -637,26 +640,43 @@ if __name__ == "__main__":
         'zone': zone,
         'file_adress': 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_{param}_{zone}.nc',
         'dataRef': pd.read_csv(dataCmdpath, delimiter=';'),
-        'paramNames': ['Nitrate','northward_Water_current','Ammonium', 'eastward_Water_current', 'Temperature'],
-        'frequency': 'daily',
-        'with_PAR': PAR_year,
-        'PAR_file': 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/PAR_{zone}NewGrid.nc'.format(zone = zone)
+        'paramNames': paramNames,
+        'frequency': 'daily'
+        # 'with_PAR': PAR_year,
+        # 'PAR_file': 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/PAR_{zone}NewGrid.nc'.format(zone = zone)
     }
 
-    ### Initialize the netcdf reading interface
-    algaeData = open_data_input(**input_args)
+    dict_to_AllData = open_data_input(**input_args)
+
+    dict_to_AllData['PAR'] = {
+        'file_name': 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/PAR_{zone}NewGrid.nc'.format(zone=zone),
+        'variable_name': 'par',
+        'latitude_name': 'lat',
+        'longitude_name': 'lon',
+        'time_name': 'time',
+        'depth_name': 'depth',
+        'unit_conversion': 11.574,
+        'time_zero': datetime.datetime(PAR_year, 1, 1),
+        'time_step': datetime.timedelta(days=1)
+    }
 
     sim_area = {
         'longitude': (lonmin, lonmax),
         'latitude': (latmin, latmax),
-        'depth': (0, Zmix),
-        'averagingDims': ('depth',),
-        'weighted': False
+        'depth': 0
+        #'depth': (0, Zmix),
+        #'averagingDims': ('depth',),
+        #'weighted': False
     }
 
+    ### Initialize the netcdf reading interface
+    algaeData = AllData(dict_to_AllData)
+
     dataNO3 = algaeData.parameterData['Nitrate'].getVariable(**sim_area)[0]
-    #dataNH4 = dataNO3*0.1
-    dataNH4 = algaeData.parameterData['Ammonium'].getVariable(**sim_area)[0]
+    if getAmmonium:
+        dataNH4 = algaeData.parameterData['Ammonium'].getVariable(**sim_area)[0]
+    else:
+        dataNH4 = dataNO3 * 0.1
     dataTemp = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0]
     dataNwc = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0]
     dataEwc = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0]
@@ -702,16 +722,10 @@ if __name__ == "__main__":
     print(type(dataNwc[0]))
     print(type(dataNH4[0]))
 
-    fileU = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_eastward_Water_current_{zone}.nc'.format(zone=zone)
-    dataBaseEwc = nc.Dataset(fileU)
-
     fileV = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_northward_Water_current_{zone}.nc'.format(zone=zone)
     dataBaseNwc = nc.Dataset(fileV)
 
     dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
-
-    ewcDataLine = dataFin.loc[(dataFin["Parameter"] == 'eastward_Water_current') & (dataFin["Place"] == zone)]
-    ewcdataName = ewcDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
 
     nwcDataLine = dataFin.loc[(dataFin["Parameter"] == 'northward_Water_current') & (dataFin["Place"] == zone)]
     nwcdataName = nwcDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
@@ -738,7 +752,7 @@ if __name__ == "__main__":
     dataNwc[np.where(np.abs(dataNwc) >1e8)] = 0'''
 
     latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * np.array(
-        dataBaseEwc[ewcDataLine.iloc[-1]["latName"]][latitudeMin:latitudeMax])
+        dataBaseNwc[nwcDataLine.iloc[-1]["latName"]][latitudeMin:latitudeMax])
 
     decenturedEwc = u2d_cgrid_cur(dataEwc)
     decenturedNwc = v2d_cgrid_cur(dataNwc)
@@ -752,7 +766,19 @@ if __name__ == "__main__":
     model_params = "D:/Profils/mjaouen/Documents/alternance/EASME/gitcode/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
     json_data = import_json(model_params)
 
+    paramSacch = json_data['parameters']['species']['saccharina']['parameters']
     model = MA_model_scipy(json_data['parameters'])
+
+    Q_min = paramSacch['Q_min']
+    density_MA = 0.4
+    h_MA = paramSacch['h_MA']
+    w_MA = paramSacch['w_MA']
+    DF_MA = 0.113
+    kcal_MA = 2.29
+    prot_MA = 0.08
+    CN_MA = 21
+
+    print(Q_min)
 
     maxCFL = 0
     (nbrx, nbry) = np.shape(dataNO3[0])
@@ -761,8 +787,9 @@ if __name__ == "__main__":
         if np.max(CFL) > maxCFL:
             maxCFL = np.max(CFL)
             print(maxCFL)
-    xsize, ysize, ulx, uly, xres, yres = getMetadata(ds, ewcDataLine.iloc[-1]["latName"],
-                                                     nwcDataLine.iloc[-1]["longName"])
+    xsize, ysize, ulx, uly, xres, yres = getMetadata(ds, nwcDataLine.iloc[-1]["latName"],
+                                                     nwcDataLine.iloc[-1]["longName"],latitudeMin, latitudeMax,
+                                                     longitudeMin, longitudeMax)
     saveAsTiff(dataNO3[0], xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/IBI/test.tiff")
     NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlist, dt, discr,
                                                                                  decenturedEwc, decenturedNwc, dataEwc,
@@ -770,20 +797,55 @@ if __name__ == "__main__":
                                                                                  dataTemp, dataPAR, Ks, firstday, model,
                                                                                  Zmix)
 
-    saveAsTiff(NO3field, xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/{zone}/NO3field.tiff".format(zone = zone))
+    DW = N_f / Q_min  # gDW m-3
+    DW_line = DW * h_MA * w_MA / 1000  # kg/m (i.e. per m of rope)
+    DW_PUA = DW * h_MA * density_MA / 1000  # kg/m^2 (multiply be density to account for unused space within farm)
+
+    FW = DW / DF_MA  # gFW m-3
+    FW_line = DW_line / DF_MA  # kg/m (i.e. per m of rope)
+    FW_PUA = DW_PUA / DF_MA  # kg/m^2
+
+    # Energy
+    kcal_PUA = DW * h_MA * density_MA * kcal_MA  # kcal/m^2
+
+    # protein
+    protein_PUA = DW_PUA * prot_MA  # kg/m^2
+
+    # CO2 uptake
+    Biomass_CO2 = (N_f / 14) * CN_MA * 44 / 1000  # g (CO2) /m^3    (44 is rmm of CO2)
+    CO2_uptake_PUA = Biomass_CO2 * h_MA * density_MA / 1000  # kg (CO2) / m^2
+
+    saveAsTiff(NO3field, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/{zone}/NO3field.tiff".format(zone=zone))
     saveAsTiff(NH4field, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/NH4field.tiff".format(zone = zone))
+               "I:/work-he/apps/safi/data/{zone}/NH4field.tiff".format(zone=zone))
     saveAsTiff(D, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/D.tiff".format(zone = zone))
+               "I:/work-he/apps/safi/data/{zone}/D.tiff".format(zone=zone))
     saveAsTiff(N_f, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/N_f.tiff".format(zone = zone))
+               "I:/work-he/apps/safi/data/{zone}/N_f.tiff".format(zone=zone))
     saveAsTiff(N_s, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/N_s.tiff".format(zone = zone))
-    saveAsTiff(N_f / 10, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/biomass.tiff".format(zone = zone))
+               "I:/work-he/apps/safi/data/{zone}/N_s.tiff".format(zone=zone))
+    saveAsTiff(DW, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/{zone}/DW.tiff".format(zone=zone))
     saveAsTiff(totalNH4deficit, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/totalNH4deficit.tiff".format(zone = zone))
+               "I:/work-he/apps/safi/data/{zone}/totalNH4deficit.tiff".format(zone=zone))
     saveAsTiff(totalNO3deficit, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/totalNO3deficit.tiff".format(zone = zone))
-    saveAsTiff(N_f * 0.8 / 10000, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/DWperm2.tiff".format(zone = zone))
+               "I:/work-he/apps/safi/data/{zone}/totalNO3deficit.tiff".format(zone=zone))
+    saveAsTiff(DW_PUA, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/{zone}/DW_PUA.tiff".format(zone=zone))
+    saveAsTiff(FW, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/{zone}/FW.tiff".format(zone=zone))
+    saveAsTiff(FW_line, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/{zone}/FW_line.tiff".format(zone=zone))
+    saveAsTiff(FW_PUA, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/{zone}/FW_PUA.tiff".format(zone=zone))
+    saveAsTiff(kcal_PUA, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/{zone}/kcal_PUA.tiff".format(zone=zone))
+    saveAsTiff(protein_PUA, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/{zone}/protein_PUA.tiff".format(zone=zone))
+    saveAsTiff(Biomass_CO2, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/{zone}/Biomass_CO2.tiff".format(zone=zone))
+    saveAsTiff(CO2_uptake_PUA, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/{zone}/CO2_uptake_PUA.tiff".format(zone=zone))
+    saveAsTiff(DW_line, xsize, ysize, ulx, uly, xres, yres,
+               "I:/work-he/apps/safi/data/{zone}/DW_line.tiff".format(zone=zone))
