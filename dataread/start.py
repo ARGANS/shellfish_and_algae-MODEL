@@ -9,8 +9,7 @@ from launch_model import MA_model_scipy
 from models.ModelProperties import ModelProperties
 from read_netcdf import *
 
-# TODO get dataCmd.csv from a mounted volume
-dataRef: pd.DataFrame = pd.read_csv('./dataCmd.csv', delimiter=';')
+dataRef: pd.DataFrame = pd.read_csv('/media/global/dataCmd.csv', delimiter=';')
 
 model_properties = ModelProperties(os.getenv('DATASET_ID'), os.getenv('TASK_ID'))
 try:

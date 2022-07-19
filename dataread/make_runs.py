@@ -313,7 +313,7 @@ if __name__=="__main__":
     input_args = {
         'zone' : "IBI",
         'file_adress' : '/media/share/data/{zone}/{param}/{param}{zone}modelNetCDF2021-01to2022-01.nc',
-        'dataRef' : pd.read_csv('./dataCmd.csv', delimiter=';'),
+        'dataRef' : pd.read_csv('/media/global/dataCmd.csv', delimiter=';'),
         'paramNames' : ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
     }
     ### Initialize the netcdf reading interface

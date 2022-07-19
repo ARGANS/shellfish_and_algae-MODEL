@@ -13,7 +13,7 @@ from dateutil.relativedelta import *
 
 
 # read the csv where we listed the location of the different data
-def readcsv(file='./dataCmd.csv'):
+def readcsv(file='../../global/dataCmd.csv'):
     data = pd.read_csv(file, delimiter=',', header=0)
     numpData = data.to_numpy()
     for k in range(len(numpData)):

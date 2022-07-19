@@ -53,6 +53,7 @@ function run_container_for_model_execution {
         --rm \
         --name $container_name \
         --volume "$SHARED_VOLUME_NAME:/media/share" \
+        --volume $(pwd)/global:/media/global \
         -e DATASET_ID="$dataset_id" \
         -e TASK_ID="$task_id" \
         -e PARAMETERS_JSON="$json" \

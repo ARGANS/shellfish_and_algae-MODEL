@@ -725,7 +725,7 @@ if __name__ == "__main__":
     fileV = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_northward_Water_current_{zone}.nc'.format(zone=zone)
     dataBaseNwc = nc.Dataset(fileV)
 
-    dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
+    dataFin = pd.read_csv('./../global/dataCmd.csv', ';')
 
     nwcDataLine = dataFin.loc[(dataFin["Parameter"] == 'northward_Water_current') & (dataFin["Place"] == zone)]
     nwcdataName = nwcDataLine.iloc[-1]["variable"]  # we find the data name in the dataset

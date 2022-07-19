@@ -8,7 +8,7 @@ RUN mkdir -p /media/share && \
 RUN mkdir /media/share/results
 COPY dataread ./
 COPY macroalgae ./
-COPY dataimport/src/dataCmd.csv ./dataCmd.csv
+COPY global/dataCmd.csv ./dataCmd.csv
 
 #RUN apt-get update && apt-get install -y gnupg apt-transport-https ca-certificates software-properties-common libcurl4-openssl-dev libssl-dev libxml2-dev
 #RUN echo "deb [trusted=yes] http://cloud.r-project.org/bin/linux/debian bullseye-cran40/" >> /etc/apt/sources.list.d/backports.list

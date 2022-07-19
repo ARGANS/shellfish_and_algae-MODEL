@@ -10,7 +10,7 @@ import h5py
 path = 'I:/work-he/apps/safi/data/IBI/'
 
 #read the csv where we listed the location of the different data
-def readcsv(file='./../dataimport/src/dataCmd.csv'):
+def readcsv(file='./../global/dataCmd.csv'):
     data = pd.read_csv(file, delimiter=',', header=0)
     numpData = data.to_numpy()
     for k in range(len(numpData)):
@@ -84,7 +84,7 @@ print(path)
 
 #we search after the name of the data we want in the dataset
 
-dataFin=pd.read_csv('./../dataimport/src/dataCmd.csv',';')
+dataFin=pd.read_csv('./../global/dataCmd.csv',';')
 wantedDataLine = dataFin.loc[(dataFin["Parameter"] == dataName) & (dataFin["Place"] == zone)]
 data = wantedDataLine.iloc[-1]["variable"]
 print(data)
