@@ -87,7 +87,7 @@ zone = 'IBI'
 dataTabl=[]
 
 path=mainpath+dataName+"/"
-dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
+dataFin = pd.read_csv('./../global/dataCmd.csv', ';')
 wantedDataLine = dataFin.loc[(dataFin["Parameter"] == dataName) & (dataFin["Place"] == zone)]
 data = wantedDataLine.iloc[-1]["variable"] #we find the data name in the dataset
 ldate = []
@@ -103,7 +103,7 @@ print(z)
 for dat in ['Salinity', 'Nitrate']:
     path=mainpath+dat+"/"
     print(path)
-    dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
+    dataFin = pd.read_csv('./../global/dataCmd.csv', ';')
     wantedDataLine = dataFin.loc[(dataFin["Parameter"] == dat) & (dataFin["Place"] == zone)]
     data = wantedDataLine.iloc[-1]["variable"] #we find the data name in the dataset
     longitude, latitude = givecoor(path, lon, lat, dat, dataFin) #we get the indices of the wanted position

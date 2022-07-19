@@ -57,7 +57,7 @@ function run {
             local container_id=$( docker ps -q -f name=$CONTAINER_NAME )
             docker cp dataread/. ${container_id}:/opt/
             docker cp macroalgae/. ${container_id}:/opt/
-            docker cp dataimport/src/dataCmd.csv ${container_id}:/opt/dataCmd.csv
+            docker cp global/dataCmd.csv ${container_id}:/opt/dataCmd.csv
             ;;
         *)
             echo 'todo help';;

@@ -13,7 +13,7 @@ So, a typical workflow consists of these steps
 * As a result, the running container looks like an instance of a virtual machine;
 * Containers can communicate with the host system via the http protocol, shared volumes.
 
-In the repository, I create a [bash script](https://github.com/ARGANS/shellfish_and_algae-MODEL/blob/main/manage_dataimport.sh) with commands that facilitate management. From this script, the code below uses the docker CLI utility to build a Docker image:
+In the repository, I create a [bash script](https://github.com/ARGANS/shellfish_and_algae-MODEL/blob/main/miscellaneous/manage.sh) with commands that facilitate management. From this script, the code below uses the docker CLI utility to build a Docker image:
 
 ```
 docker build \

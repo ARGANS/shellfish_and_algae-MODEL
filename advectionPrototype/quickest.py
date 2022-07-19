@@ -52,7 +52,7 @@ def sortDateList(listValue,ldate):
     return np.array(sortLval), np.array(sortldate)
 
 def getData(path,data,zone, depth, latitudeMinwc,latitudeMaxwc, longitudeMinwc,longitudeMaxwc):
-    dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
+    dataFin = pd.read_csv('./../global/dataCmd.csv', ';')
     wantedDataLine = dataFin.loc[(dataFin["Parameter"] == data) & (dataFin["Place"] == zone)]
     data = wantedDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
     listValue = []
@@ -413,7 +413,7 @@ if __name__ == "__main__":
     fileV = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/cmems_mod_ibi_phy_v0.nc'
     olddataBaseNwc = nc.Dataset(fileV)
 
-    dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
+    dataFin = pd.read_csv('./../global/dataCmd.csv', ';')
 
     ewcDataLine = dataFin.loc[(dataFin["Parameter"] == 'eastward_Water_current') & (dataFin["Place"] == zone)]
     ewcdataName = ewcDataLine.iloc[-1]["variable"]  # we find the data name in the dataset

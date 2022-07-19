@@ -491,7 +491,7 @@ if __name__ == "__main__":
     mainpath = '/media/share/data_merged/'
 
     #dataRef = pd.read_csv('/profils/qjutard/shellfish_and_algae-MODEL/dataimport/src/dataCmd.csv', delimiter=';')
-    dataRef = pd.read_csv('./dataCmd.csv', delimiter=';')
+    dataRef = pd.read_csv('/media/global/dataCmd.csv', delimiter=';')
 
     #paramNames = ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current', 'ocean_mixed_layer_thickness', 'par']
     paramNames = ['pCO2', 'disolved_inorganic_carbon', 'primary_producer_POC']

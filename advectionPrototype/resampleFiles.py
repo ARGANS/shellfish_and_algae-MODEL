@@ -31,7 +31,7 @@ if __name__ == "__main__":
     mergedFilepath = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/'.format(zone=zone)
 
     _, ds = getwantedMergeData('Nitrate', depth, dataCmdpath, zone, mergedFilepath)
-    dataFin = pd.read_csv('./../dataimport/src/dataCmd.csv', ';')
+    dataFin = pd.read_csv('./../global/dataCmd.csv', ';')
     ewcDataLine = dataFin.loc[(dataFin["Parameter"] == 'Nitrate') & (dataFin["Place"] == zone)]
     ewcdataName = ewcDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
     xsize, ysize, ulx, uly, xres, yres = getMetadata(ds, ewcDataLine.iloc[-1]["latName"],
