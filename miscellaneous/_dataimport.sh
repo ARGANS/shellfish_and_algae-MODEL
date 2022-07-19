@@ -64,6 +64,8 @@ function run_in_interactive_mode {
         --name $container_name \
         --volume "$SHARED_VOLUME_NAME":/media/share \
         --volume $(pwd)/global:/media/global \
+        --volume $(pwd)/dataimport/src/start.py:/opt/start.py \
+        --volume $(pwd)/dataimport/src/general.py:/opt/general.py \
         -e INPUT_DESTINATION="$output_dir" \
         -e INPUT_PARAMETERS="$data" \
         -e PYTHONDONTWRITEBYTECODE=1 \

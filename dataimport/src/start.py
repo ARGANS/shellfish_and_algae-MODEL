@@ -12,17 +12,23 @@ parameters_json_value:str = os.getenv('INPUT_PARAMETERS')
 try:
     input_parameters:dict = json.loads(parameters_json_value)
 except:
-    raise RuntimeError('Cannot parse the value of the parameters_json environment variable')
+    raise RuntimeError('Cannot parse the value of the INPUT_PARAMETERS environment variable')
 		
 
 # DEPRECATED
 # since the script gets the dataset properties from an environment variable, the code below is no longer needed:
-year = int(input_parameters['first obs'][-4:])
-zone = input_parameters['Place']
-deepthmin = int(input_parameters['depth-min'])
-deepthmax = int(input_parameters['depth-max'])
-type = input_parameters['type']
-frequency = input_parameters['daily']
+    # year = int(input_parameters['first obs'][-4:])
+    # zone = input_parameters['Place']
+    # deepthmin = int(input_parameters['depth-min'])
+    # deepthmax = int(input_parameters['depth-max'])
+    # type = input_parameters['type']
+    # frequency = input_parameters['daily']
+year = 2021
+zone = 'Arctic'
+deepthmin = 4
+deepthmax = 20
+type = 'model'
+frequency = 'daily'
 
 # TODO update the getData() function and use the input_parameters object which contains the data directly from dataCmd.csv
 
