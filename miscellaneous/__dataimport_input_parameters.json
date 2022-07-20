@@ -1,42 +1,43 @@
 {
-    "Temperature": {
-        "type": "model",
-        "Parameter": "Temperature",
-        "Place": "IBI",
-        "motu": "https://nrt.cmems-du.eu/motu-web/Motu",
-        "service-id": "IBI_ANALYSISFORECAST_PHY_005_001-TDS",
-        "product-id": "cmems_mod_ibi_phy_anfc_0.027deg-3D_P1M-m",
-        "longitude-min": "-19",
-        "longitude-max": "5",
-        "latitude-min": "26",
-        "latitude-max": "56",
-        "resolution": "2.8*2.8",
-        "level": "4",
-        "first obs": "16/12/2018",
-        "last obs": "present",
-        "source": "marineCopernicus",
-        "variable": "thetao",
-        "link": "https://resources.marine.copernicus.eu/product-detail/IBI_ANALYSISFORECAST_PHY_005_001/INFORMATION",
-        "mask": "0",
-        "depth-min": "0.494",
-        "depth-max": "5727.917",
-        "fileType": "NetCDF",
-        "time": "",
-        "latName": "latitude",
-        "longName": "longitude",
-        "depthName": "depth",
-        "timeName": "time",
-        "frequency": "monthly",
-        "unitFactor": "",
-        "timeOrigin": "1950-01-01T00:00:00Z",
-        "timeUnit": "hours",
-        "dataimport": "Copernicus",
-        "pretreatment": "Copernicus"
+    "variables":  {
+        "Temperature": {
+            "Name": "Copernicus Analysis & Forecast",
+            "type": "model",
+            "Parameter": "Temperature",
+            "Place": "IBI",
+            "motu": "https://nrt.cmems-du.eu/motu-web/Motu",
+            "service-id": "IBI_ANALYSISFORECAST_PHY_005_001-TDS",
+            "product-id": "cmems_mod_ibi_phy_anfc_0.027deg-3D_P1M-m",
+            "longitude-min": "-19",
+            "longitude-max": "5",
+            "latitude-min": "26",
+            "latitude-max": "56",
+            "resolution": "2.8*2.8",
+            "level": "4",
+            "first obs": "16/12/2018",
+            "last obs": "present",
+            "source": "marineCopernicus",
+            "variable": "thetao",
+            "link": "https://resources.marine.copernicus.eu/product-detail/IBI_ANALYSISFORECAST_PHY_005_001/INFORMATION",
+            "mask": "0",
+            "depth-min": "0.494",
+            "depth-max": "5727.917",
+            "fileType": "NetCDF",
+            "time": "",
+            "latName": "latitude",
+            "longName": "longitude",
+            "depthName": "depth",
+            "timeName": "time",
+            "frequency": "monthly",
+            "unitFactor": "",
+            "timeOrigin": "1950-01-01T00:00:00Z",
+            "timeUnit": "hours",
+            "dataimport": "Copernicus",
+            "pretreatment": "Copernicus"
+        }
     },
-    "Nitrate": {
-
-    },
-    "Ammonium": {
-
-    }
+    "year": 2021,
+    "depth-min": 0,
+    "depth-max": 20
 }
+

@@ -1,10 +1,3 @@
-## Properties of scripts used to load datasets:
-# zone='IBI'
-# year=2021
-# deepthmin=0
-# deepthmax=20
-
-# 
 
 function build_images_for_dataimport {
     local dir="./dataimport"
@@ -45,6 +38,8 @@ function run_container_for_dataimport {
         --volume $(pwd)/global:/media/global \
         -e INPUT_DESTINATION="$output_dir" \
         -e INPUT_PARAMETERS="$data" \
+        -e MOTU_LOGIN="mjaouen" \
+        -e MOTU_PASSWORD="Azerty123456" \
         -e PYTHONDONTWRITEBYTECODE=1 \
         -it $image_tag:latest
 }
@@ -69,6 +64,8 @@ function run_in_interactive_mode {
         -e INPUT_DESTINATION="$output_dir" \
         -e INPUT_PARAMETERS="$data" \
         -e PYTHONDONTWRITEBYTECODE=1 \
+        -e MOTU_LOGIN="mjaouen" \
+        -e MOTU_PASSWORD="Azerty123456" \
         --entrypoint=/bin/bash \
         -it $image_tag:latest
 }
