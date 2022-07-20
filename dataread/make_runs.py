@@ -300,10 +300,63 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
         for colName, argName in columns_arguments.items():
             parameter_dict[parName][argName] = dataRef[colName].fillna(fill_na[colName])[iRow]
 
-        # time_units format is assumed to be "days/hours/minutes/seconds_since_YYYY"
-        time_units = dataRef['time_units'][iRow].split('_')
-        parameter_dict[parName]['time_zero'] = datetime.datetime(int(time_units[2]), 1, 1)
-        parameter_dict[parName]['time_step'] = datetime.timedelta(**{time_units[0]: 1})
+        # timeOrigin must be expressed in ISO 8601"
+        parameter_dict[parName]['time_zero'] = datetime.datetime.strptime(dataRef['timeOrigin'][iRow], "%Y-%m-%dT%H:%M:%SZ")
+
+        # convert dataRef['timeUnit'][iRow] to a float if possible
+        try:
+            timeUnit = float(dataRef['timeUnit'][iRow])
+        except:
+            timeUnit = dataRef['timeUnit'][iRow]
+
+        if timeUnit is str:
+            parameter_dict[parName]['time_step'] = datetime.timedelta(**{timeUnit: 1})
+        else: # should be a number
+            parameter_dict[parName]['time_step'] = datetime.timedelta(seconds=timeUnit)
+
+    return parameter_dict
+
+
+def dataCmd_to_AllData(dataCmdDict: dict, adress_format:str):
+    """
+    Converts a dictionary containing items from lines in dataCmd.csv to a
+    dictionary of inputs that can be passed to the AllData() constructor.
+    """
+
+    # Gives the argument to ParamData() corresponding to a column in dataRef
+    columns_arguments = {
+        'variable': 'variable_name',
+        'latName': 'latitude_name',
+        'longName': 'longitude_name',
+        'timeName': 'time_name',
+        'depthName': 'depth_name',
+        'unitFactor': 'unit_conversion'
+    }
+
+    parameter_dict = {parName: {} for parName in dataCmdDict.keys()}
+    for parName, line in dataCmdDict.items():
+
+        # adress_format can use any value from a dataCmd column (Place, Parameter, or more)
+        parameter_dict[parName]['file_name'] = adress_format.format(**line)
+
+        # Fill all argNames except file_name, time_zero, and time_step
+        for colName, argName in columns_arguments.items():
+            if line[colName] != "":
+                parameter_dict[parName][argName] = line[colName]
+
+        # timeOrigin must be expressed in ISO 8601"
+        parameter_dict[parName]['time_zero'] = datetime.datetime.strptime(line['timeOrigin'], "%Y-%m-%dT%H:%M:%SZ")
+
+        # convert line['timeUnit'] to a float if possible
+        try:
+            timeUnit = float(line['timeUnit'])
+        except:
+            timeUnit = line['timeUnit']
+
+        if timeUnit is str:
+            parameter_dict[parName]['time_step'] = datetime.timedelta(**{timeUnit: 1})
+        else: # should be a number
+            parameter_dict[parName]['time_step'] = datetime.timedelta(seconds=timeUnit)
 
     return parameter_dict
 
