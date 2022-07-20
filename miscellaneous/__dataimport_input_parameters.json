@@ -1,39 +1,42 @@
 {
-    "Temperature": {
-        "type": "model",
-        "Parameter": "Chlorophyll-a",
-        "Place": "Arctic",
-        "motu": "https://nrt.cmems-du.eu/motu-web/Motu",
-        "service-id": "ARCTIC_ANALYSISFORECAST_BGC_002_004-TDS",
-        "product-id": "cmems_mod_arc_bgc_anfc_ecosmo_P1D-m",
-        "longitude-min": "-15",
-        "longitude-max": "43",
-        "latitude-min": "64",
-        "latitude-max": "74.6",
-        "resolution": "6.25km*6.25km",
-        "level": "4",
-        "first obs": "01/01/2019",
-        "last obs": "present",
-        "source": "marineCopernicus",
-        "variable": "chl",
-        "lien": "https://resources.marine.copernicus.eu/product-detail/ARCTIC_ANALYSISFORECAST_BGC_002_004/INFORMATION",
-        "mask": "0",
-        "depth-min": "0",
-        "depth-max": "4000",
-        "fileType": "NetCDF",
-        "time": "",
-        "latName": "lat",
-        "longName": "lon",
-        "depthName": "depth",
-        "timeName": "time",
-        "daily": "daily",
-        "unitFactor": "",
-        "time_units": "hours_since_1950"
+    "variables":  {
+        "Temperature": {
+            "Name": "Copernicus Analysis & Forecast",
+            "type": "model",
+            "Parameter": "Chlorophyll-a",
+            "Place": "Arctic",
+            "motu": "https://nrt.cmems-du.eu/motu-web/Motu",
+            "service-id": "ARCTIC_ANALYSISFORECAST_BGC_002_004-TDS",
+            "product-id": "cmems_mod_arc_bgc_anfc_ecosmo_P1D-m",
+            "longitude-min": "-15",
+            "longitude-max": "43",
+            "latitude-min": "64",
+            "latitude-max": "74.6",
+            "resolution": "6.25km*6.25km",
+            "level": "4",
+            "first obs": "01/01/2019",
+            "last obs": "present",
+            "source": "marineCopernicus",
+            "variable": "chl",
+            "link": "https://resources.marine.copernicus.eu/product-detail/ARCTIC_ANALYSISFORECAST_BGC_002_004/INFORMATION",
+            "mask": "0",
+            "depth-min": "0",
+            "depth-max": "4000",
+            "fileType": "NetCDF",
+            "time": "",
+            "latName": "lat",
+            "longName": "lon",
+            "depthName": "depth",
+            "timeName": "time",
+            "frequency": "daily",
+            "unitFactor": "",
+            "time_units": "hours_since_1950",
+            "dataimport": "Copernicus",
+            "pretreatment": "Copernicus"
+        }
     },
-    "Nitrate": {
-
-    },
-    "Ammonium": {
-
-    }
+    "year": 2021,
+    "depth-min": 0,
+    "depth-max": 20
 }
+

@@ -1,6 +1,5 @@
 import ftplib
-import math
-from pprint import pprint
+from typing import List
 
 from owslib.wcs import WebCoverageService
 from owslib.wfs import WebFeatureService
@@ -36,42 +35,34 @@ def getdataFromMarineCopernicus(dataInfo, dateBeginning, dateEnd, outputDirector
     Newest version (?):
         python -m motuclient (part of the code prosposed by CMEMS)
     """
-    if (np.isnan(dataInfo["depth-min"])):
-        os.system(f'python -m motuclient'
-                  f' --motu {dataInfo["motu"]}'
-                  f' --service-id {dataInfo["service-id"]}'
-                  f' --product-id {dataInfo["product-id"]}'
-                  f' --longitude-min {dataInfo["longitude-min"]}'
-                  f' --longitude-max {dataInfo["longitude-max"]}'
-                  f' --latitude-min {dataInfo["latitude-min"]}'
-                  f' --latitude-max {dataInfo["latitude-max"]}'
-                  f' --date-min {dateBeginning}'
-                  f' --date-max {dateEnd}'
-                  f' --variable {dataInfo["variable"]}'
-                  f' --out-dir {outputDirectory}'
-                  f' --out-name {outputFile}'
-                  f' --user mjaouen --pwd Azerty123456'
-                  )
+    options = (
+        f'python -m motuclient'
+        f' --motu {dataInfo["motu"]}'
+        f' --service-id {dataInfo["service-id"]}'
+        f' --product-id {dataInfo["product-id"]}'
+        f' --longitude-min {dataInfo["longitude-min"]}'
+        f' --longitude-max {dataInfo["longitude-max"]}'
+        f' --latitude-min {dataInfo["latitude-min"]}'
+        f' --latitude-max {dataInfo["latitude-max"]}'
+        f' --date-min {dateBeginning}'
+        f' --date-max {dateEnd}'
+        f' --variable {dataInfo["variable"]}'
+        f' --out-dir {outputDirectory}'
+        f' --out-name {outputFile}'
+        f' --user {os.getenv("MOTU_LOGIN")} --pwd {os.getenv("MOTU_PASSWORD")}'
+    )
+    # if (np.isnan(dataInfo["depth-min"])):
+    if not 'depth-min' in dataInfo:
+        os.system(options)
     else:
         deepthmin = str(deepthmin)
         deepthmax = str(deepthmax)
-        os.system(f'python -m motuclient'
-                  f' --motu {dataInfo["motu"]}'
-                  f' --service-id {dataInfo["service-id"]}'
-                  f' --product-id {dataInfo["product-id"]}'
-                  f' --longitude-min {dataInfo["longitude-min"]}'
-                  f' --longitude-max {dataInfo["longitude-max"]}'
-                  f' --latitude-min {dataInfo["latitude-min"]}'
-                  f' --latitude-max {dataInfo["latitude-max"]}'
-                  f' --date-min {dateBeginning}'
-                  f' --date-max {dateEnd}'
-                  f' --depth-min {deepthmin}'
-                  f' --depth-max {deepthmax}'
-                  f' --variable {dataInfo["variable"]}'
-                  f' --out-dir {outputDirectory}'
-                  f' --out-name {outputFile}'
-                  f' --user "mjaouen" --pwd "Azerty123456"'
-                  )
+        os.system(
+            options + (
+                f' --depth-min {deepthmin}'
+                f' --depth-max {deepthmax}'
+            )
+        )
 
 
 # give the file complete name depending of the filetype
@@ -83,9 +74,16 @@ def giveFile(filename, filetype):
     else:
         return filename + '.' + filetype
 
+def getFileExtension(filetype:str) -> str:
+    if filetype == 'GeoTiFF':
+        return 'tiff'
+    elif filetype == 'NetCDF':
+        return 'nc'
+    else:
+        return filetype
 
 def getdataFromFtp(dataFin, outputDirectory):
-    HOSTNAME = dataFin["lien"]
+    HOSTNAME = dataFin["link"]
     USERNAME = dataFin["motu"]
     PASSWORD = dataFin["service-id"]
     # Connect FTP Server
@@ -191,8 +189,10 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
                 "fileType"] + dateBeginning.strftime("%Y-%m-%d%H%M%S") + 'to' + dateEnd.strftime("%Y-%m-%d%H%M%S")
         else:
             filename = wantedData + zone + dataFin.iloc[j]["fileType"]
+
         outputFile = giveFile(filename, dataFin.iloc[j]["fileType"])
         print(servicetype)
+        
         if servicetype == 'marineCopernicus':
             getdataFromMarineCopernicus(dataFin.iloc[j], dateBeginning.strftime('"%Y-%m-%d %H:%M:%S"'),
                                         dateEnd.strftime('"%Y-%m-%d %H:%M:%S"'), outputDirectory,
@@ -262,3 +262,97 @@ def giveDateslist(dateBeginning, dateEnd, frequency, timestep = None):
         endList = [(datetimeBeginning + relativedelta(months=i)) for i in range(1, nmonth + 1)]
 
     return begList, endList
+
+FREQ_PROP = 'frequency'
+
+def getFilename(properties:dict, dateBeginning, dateEnd) -> str:
+    frequency = properties[FREQ_PROP]
+    filename = properties['Parameter'] + properties['Place']
+    
+    if frequency == 'daily' or frequency == 'monthly' or frequency == 'hourly':
+        if frequency == 'daily':
+            template = "%Y-%m-%d"
+        elif frequency == 'monthly':
+            template = "%Y-%m"
+        else:
+            template = "%Y-%m-%d%H%M%S"
+
+        filename += properties['type'] + properties['fileType'] + dateBeginning.strftime(template) + 'to' + dateEnd.strftime(template)
+    else:
+        filename += properties['fileType']
+
+    return filename + '.' + getFileExtension(properties['fileType'])
+
+def processCollectionOfProperties(collection:dict, outputDirectory:str, year:int, deepthmin:int, deepthmax:int):
+    dateBeginning = f'{year}-01-01 00:00:00'
+    dateEnd = f'{year + 1}-01-01 00:00:00'
+
+    for name, properties in collection.items():
+        dataOutputDirectory = f'{outputDirectory}/{name}/'
+        frequency = properties[FREQ_PROP]
+        type = properties['type']
+        servicetype = properties['dataimport']
+        ###############
+        # frequency == 'monthly'
+        # frequency == 'daily'
+        # servicetype = 'cdsapi'
+        ###############
+        print(f'Frequency {frequency} type {type} servicetype {servicetype}')
+
+
+        if frequency != 'permanent':
+            rangeList = giveDateslist(dateBeginning, dateEnd, frequency)
+            ranges = zip(rangeList[0], rangeList[1])
+        else:
+            ranges = [(dateBeginning, dateEnd)]
+
+
+        if servicetype == 'Copernicus':
+            for (startDate, endDate) in ranges:
+                getdataFromMarineCopernicus(
+                    properties, 
+                    startDate.strftime('"%Y-%m-%d %H:%M:%S"'),
+                    endDate.strftime('"%Y-%m-%d %H:%M:%S"'), 
+                    dataOutputDirectory,
+                    getFilename(properties, startDate, endDate), 
+                    deepthmin, 
+                    deepthmax
+                )
+        elif servicetype == 'WCS':
+            url = properties["link"]
+            # requestbbox = (lonOuest, latSud, lonEst, latNord)
+            requestbbox = (-4.7, 48.55, -4.50, 48.65)
+            layer = properties["variable"]
+            outputFileAdress = dataOutputDirectory + getFilename(properties, *ranges[0])
+            getdataWCS(
+                url, 
+                layer, 
+                requestbbox, 
+                outputFileAdress, 
+                properties["service-id"],
+                properties["fileType"]
+            )
+        elif servicetype == 'cdsapi':
+            c = cdsapi.Client()
+            for (startDate, endDate) in ranges:
+                startDate_yearMonthDay:List[int] = splitDate(startDate)
+                endDate_yearMonthDay:List[int] = splitDate(endDate)
+                
+                years, months, days = givedatesForClimatCoper(startDate_yearMonthDay, endDate_yearMonthDay)
+                print(f'{startDate}:{endDate} -- {getFilename(properties, startDate, endDate)}')
+                
+                c.retrieve(
+                    properties['service-id'],
+                    {
+                        'product_type': type,
+                        'format': properties['fileType'],
+                        'variable': properties['product-id'],
+                        'year': years,
+                        'month': months,
+                        'day': days,
+                        'time': properties['time'],
+                    },
+                    getFilename(properties, startDate, endDate)
+                )
+        elif servicetype == 'ftp':
+            getdataFromFtp(properties, dataOutputDirectory)
