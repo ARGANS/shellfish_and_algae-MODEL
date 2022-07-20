@@ -1,10 +1,9 @@
 #!/bin/bash
 
-ZONE="$1"
-PARAM="$2"
+DIR_IN="$1"
+DIR_OUT="$2"
+FILE_NAME="$3"
 
-DIR_IN="/media/share/data/$ZONE/$PARAM"
-DIR_OUT="/media/share/data_merged/$ZONE/$PARAM"
 mkdir -p $DIR_OUT
 
 if [[ ! -d $DIR_IN ]]; then
@@ -15,12 +14,17 @@ fi
 first_file_name=$(ls $DIR_IN/* | head -n 1 | xargs -n 1 basename)
 echo "first_file_name: $first_file_name"
 
-# On first file, make 'time' into the record dimension:
-ncks -O --mk_rec_dim time $DIR_IN/$first_file_name $DIR_OUT/$first_file_name
+# On first file, make 'time' into the record dimension and store to a temporary file:
+ncks --mk_rec_dim time $DIR_IN/$first_file_name $DIR_OUT/tmp.nc
 
 # Then concatenate all files (the modified first file, then all the unmodified files):
 shopt -s extglob
-ncrcat -h $DIR_OUT/$first_file_name $DIR_IN/!($first_file_name) $DIR_OUT/${ZONE}_${PARAM}_merged.nc
+ncrcat -h $DIR_OUT/tmp.nc $DIR_IN/!($first_file_name) $DIR_OUT/$FILE_NAME
+
+# remove the temporary file
+rm $DIR_OUT/tmp.nc
 
 # Finally change 'valid_max' attribute to a large value:
-ncatted -O -a valid_max,time,o,d,999999. $DIR_OUT/${ZONE}_${PARAM}_merged.nc
+#ncatted -O -a valid_max,time,o,d,999999. $DIR_OUT/$FILE_NAME
+# Finally delete the 'valid_max' attribute
+ncatted -O -a valid_max,time,d,, $DIR_OUT/$FILE_NAME
