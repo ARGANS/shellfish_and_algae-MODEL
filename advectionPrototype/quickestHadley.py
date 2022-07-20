@@ -255,28 +255,6 @@ def giveEpsilon(day, temp, NH4, NO3,cNO3, cNH4, advNO3, advNH4, N_s, N_f, D, Nwc
     return model.derivative_fast_advection(day, y, data_in,cNO3, cNH4, advNO3, advNH4, nbrx, nbry, dt,
                                            latRef, model)
 
-#resample "variable" data (it can be better to use gdal translate than this function)
-def getGesampleData(ds,nbrDay,Zmix,variable,zone):
-    latitudes = ds['latitude'][:]
-    longitudes = ds['longitude'][:]
-    dataArray = np.zeros((nbrDay,len(latitudes),len(longitudes)))
-    for i, lat in enumerate(latitudes):
-        for j, lon in enumerate(longitudes):
-            input_args = {
-                'zone': zone,
-                'file_adress': 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_{param}_{zone}.nc',
-                'dataRef': pd.read_csv(dataCmdpath, delimiter=';'),
-                'paramNames': [variable]
-            }
-            algaeData = open_data_input(**input_args)
-            sim_area = {
-                'longitude': lon,
-                'latitude':lat,
-                'depth': (0, Zmix)
-            }
-            dataArray[:,i,j] = np.mean(algaeData.parameterData[variable].getVariable(**sim_area)[0], axis=1)
-    return dataArray
-
 def giveResol(dataLine):
     resolString = dataLine.iloc[-1]["resolution"]
     splitedString = resolString.split('*')
@@ -315,27 +293,11 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
 
     daylist = [firstday]
 
-    listNO3prim = [dataNO3[0][CPlat, CPlon]]
-    listNO3 = [dataNO3[0][CPlat, CPlon]]
-
-    listNH4prim = [dataNH4[0][CPlat, CPlon]]
-    listNH4 = [dataNH4[0][CPlat, CPlon]]
-
-    listDprim = [D[CPlat, CPlon]]
-
-    listN_fprim = [N_f[CPlat, CPlon]]
-
-    listN_sprim = [N_s[CPlat, CPlon]]
-
-    zeroNO3 = np.zeros((nbrx, nbry))
-    zeroNH4 = np.zeros((nbrx, nbry))
-    zeroD = np.zeros((nbrx, nbry))
-    zeroN_f = np.zeros((nbrx, nbry))
-    zeroN_s = np.zeros((nbrx, nbry))
     maxCFL = 0
     dx = dxlist.reshape(nbrx * nbry)
     #for each time step
     for k in range(nbrStep):
+        daylist += [firstday + relativedelta(minutes=int(k * 24 * 60 / discr))]
         #we compute the day, hour and month number
         dayNbr = k // int(discr)
         hNbr = k // int(discr) #if we don't use hourly speeds, hNbr = dayNbr
@@ -365,15 +327,15 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
         nh4Hatu = matE.dot(oldNH4Cline)
         nh4Hatv = matN.dot(oldNH4Cline)
         advNO3 = - cy * no3Hatv - cx * no3Hatu + (dt / dyMeter) * Ks * matN.dot(no3Hatv) + (
-                    dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(no3Hatu)
+                    dt / dx) * Ks * matE.dot(no3Hatu)
         advNH4 = - cy * nh4Hatv - cx * nh4Hatu + (dt / dyMeter) * Ks * matN.dot(nh4Hatv) + (
-                    dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(nh4Hatu)
+                    dt / dx) * Ks * matE.dot(nh4Hatu)
 
         derivArray = giveEpsilon(days, dataTemp[dayNbr], cNH4 + dataNH4[dayNbr], cNO3 + dataNO3[dayNbr], cNO3, cNH4,
                                  advNO3, advNH4, N_s, N_f, D,
                                  centNwc[hNbr], centEwc[hNbr], dataPAR[month], latRef, model, nbrx, nbry, dt,Zmix)
         if scenC:
-            derivArray = prepareDerivArrayScenC(derivArray,[westNanList, eastNanList, upNanList, downNanList, west2NanList, east2NanList, up2NanList, down2NanList,downEastNanList, upWestNanList, downWestNanList, upEastNanList])
+            derivArray = prepareDerivArrayScenC(derivArray,[westNanList, eastNanList, upNanList, downNanList, downEastNanList, upWestNanList, downWestNanList, upEastNanList])
 
         CNO3line = oldNO3Cline +advNO3 + derivArray[1].reshape(nbrx * nbry) * dt
         cNO3 = np.minimum(CNO3line.reshape(nbrx, nbry), 0)
@@ -400,202 +362,12 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
 
         N_f = np.maximum(N_f,-1e-6)
         N_s = np.maximum(N_s, -1e-6)
-        listNO3 += [dataNO3[dayNbr][CPlat, CPlon]]
 
-        zeroNO3[np.where((cNO3 + dataNO3[dayNbr]) < 0)] += 1
-        zeroNH4[np.where((cNH4 + dataNH4[dayNbr]) < 0)] += 1
-        zeroD[np.where(D < 0)] += 1
-        zeroN_f[np.where(N_f < 0)] += 1
-        zeroN_s[np.where(N_s < 0)] += 1
-
-        listNH4 += [dataNH4[dayNbr][CPlat, CPlon]]
         if k % int(30 * discr) == 0:
-            daylist += [firstday + relativedelta(minutes=int(k * 24 * 60 / discr))]
             print(k / discr)
             print(time.time() - init)
             print('Max CFL',maxCFL)
-            listNH4prim += [cNH4[CPlat, CPlon] + dataNH4[dayNbr][CPlat, CPlon]]
-            listNO3prim += [cNO3[CPlat, CPlon] + dataNO3[dayNbr][CPlat, CPlon]]
-            listDprim += [D[CPlat, CPlon]]
-            listN_fprim += [N_f[CPlat, CPlon]]
-            listN_sprim += [N_s[CPlat, CPlon]]
 
-
-    '''fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(zeroNO3)
-    CpnIm[maskpos2D] = np.nan
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    ax.invert_yaxis()
-    ax.set_title("zeros NO3")
-
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(zeroNH4)
-    CpnIm[maskpos2D] = np.nan
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    ax.invert_yaxis()
-    ax.set_title("zeros NH4")
-
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(zeroN_f)
-    CpnIm[maskpos2D] = np.nan
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    ax.invert_yaxis()
-    ax.set_title("zeros N_f")
-
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(zeroN_s)
-    CpnIm[maskpos2D] = np.nan
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    ax.invert_yaxis()
-    ax.set_title("zeros N_s")
-
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(zeroD)
-    CpnIm[maskpos2D] = np.nan
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    ax.invert_yaxis()
-    ax.set_title("zeros D")
-
-    plt.show()
-
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(cNO3 + dataNO3[dayNbr - 1])
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    plt.clim(0, 280)
-    ax.invert_yaxis()
-    ax.set_title("NO3'")
-
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(cNH4 + dataNH4[dayNbr - 1])
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    plt.clim(0, 140)
-    ax.invert_yaxis()
-    ax.set_title("NH4'")
-
-    fig, ax = plt.subplots()
-    ImD = copy.deepcopy(D)
-    ImD[maskpos2D] = np.nan
-    plt.imshow(ImD)
-    plt.colorbar()
-    ax.invert_yaxis()
-    ax.set_title("D")
-
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(N_s)
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    ax.invert_yaxis()
-    ax.set_title("N_s")
-
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(N_f)
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    ax.invert_yaxis()
-    ax.set_title("N_f")
-
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(derivArray[1] * dt)
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    plt.clim(0, 280)
-    ax.invert_yaxis()
-    ax.set_title("dNO3'")
-
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(derivArray[0] * dt)
-    CpnIm[maskpos2D] = np.nan
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    plt.clim(0, 114)
-    ax.invert_yaxis()
-    ax.set_title("dNH4'")
-
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(derivArray[4] * dt)
-    CpnIm[maskpos2D] = np.nan
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    ax.invert_yaxis()
-    ax.set_title("dD")
-
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(derivArray[2] * dt)
-    CpnIm[maskpos2D] = np.nan
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    ax.invert_yaxis()
-    ax.set_title("dN_s")
-
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(derivArray[3] * dt)
-    CpnIm[maskpos2D] = np.nan
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    ax.invert_yaxis()
-    ax.set_title("dN_f")
-
-    plt.show()'''
-
-    '''fig, ax = plt.subplots()
-    plt.plot(daylist, listNO3, label='NO3')
-    ax.plot(daylist, listNO3prim, label="NO3' daily")
-    ax.legend()
-    ax.set_xlabel('date')
-    ax.set_ylabel('Nitrate')
-
-    fig, ax = plt.subplots()
-    plt.plot(daylist, listNH4, label='NH4')
-    ax.plot(daylist, listNH4prim, label="NH4' daily")
-    ax.legend()
-    ax.set_xlabel('date')
-    ax.set_ylabel('Ammonium')
-
-    fig, ax = plt.subplots()
-    ax.plot(daylist, listDprim, label="D daily")
-    ax.legend()
-    ax.set_xlabel('date')
-    ax.set_ylabel('Detritus')
-
-    fig, ax = plt.subplots()
-    ax.plot(daylist, listN_fprim, label="N_f' daily")
-    ax.legend()
-    ax.set_xlabel('date')
-    ax.set_ylabel('fixed nitrate')
-
-    fig, ax = plt.subplots()
-    ax.plot(daylist, listN_sprim, label="N_s' daily")
-    ax.legend()
-    ax.set_xlabel('date')
-    ax.set_ylabel('stored nitrate')
-    plt.show()'''
-
-    '''fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(cNO3)
-    CpnIm[maskpos2D] = np.nan
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    plt.clim(-140, 0)
-    ax.invert_yaxis()
-    ax.set_title('cNO3')
-    plt.show()
-
-    fig, ax = plt.subplots()
-    CpnIm = copy.deepcopy(cNH4)
-    CpnIm[maskpos2D] = np.nan
-    plt.imshow(CpnIm)
-    plt.colorbar()
-    plt.clim(-80, 0)
-    ax.invert_yaxis()
-    ax.set_title('cNH4')
-    plt.show()'''
     NO3field, NH4field, D, N_f, N_s = cNO3 + dataNO3[dayNbr - 1], cNH4 + dataNH4[dayNbr - 1], D, N_f, N_s
     NO3field[maskpos2D] = np.nan
     NH4field[maskpos2D] = np.nan
@@ -604,12 +376,6 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
     N_s[maskpos2D] = np.nan
     totalNH4deficit[maskpos2D] = np.nan
     totalNO3deficit[maskpos2D] = np.nan
-    print(listNH4prim)
-    print(listNO3prim)
-    print(listDprim)
-    print(listN_fprim)
-    print(listN_sprim)
-    print(daylist)
     return NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit
 
 
@@ -625,24 +391,34 @@ if __name__ == "__main__":
     lonmin = None
     lonmax = None
 
-    dxdeg = 0.028
-    dydeg = 0.028
-
-    #dxmeter = 2000
-    #dymeter = 2000
-
-    Zmix = 2.8
-
-    scenC = True
+    scenC = False
 
     # discr = 144
-    discr = 72  # Baltic, NWS
+    discr = 72  # Baltic, NWS, IBI
+    #discr = 48 #BS
     dt = 1 / discr
 
     Ks = 1e-3
     Ks *= 60 * 60 * 24
 
     CPlat, CPlon = 153, 56
+
+    model_params = "D:/Profils/mjaouen/Documents/alternance/EASME/gitcode/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
+    json_data = import_json(model_params)
+
+    paramSacch = json_data['parameters']['species']['saccharina']['parameters']
+    model = MA_model_scipy(json_data['parameters'])
+
+    Q_min = paramSacch['Q_min']
+    density_MA = 0.4
+    h_MA = paramSacch['h_MA']
+    w_MA = paramSacch['w_MA']
+    DF_MA = 0.113
+    kcal_MA = 2.29
+    prot_MA = 0.08
+    CN_MA = 21
+
+    Zmix = h_MA * 1.4
 
     if getAmmonium:
         paramNames = ['Nitrate', 'northward_Water_current', 'Ammonium', 'eastward_Water_current',
@@ -652,7 +428,7 @@ if __name__ == "__main__":
 
     firstday = datetime.datetime.strptime('2020-01-01', '%Y-%m-%d')
 
-    dataCmdpath = 'D:/Profils/mjaouen/Documents/alternance/EASME/gitcode/shellfish_and_algae-MODEL/dataimport/src/dataCmd.csv'
+    dataCmdpath = './../global/dataCmd.csv'
     mergedFilepath = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/'.format(zone=zone)
 
     _, ds = getwantedMergeData('northward_Water_current', depth, dataCmdpath,zone, mergedFilepath)
@@ -716,30 +492,7 @@ if __name__ == "__main__":
     dataTemp = ma.masked_outside(dataTemp, -1e4, 1e4)
     dataPAR = ma.masked_outside(dataPAR, -1e-2, 1e4)
 
-    fig1, ax1 = plt.subplots()
-    plt.imshow(dataNO3[0])
-    ax1.set_title('Nitrate')
-    ax1.invert_yaxis()
-    plt.colorbar()
-
-    fig1, ax1 = plt.subplots()
-    plt.imshow(dataNH4[0])
-    ax1.set_title('Ammonium')
-    ax1.invert_yaxis()
-    plt.colorbar()
-
-    fig1, ax1 = plt.subplots()
-    plt.imshow(dataNwc[0])
-    ax1.set_title('NWS')
-    ax1.invert_yaxis()
-    plt.colorbar()
-
-    fig1, ax1 = plt.subplots()
-    plt.imshow(dataTemp[0])
-    ax1.set_title('Temperature')
-    ax1.invert_yaxis()
-    plt.colorbar()
-    plt.show()
+    dataPAR = dataPAR.filled(fill_value=8)
 
     print(type(dataTemp[0]))
     print(type(dataNwc[0]))
@@ -750,7 +503,7 @@ if __name__ == "__main__":
 
     dataFin = pd.read_csv('./../global/dataCmd.csv', ';')
 
-    nwcDataLine = dataFin.loc[(dataFin["Parameter"] == 'northward_Water_current') & (dataFin["Place"] == zone)]
+    nwcDataLine = dataFin.loc[(dataFin["Parameter"] == 'Nitrate') & (dataFin["Place"] == zone)]
     nwcdataName = nwcDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
     resx, resy, km = giveResol(nwcDataLine)
     print(resx, resy, km)
@@ -760,17 +513,6 @@ if __name__ == "__main__":
     longitudeMax, latitudeMax = givecoor(dataBaseNwc, lonmax, latmax, 'northward_Water_current',
                                          dataFin,zone)  # we get the indices of the wanted position
 
-    # we get daily data
-    '''dataEwc, ds = getwantedMergeData('eastward_Water_current', depth, dataCmdpath)
-    dataNwc, ds = getwantedMergeData('northward_Water_current', depth, dataCmdpath)
-    dataNwc = dataNwc[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
-    dataEwc = dataEwc[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
-    dataNO3 = dataNO3[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]*14
-    dataNH4 = dataNH4[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]*14
-    dataTemp = dataTemp[:, latitudeMin:latitudeMax, longitudeMin:longitudeMax]
-
-    dataNwc *= 60 * 60 * 24
-    dataEwc *= 60 * 60 * 24'''
 
     '''    print(type(dataEwc))
     dataEwc[np.where(np.abs(dataEwc) >1e8)]=0
@@ -790,22 +532,7 @@ if __name__ == "__main__":
 
     dylist = dyMeter * np.ones(np.shape(dxlist))
 
-    model_params = "D:/Profils/mjaouen/Documents/alternance/EASME/gitcode/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
-    json_data = import_json(model_params)
-
-    paramSacch = json_data['parameters']['species']['saccharina']['parameters']
-    model = MA_model_scipy(json_data['parameters'])
-
-    Q_min = paramSacch['Q_min']
-    density_MA = 0.4
-    h_MA = paramSacch['h_MA']
-    w_MA = paramSacch['w_MA']
-    DF_MA = 0.113
-    kcal_MA = 2.29
-    prot_MA = 0.08
-    CN_MA = 21
-
-    print(Q_min)
+    print(Q_min,Zmix)
 
     maxCFL = 0
     (nbrx, nbry) = np.shape(dataNO3[0])
@@ -843,36 +570,36 @@ if __name__ == "__main__":
     CO2_uptake_PUA = Biomass_CO2 * h_MA * density_MA / 1000  # kg (CO2) / m^2
 
     saveAsTiff(NO3field, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/NO3field.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/NO3field.tif".format(zone=zone))
     saveAsTiff(NH4field, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/NH4field.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/NH4field.tif".format(zone=zone))
     saveAsTiff(D, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/D.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/D.tif".format(zone=zone))
     saveAsTiff(N_f, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/N_f.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/N_f.tif".format(zone=zone))
     saveAsTiff(N_s, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/N_s.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/N_s.tif".format(zone=zone))
     saveAsTiff(DW, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/DW.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/DW.tif".format(zone=zone))
     saveAsTiff(totalNH4deficit, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/totalNH4deficit.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/totalNH4deficit.tif".format(zone=zone))
     saveAsTiff(totalNO3deficit, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/totalNO3deficit.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/totalNO3deficit.tif".format(zone=zone))
     saveAsTiff(DW_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/DW_PUA.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/DW_PUA.tif".format(zone=zone))
     saveAsTiff(FW, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/FW.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/FW.tif".format(zone=zone))
     saveAsTiff(FW_line, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/FW_line.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/FW_line.tif".format(zone=zone))
     saveAsTiff(FW_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/FW_PUA.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/FW_PUA.tif".format(zone=zone))
     saveAsTiff(kcal_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/kcal_PUA.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/kcal_PUA.tif".format(zone=zone))
     saveAsTiff(protein_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/protein_PUA.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/protein_PUA.tif".format(zone=zone))
     saveAsTiff(Biomass_CO2, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/Biomass_CO2.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/Biomass_CO2.tif".format(zone=zone))
     saveAsTiff(CO2_uptake_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/CO2_uptake_PUA.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/CO2_uptake_PUA.tif".format(zone=zone))
     saveAsTiff(DW_line, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/DW_line.tiff".format(zone=zone))
+               "I:/work-he/apps/safi/data/{zone}/DW_line.tif".format(zone=zone))
