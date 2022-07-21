@@ -169,20 +169,20 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
             frequency='daily', type='model'):
     # we select the lines that contains the data on the right zone
     wantedDataLine = dataFin.loc[
-        (dataFin["Parameter"] == wantedData) & (dataFin["Place"] == zone) & (dataFin["daily"] == frequency) & (dataFin["type"] == type)]
+        (dataFin["Parameter"] == wantedData) & (dataFin["Place"] == zone) & (dataFin["frequency"] == frequency) & (dataFin["type"] == type)]
     for j in wantedDataLine.index.values:
         servicetype = dataFin.iloc[j]["source"]
-        if wantedDataLine.iloc[0]["daily"] == 'daily':
+        if wantedDataLine.iloc[0]["frequency"] == 'daily':
             begDate = splitDate(dateBeginning)
             endDate = splitDate(dateEnd)
             filename = wantedData + zone + (validate(dataFin.iloc[j].get("type"), str) or '') + dataFin.iloc[j][
                 "fileType"] + dateBeginning.strftime("%Y-%m-%d")+ 'to' + dateEnd.strftime("%Y-%m-%d")
-        elif wantedDataLine.iloc[0]["daily"] == 'monthly':
+        elif wantedDataLine.iloc[0]["frequency"] == 'monthly':
             begDate = splitDate(dateBeginning)
             endDate = splitDate(dateEnd)
             filename = wantedData + zone + (validate(dataFin.iloc[j].get("type"), str) or '') + dataFin.iloc[j][
                 "fileType"] + dateBeginning.strftime("%Y-%m") + 'to' + dateEnd.strftime("%Y-%m")
-        elif wantedDataLine.iloc[0]["daily"] == 'hourly':
+        elif wantedDataLine.iloc[0]["frequency"] == 'hourly':
             begDate = splitDate(dateBeginning)
             endDate = splitDate(dateEnd)
             filename = wantedData + zone + (validate(dataFin.iloc[j].get("type"), str) or '') + dataFin.iloc[j][

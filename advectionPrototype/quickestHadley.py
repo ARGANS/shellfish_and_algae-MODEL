@@ -271,6 +271,31 @@ def prepareDerivArrayScenC(derivArray,nanLists):
             derivArray[i] = derivArrayLine.reshape(nbrx,nbry)
     return derivArray
 
+def sortPAR(dateBeginning, dataArr):
+    datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
+    firstmonthNbr = datetimeBeginning.month
+    dataArr=dataArr.filled(fill_value=-999)
+    dataArrShape = np.shape(dataArr)
+    newdataArr = np.zeros(dataArrShape)
+    newdataArr[:(dataArrShape[0]-firstmonthNbr)] = dataArr[firstmonthNbr:]
+    newdataArr[(dataArrShape[0]-firstmonthNbr):] = dataArr[:firstmonthNbr]
+    return ma.masked_outside(newdataArr, -1e-2, 1e4)
+
+def sortData(dateBeginning, dateEnd,dataArr):
+    datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
+    datetimeEnd = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
+    firstdayNbr = (datetimeBeginning - datetime.datetime(datetimeBeginning.year, 1, 1, 0)).days
+    lastdayNbr = (datetimeEnd - datetime.datetime(datetimeEnd.year, 1, 1, 0)).days
+    if firstdayNbr<lastdayNbr:
+        return dataArr[firstdayNbr:lastdayNbr]
+    else:
+        dataArr=dataArr.filled(fill_value=-99999)
+        dataArrShape = np.shape(dataArr)
+        newdataArr = np.zeros((dataArrShape[0]-(firstdayNbr-lastdayNbr),dataArrShape[1],dataArrShape[2]))
+        newdataArr[:(dataArrShape[0]-firstdayNbr)] = dataArr[firstdayNbr:]
+        newdataArr[(dataArrShape[0]-firstdayNbr):] = dataArr[:lastdayNbr]
+        return ma.masked_outside(newdataArr, -1e4, 1e4)
+
 #apply the quickest scheme
 def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, dataNH4, dataTemp, dataPAR, Ks, firstday,
              model, Zmix, scenC):
@@ -385,6 +410,9 @@ if __name__ == "__main__":
     PAR_year = 2020
     getAmmonium = True
 
+    dateBeginning = '2020-09-01 00:00:00'
+    dateEnd = '2020-04-30 00:00:00'
+
     latmin = None
     latmax = None
 
@@ -426,7 +454,7 @@ if __name__ == "__main__":
     else:
         paramNames = ['Nitrate', 'northward_Water_current', 'eastward_Water_current', 'Temperature']  # NWS and BS
 
-    firstday = datetime.datetime.strptime('2020-01-01', '%Y-%m-%d')
+    firstday = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
 
     dataCmdpath = './../global/dataCmd.csv'
     mergedFilepath = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/'.format(zone=zone)
@@ -487,10 +515,12 @@ if __name__ == "__main__":
     print(np.shape(dataNwc))
     print(np.shape(dataPAR))
 
-    dataNH4 = ma.masked_outside(dataNH4, -1e4, 1e4)
-    dataNO3 = ma.masked_outside(dataNO3, -1e4, 1e4)
-    dataTemp = ma.masked_outside(dataTemp, -1e4, 1e4)
-    dataPAR = ma.masked_outside(dataPAR, -1e-2, 1e4)
+    dataNH4 = sortData(dateBeginning, dateEnd, dataNH4)
+    dataNO3 = sortData(dateBeginning, dateEnd, dataNO3)
+    dataNwc = sortData(dateBeginning, dateEnd, dataNwc)
+    dataEwc = sortData(dateBeginning, dateEnd, dataEwc)
+    dataTemp = sortData(dateBeginning, dateEnd, dataTemp)
+    dataPAR = sortPAR(dateBeginning, dataPAR)
 
     dataPAR = dataPAR.filled(fill_value=8)
 
