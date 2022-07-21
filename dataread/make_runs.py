@@ -309,7 +309,7 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
         except:
             timeUnit = dataRef['timeUnit'][iRow]
 
-        if timeUnit is str:
+        if type(timeUnit) is str:
             parameter_dict[parName]['time_step'] = datetime.timedelta(**{timeUnit: 1})
         else: # should be a number
             parameter_dict[parName]['time_step'] = datetime.timedelta(seconds=timeUnit)
@@ -353,7 +353,7 @@ def dataCmd_to_AllData(dataCmdDict: dict, adress_format:str):
         except:
             timeUnit = line['timeUnit']
 
-        if timeUnit is str:
+        if type(timeUnit) is str:
             parameter_dict[parName]['time_step'] = datetime.timedelta(**{timeUnit: 1})
         else: # should be a number
             parameter_dict[parName]['time_step'] = datetime.timedelta(seconds=timeUnit)
