@@ -265,10 +265,10 @@ def run_scenario_a(fileName:str, model, y0:list, input_args:dict):
     return n_cells
 
 
-def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.DataFrame, frequency='monthly', type='model'):
+def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.DataFrame, frequency='monthly', dataType='model'):
 
     dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone) &
-                              (dataRef['daily']==frequency) & (dataRef['type']==type)][0]
+                              (dataRef['frequency']==frequency) & (dataRef['type']==dataType)][0]
                     for param in paramNames]
 
     # Gives the argument to ParamData() corresponding to a column in dataRef
