@@ -58,3 +58,17 @@ ncatted -O -a units,time,c,c,"days since 2020-01-01 00:00:00" test.nc
 # Cut data over 63°N in January, over 68° in February
 ncap2 -O -s '*par_jan=par(0,:,:); where(lat>63) par_jan=par@_FillValue; par(0,:,:)=par_jan; ram_delete(par_jan)' test.nc test.nc
 ncap2 -O -s '*par_feb=par(1,:,:); where(lat>68) par_feb=par@_FillValue; par(1,:,:)=par_feb; ram_delete(par_feb)' test.nc test.nc
+
+
+### Arctic resampling
+# First concatenate files if necessary (conc.nc in the following)
+# Translate the desired variable to GeoTIFF
+gdal_translate -ot Float64 NETCDF:conc.nc:temperature -unscale file_Stereo.tiff
+# resampling
+gdalwarp -s_srs "+proj=stere +lat_0=90 +lat_ts=90 +lon_0=-45 +k=0.00001 +x_0=0 +y_0=0 +a=6378273 +b=6378273  +units=m +no_defs" file_Stereo.tiff -t_srs EPSG:4326  "file_EPSG.tiff" -overwrite
+##Function to get the value of a variable attribute
+#function ncattget { ncks --trd -M -m ${3} | grep -E -i "^${2} attribute [0-9]+: ${1}" | cut -f 11- -d ' ' | sort ; }
+##get the original fill value of the variable
+#fillval=$(ncattget _FillValue temperature conc.nc)
+# Translate back to NetCDF
+gdal_translate -of NetCDF file_EPSG.tiff final.nc

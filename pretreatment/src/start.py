@@ -23,8 +23,18 @@ for param, line in dict_dataCmd.items():
     if line["pretreatment"] == "Copernicus":
         if line["frequency"] == "daily":
             os.system(f"./concatenate_copernicus.sh {dir_data} {dir_data_pretreated} {file_name}")
-        else:
+        else: # monthly
             os.system(f"ln -s {dir_data}/* {dir_data_pretreated}/{file_name}")
+
+
+    elif line["pretreatment"] == "Copernicus_Arctic":
+        if line["frequency"] == "daily":
+            os.system(f"./concatenate_copernicus.sh {dir_data} {dir_data_pretreated} conc.nc")
+        else: # monthly
+            os.system(f"ln -s {dir_data}/* {dir_data_pretreated}/conc.nc")
+
+        os.system(f"./resample_Arctic.sh {dir_data_pretreated} conc.nc {file_name} {line['variable']}")
+        os.system(f"rm {dir_data_pretreated}/conc.nc")
 
     # For when we add this step for Hermes or NASA data
     #elif line["pretreatment"] == "Hermes":
