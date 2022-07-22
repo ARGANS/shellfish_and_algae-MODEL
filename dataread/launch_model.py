@@ -212,11 +212,11 @@ class MA_model_scipy:
         # still assumes t=0 is jan 1st
         declin = 23.45 * np.cos(np.radians((360 / 365) * (t + 10)))
         theta = 90 - (latitude + declin)
-        sine = np.sin(np.radians(theta))
+        sine = np.sin(np.radians(theta))*(theta > 0)+1*(theta <= 0)
         I_top = data['PAR'] * np.exp(-data['K_d'] * (p.z - p.h_MA) / sine)
         absorption = (data['K_d'] * p.h_MA + y['N_f'] * p.a_cs) / sine
         I_av = (I_top / absorption) * (1 - np.exp(- absorption))
-        g_E = I_av / (p.I_s + I_av)
+        g_E = (I_av / (p.I_s + I_av))*(theta > 0)
 
         mu_g_EQT = p.mu * g_E * g_Q * g_T
 
