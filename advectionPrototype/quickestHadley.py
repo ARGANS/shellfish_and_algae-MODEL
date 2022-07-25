@@ -571,7 +571,7 @@ if __name__ == "__main__":
                                                      nwcDataLine.iloc[-1]["longName"],latitudeMin, latitudeMax,
                                                      longitudeMin, longitudeMax)
     saveAsTiff(dataNO3[0], xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/IBI/test.tiff")
-    NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlist, dt, discr,
+    NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlist, dt,
                                                                                  decenturedEwc, decenturedNwc, dataEwc,
                                                                                  dataNwc, latRef.T, dataNO3, dataNH4,
                                                                                  dataTemp, dataPAR, Ks, firstday, model,
