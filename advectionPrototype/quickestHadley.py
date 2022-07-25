@@ -59,11 +59,7 @@ def sortDateList(listValue, ldate):
 
 
 # give the indices coresponding to lonval, and latval in the list of coordinates
-def givecoor(ds, lonval, latval, dataName, dataFin,zone):
-    DataLine = dataFin.loc[(dataFin["Parameter"] == dataName) & (dataFin["Place"] == zone)]
-    # we get the longitude and latitude list
-    lonList = ds[DataLine.iloc[0]["longName"]][:]
-    latList = ds[DataLine.iloc[0]["latName"]][:]
+def givecoor(lonList,latList, lonval, latval):
     i = 0
     loni = lonList[i]
     # we browse the data until we find a coordiate bigger than the wanted coordiante
@@ -281,26 +277,24 @@ def sortPAR(dateBeginning, dataArr):
     newdataArr[(dataArrShape[0]-firstmonthNbr):] = dataArr[:firstmonthNbr]
     return ma.masked_outside(newdataArr, -1e-2, 1e4)
 
-def sortData(dateBeginning, dateEnd,dataArr):
+def sortData(dateBeginning, dateEnd,lenDataArr):
     datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
     datetimeEnd = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
     firstdayNbr = (datetimeBeginning - datetime.datetime(datetimeBeginning.year, 1, 1, 0)).days
     lastdayNbr = (datetimeEnd - datetime.datetime(datetimeEnd.year, 1, 1, 0)).days
     if firstdayNbr<lastdayNbr:
-        return dataArr[firstdayNbr:lastdayNbr]
+        return np.arange(firstdayNbr,lastdayNbr)
+    elif firstdayNbr==lastdayNbr:
+        return np.arange(0,lenDataArr)
     else:
-        dataArr=dataArr.filled(fill_value=-99999)
-        dataArrShape = np.shape(dataArr)
-        newdataArr = np.zeros((dataArrShape[0]-(firstdayNbr-lastdayNbr),dataArrShape[1],dataArrShape[2]))
-        newdataArr[:(dataArrShape[0]-firstdayNbr)] = dataArr[firstdayNbr:]
-        newdataArr[(dataArrShape[0]-firstdayNbr):] = dataArr[:lastdayNbr]
-        return ma.masked_outside(newdataArr, -1e4, 1e4)
+        return np.concatenate([np.arange(firstdayNbr,lenDataArr),np.arange(0,lastdayNbr)])
 
 #apply the quickest scheme
-def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, dataNH4, dataTemp, dataPAR, Ks, firstday,
-             model, Zmix, scenC):
+def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, dataNH4, dataTemp, dataPAR, Ks, firstday,
+             model, Zmix, scenC,sortedList):
     #we initate the variables
-    nbrStep = int(len(dataTemp) * discr)
+    discr = 1/dt
+    nbrStep = int(len(sortedList) * discr)
     cNO3 = np.zeros(np.shape(dataNO3[0]))
     cNH4 = np.zeros(np.shape(dataNH4[0]))
     N_s = np.ones(np.shape(dataNH4[0])) * 1000
@@ -324,8 +318,8 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
     for k in range(nbrStep):
         daylist += [firstday + relativedelta(minutes=int(k * 24 * 60 / discr))]
         #we compute the day, hour and month number
-        dayNbr = k // int(discr)
-        hNbr = k // int(discr) #if we don't use hourly speeds, hNbr = dayNbr
+        dayNbr = sortedList[k // int(discr)]
+        hNbr = dayNbr #if we don't use hourly speeds, hNbr = dayNbr
         month = k // int(30.5*discr)
         cNO3[maskpos2D] = 1e-5
         cNH4[maskpos2D] = 1e-5
@@ -405,7 +399,7 @@ def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dat
 
 
 if __name__ == "__main__":
-    zone = "IBI"
+    zone = "Baltic"
     depth = 0
     PAR_year = 2020
     getAmmonium = True
@@ -422,7 +416,8 @@ if __name__ == "__main__":
     scenC = False
 
     # discr = 144
-    discr = 72  # Baltic, NWS, IBI
+    discr = 96
+    #discr = 72  # Baltic, NWS, IBI
     #discr = 48 #BS
     dt = 1 / discr
 
@@ -515,13 +510,12 @@ if __name__ == "__main__":
     print(np.shape(dataNwc))
     print(np.shape(dataPAR))
 
-    dataNH4 = sortData(dateBeginning, dateEnd, dataNH4)
-    dataNO3 = sortData(dateBeginning, dateEnd, dataNO3)
-    dataNwc = sortData(dateBeginning, dateEnd, dataNwc)
-    dataEwc = sortData(dateBeginning, dateEnd, dataEwc)
-    dataTemp = sortData(dateBeginning, dateEnd, dataTemp)
-    dataPAR = sortPAR(dateBeginning, dataPAR)
+    sortedList = sortData(dateBeginning, dateEnd, len(dataNO3))
 
+    dataNH4 = ma.masked_outside(dataNH4, -1e4, 1e4)
+    dataNO3 = ma.masked_outside(dataNO3, -1e4, 1e4)
+    dataTemp = ma.masked_outside(dataTemp, -1e4, 1e4)
+    dataPAR = ma.masked_outside(dataPAR, -1e-2, 1e4)
     dataPAR = dataPAR.filled(fill_value=8)
 
     print(type(dataTemp[0]))
@@ -538,18 +532,20 @@ if __name__ == "__main__":
     resx, resy, km = giveResol(nwcDataLine)
     print(resx, resy, km)
 
-    longitudeMin, latitudeMin = givecoor(dataBaseNwc, lonmin, latmin, 'northward_Water_current',
-                                         dataFin,zone)  # we get the indices of the wanted position
-    longitudeMax, latitudeMax = givecoor(dataBaseNwc, lonmax, latmax, 'northward_Water_current',
-                                         dataFin,zone)  # we get the indices of the wanted position
+    longitudes, _ = algaeData.parameterData['Temperature'].getVariable('longitude', **sim_area)
+    latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **sim_area)
+
+    longitudeMin, latitudeMin = givecoor(longitudes, latitudes, lonmin,
+                                         latmin)  # we get the indices of the wanted position
+    longitudeMax, latitudeMax = givecoor(longitudes, latitudes, lonmax,
+                                         latmax)  # we get the indices of the wanted position
 
 
     '''    print(type(dataEwc))
     dataEwc[np.where(np.abs(dataEwc) >1e8)]=0
     dataNwc[np.where(np.abs(dataNwc) >1e8)] = 0'''
 
-    latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * np.array(
-        dataBaseNwc[nwcDataLine.iloc[-1]["latName"]][latitudeMin:latitudeMax])
+    latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * longitudes[latitudeMin:latitudeMax]
 
     decenturedEwc = u2d_cgrid_cur(dataEwc)
     decenturedNwc = v2d_cgrid_cur(dataNwc)
@@ -579,7 +575,7 @@ if __name__ == "__main__":
                                                                                  decenturedEwc, decenturedNwc, dataEwc,
                                                                                  dataNwc, latRef.T, dataNO3, dataNH4,
                                                                                  dataTemp, dataPAR, Ks, firstday, model,
-                                                                                 Zmix,scenC)
+                                                                                 Zmix,scenC,sortedList)
 
     DW = N_f / Q_min  # gDW m-3
     DW_line = DW * h_MA * w_MA / 1000  # kg/m (i.e. per m of rope)
