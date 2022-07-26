@@ -66,6 +66,7 @@ function action_bash {
 datasetProperties_json=`cat $DIR/__dataimport_input_parameters.json` 
 datasetProperties_hash=`echo -n "$datasetProperties_json" | md5sum | head -c 32`
 dataimport_destination="/media/share/data/$datasetProperties_hash/"
+pretreatment_source="$dataimport_destination"
 
 
 
@@ -88,32 +89,38 @@ function handle_arguments {
             build_images_for_pretreatment 
             ;;
         'execute_pretreatment')
-            run_container_for_dataimport "$dataimport_destination"
+            run_pretreatment "$pretreatment_source"
             ;;
         'run_pretreatment')
-            run_pretreatment "$dataimport_destination"
+            run_pretreatment_in_interactive_mode "$pretreatment_source"
             ;;
 
 
         
         'build_dataread')
-            build_images_for_model_execution
+            build_dataread_image
             ;;
         'execute_dataread')
-            run_container_for_model_execution "ac-model_run" "ac-processing/runtime"
+            run_dataread
             ;;
+        
+
         'ls')
             sudo ls -al /var/lib/docker/volumes/$SHARED_VOLUME_NAME/_data/$2
             ;;
         'ls2')
             docker run --rm -i -v=$SHARED_VOLUME_NAME:/media/volume busybox sh
             ;;
+        
+
         'build_posttreatment')
             build_images_for_posttreatment
             ;;
         'execute_posttreatment')
             run_container_for_posttreatment "ac-posttreatment_run" "ac-posttreatment/runtime"
             ;;
+        
+        
         'bash')
             action_bash
             ;;

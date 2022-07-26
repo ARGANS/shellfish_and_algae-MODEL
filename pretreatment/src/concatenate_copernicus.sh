@@ -22,7 +22,7 @@ shopt -s extglob
 ncrcat -h $DIR_OUT/tmp.nc $DIR_IN/!($first_file_name) $DIR_OUT/$FILE_NAME
 
 # remove the temporary file
-rm $DIR_OUT/tmp.nc
+rm -f $DIR_OUT/tmp.nc
 
 # Finally change 'valid_max' attribute to a large value:
 #ncatted -O -a valid_max,time,o,d,999999. $DIR_OUT/$FILE_NAME

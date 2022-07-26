@@ -1,4 +1,4 @@
-FROM python:3.10.1-slim-bullseye
+FROM python:3.10.5-slim-bullseye
 WORKDIR /opt
 
 RUN apt-get update && \
@@ -27,4 +27,5 @@ RUN if [ ! -z "$WITH_NETCDF" ] ; then \
 ARG REQUIREMENTS_PATH
 RUN echo ":: $REQUIREMENTS_PATH"
 COPY "$REQUIREMENTS_PATH" .
-RUN python -m pip --no-cache-dir install -r requirements.txt
+RUN if [ -f requirements.txt ] ; then python -m pip --no-cache-dir install -r requirements.txt; fi
+

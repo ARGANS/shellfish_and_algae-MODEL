@@ -1,39 +1,47 @@
 import os
-# from models.ModelProperties import ModelProperties
+import json
 
-# model_properties = ModelProperties(os.getenv('DATASET_ID'), os.getenv('TASK_ID'))
-# try:
-#     model_properties.parse(os.getenv('PARAMETERS_JSON'))
-# except:
-#     raise RuntimeError('Cannot parse the value of the parameters_json environment variable')
+def cleanFinalSlash(value: str) -> str:
+    return value[:-1] if value.endswith('/') else value
 
-# if not model_properties.isDataDownloadTaskCompleted():
-#     raise RuntimeError('Data not downloaded')
+source_path:str = cleanFinalSlash(os.getenv('INPUT_SOURCE')) 
 
-# TODO: how to get this ?
-dict_dataCmd = model_properties.<something to get the dict>
+try:
+    with open(source_path + '/parameters.json') as file:
+        input_parameters:dict = json.load(file)
+except:
+    raise RuntimeError('Cannot parse input parameters')
 
-for param, line in dict_dataCmd.items():
-    # TODO: get these dir names (no last /)
-    dir_data = 
-    dir_data_pretreated =
-    # TODO: I think the template contains the /media/share/... part, this should just be the file name
-    file_name = model_properties.file_template.format(**line)
+dict_dataCmd = input_parameters.get('datasets', None)
 
-    if line["pretreatment"] == "Copernicus":
-        if line["frequency"] == "daily":
+if dict_dataCmd is None:
+    raise RuntimeError('The datasets key does not exist in the source manifest file')
+
+year = input_parameters.get('year')
+
+for param, dataset_properties in dict_dataCmd.items():
+    dir_data = source_path + '/' + param
+    dir_data_pretreated = source_path + '/_pretreated/' + param
+    zone = dataset_properties.get('Place')
+
+    file_name = f'{param}{zone}modelNetCDF{year}-01to{year + 1}-01.nc'
+    method = dataset_properties["pretreatment"]
+    frequency = dataset_properties["frequency"]
+
+    if method == "Copernicus":
+        if frequency == "daily":
             os.system(f"./concatenate_copernicus.sh {dir_data} {dir_data_pretreated} {file_name}")
         else: # monthly
             os.system(f"ln -s {dir_data}/* {dir_data_pretreated}/{file_name}")
 
 
-    elif line["pretreatment"] == "Copernicus_Arctic":
-        if line["frequency"] == "daily":
+    elif method == "Copernicus_Arctic":
+        if frequency == "daily":
             os.system(f"./concatenate_copernicus.sh {dir_data} {dir_data_pretreated} conc.nc")
         else: # monthly
             os.system(f"ln -s {dir_data}/* {dir_data_pretreated}/conc.nc")
 
-        os.system(f"./resample_Arctic.sh {dir_data_pretreated} conc.nc {file_name} {line['variable']}")
+        os.system(f"./resample_Arctic.sh {dir_data_pretreated} conc.nc {file_name} {dataset_properties['variable']}")
         os.system(f"rm {dir_data_pretreated}/conc.nc")
 
     # For when we add this step for Hermes or NASA data

@@ -8,9 +8,9 @@ function build_images_for_pretreatment {
     local base_image_dockerfile="./miscellaneous/pythonBase.Dockerfile"
     local runtime_image_dockerfile="./miscellaneous/pythonRuntime.Dockerfile"
 
-    ### for GDAL: --build-arg WITH_GDAL="true" \
     docker build \
         --network host \
+        --build-arg WITH_NETCDF="true" \
         -t $base_image_tag:v1 -t $base_image_tag:latest \
         -f $base_image_dockerfile \
         $dir && \
@@ -23,14 +23,9 @@ function build_images_for_pretreatment {
 }
 
 function run_pretreatment {
-    local data="$1"
-
     stop_existed_container $PRETREATMENT_CONTAINER
     create_volumes
     
-    local hash=`echo -n "$data" | md5sum | head -c 32`
-    local output_dir="/media/share/data/$hash/"
-
     # use -d to start a container in detached mode
     # use --entrypoint=/bin/bash \ to override the command
     docker run \
@@ -38,29 +33,22 @@ function run_pretreatment {
         --name $PRETREATMENT_CONTAINER \
         --volume "$SHARED_VOLUME_NAME":/media/share \
         --volume $(pwd)/global:/media/global \
-        -e INPUT_DESTINATION="$output_dir" \
-        -e INPUT_PARAMETERS="$data" \
+        -e INPUT_SOURCE="$1" \
         -e PYTHONDONTWRITEBYTECODE=1 \
         -it $PRETREATMENT_IMAGE:latest
 }
 
 function run_pretreatment_in_interactive_mode {
-    local data="$1"
     stop_existed_container $$PRETREATMENT_CONTAINER
     create_volumes
-    local hash=`echo -n "$data" | md5sum | head -c 32`
-    local output_dir="/media/share/data/$hash/"
-
 
     docker run \
         --rm \
         --name $PRETREATMENT_CONTAINER \
         --volume "$SHARED_VOLUME_NAME":/media/share \
         --volume $(pwd)/global:/media/global \
-        --volume $(pwd)/pretreatment/src/start.py:/opt/ \
-        -e INPUT_DESTINATION="$output_dir" \
-        -e INPUT_SOURCE="$output_dir" \
-        -e INPUT_PARAMETERS="$data" \
+        --volume $(pwd)/pretreatment/src/:/opt/ \
+        -e INPUT_SOURCE="$1" \
         -e PYTHONDONTWRITEBYTECODE=1 \
         --entrypoint=/bin/bash \
         -it $PRETREATMENT_IMAGE:latest

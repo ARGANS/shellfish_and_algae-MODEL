@@ -1,7 +1,10 @@
-function build_images_for_model_execution {
+#!/bin/bash
+DATAREAD_IMAGE='ac-dataread/runtime'
+DATAREAD_CONTAINER='ac-dataread_run'
+
+function build_dataread_image {
     local dir="./dataread"
-    local base_image_tag="ac-processing/base"
-    local runtime_image_tag="ac-processing/runtime"
+    local base_image_tag="ac-dataread/base"
     local base_image_dockerfile="./miscellaneous/pythonBase.Dockerfile"
     local runtime_image_dockerfile="./miscellaneous/pythonRuntime.Dockerfile"
 
@@ -17,20 +20,16 @@ function build_images_for_model_execution {
     docker build \
         --network host \
         --build-arg BASE_IMAGE="$base_image_tag" \
-        -t $runtime_image_tag:v2 -t $runtime_image_tag:latest \
+        -t $DATAREAD_IMAGE:v1 -t $DATAREAD_IMAGE:latest \
         -f $runtime_image_dockerfile \
         $dir
 }
 
-function run_container_for_model_execution {
-    local container_name="$1"
-    local image_tag="$2"
-
-    stop_existed_container $container_name
+function run_dataread {
+    stop_existed_container DATAREAD_CONTAINER
     create_volumes
 
-    # All model properties received from the application
-    # data=`cat macroalgae/macroalgae_model_parameters_input.json`
+
 
     zone='IBI'
     year=2021
@@ -51,12 +50,12 @@ function run_container_for_model_execution {
     # use --entrypoint=/bin/bash \ to override the command
     docker run \
         --rm \
-        --name $container_name \
+        --name $DATAREAD_CONTAINER \
         --volume "$SHARED_VOLUME_NAME:/media/share" \
         --volume $(pwd)/global:/media/global \
         -e DATASET_ID="$dataset_id" \
         -e TASK_ID="$task_id" \
         -e PARAMETERS_JSON="$json" \
         -e PYTHONDONTWRITEBYTECODE=1 \
-        -it $image_tag:latest
+        -it $DATAREAD_IMAGE:latest
 }
