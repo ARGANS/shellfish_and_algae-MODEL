@@ -5,6 +5,7 @@ echo $DIR
 source $DIR/_common.sh
 source $DIR/_dataread.sh
 source $DIR/_dataimport.sh
+source $DIR/_pretreatment.sh
 
 ## Properties of scripts used to load datasets:
 
@@ -60,6 +61,14 @@ function action_bash {
         -it $image_tag:latest
 }
 
+
+# DATASET PROPERTIES: year depth-min depth-max datasets
+datasetProperties_json=`cat $DIR/__dataimport_input_parameters.json` 
+datasetProperties_hash=`echo -n "$datasetProperties_json" | md5sum | head -c 32`
+dataimport_destination="/media/share/data/$datasetProperties_hash/"
+
+
+
 function handle_arguments {
     local command="$1"
 
@@ -68,13 +77,25 @@ function handle_arguments {
             build_images_for_dataimport 
             ;;
         'execute_dataimport')
-            data=`cat $DIR/__dataimport_input_parameters.json` 
-            run_container_for_dataimport "ac-dataimport_run" "ac-import/runtime" "$data"
+            run_container_for_dataimport "$datasetProperties_json" "$dataimport_destination"
             ;;
         'run_dataimport')
-            data=`cat $DIR/__dataimport_input_parameters.json` 
-            run_in_interactive_mode "ac-dataimport_run" "ac-import/runtime" "$data"
+            run_in_interactive_mode "$datasetProperties_json" "$dataimport_destination"
             ;;
+
+
+        'build_pretreatment')
+            build_images_for_pretreatment 
+            ;;
+        'execute_pretreatment')
+            run_container_for_dataimport "$dataimport_destination"
+            ;;
+        'run_pretreatment')
+            run_pretreatment "$dataimport_destination"
+            ;;
+
+
+        
         'build_dataread')
             build_images_for_model_execution
             ;;

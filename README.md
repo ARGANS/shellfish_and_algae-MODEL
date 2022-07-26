@@ -49,3 +49,21 @@ docker run \
 ```	
 2.3) Then You can use the `./miscellaneous/manage.sh execute_dataread` command to run a new container with code
 
+
+
+### step 0: build images
+0.1. `./miscellaneous/manage.sh build_dataimport`
+0.2. `./miscellaneous/manage.sh build_pretreatment`
+
+
+### step 1: dataimport
+1.0. `./miscellaneous/manage.sh execute_dataimport`
+
+
+### step 2: pretreatment
+
+
+### step 3: dataread
+
+### step 3: posttreatment
+

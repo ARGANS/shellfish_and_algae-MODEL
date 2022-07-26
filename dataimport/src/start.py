@@ -6,7 +6,8 @@ from general import processCollectionOfProperties
 def cleanFinalSlash(value: str) -> str:
     return value[:-1] if value.endswith('/') else value
 
-VAR_PROP = 'variables'
+MTDT_KEY = 'metadata'
+DTSTS_KEY = 'datasets'
 
 
 # Read dataset parameters
@@ -23,8 +24,10 @@ deepthmin = int(input_parameters['depth-min'])
 deepthmax = int(input_parameters['depth-max'])
 
 
-if not VAR_PROP in input_parameters:
-    raise RuntimeError(f'{VAR_PROP} not found')
+datasets = input_parameters.get(DTSTS_KEY, None)
 
-processCollectionOfProperties(input_parameters[VAR_PROP], outputDirectory, year, deepthmin, deepthmax)
+if datasets is None:
+    raise RuntimeError(f'{DTSTS_KEY} not found')
+
+processCollectionOfProperties(datasets, outputDirectory, year, deepthmin, deepthmax)
 

@@ -1,3 +1,6 @@
+DATAIMPORT_IMAGE='ac-import/runtime'
+DATAIMPORT_CONTAINER='ac-dataimport_run'
+
 
 function build_images_for_dataimport {
     local dir="./dataimport"
@@ -15,57 +18,46 @@ function build_images_for_dataimport {
     docker build \
         --network host \
         --build-arg BASE_IMAGE="$base_image_tag" \
-        -t $runtime_image_tag:v1 -t $runtime_image_tag:latest \
+        -t $DATAIMPORT_IMAGE:v1 -t $DATAIMPORT_IMAGE:latest \
         -f $runtime_image_dockerfile \
         $dir
 }
 
 function run_container_for_dataimport {
-    local container_name="$1"
-    local image_tag="$2"
-    local data="$3"
-    stop_existed_container $container_name
+    stop_existed_container $DATAIMPORT_CONTAINER
     create_volumes
-    local hash=`echo -n "$data" | md5sum | head -c 32`
-    local output_dir="/media/share/data/$hash/"
 
     # use -d to start a container in detached mode
     # use --entrypoint=/bin/bash \ to override the command
     docker run \
         --rm \
-        --name $container_name \
+        --name $DATAIMPORT_CONTAINER \
         --volume "$SHARED_VOLUME_NAME":/media/share \
         --volume $(pwd)/global:/media/global \
-        -e INPUT_DESTINATION="$output_dir" \
-        -e INPUT_PARAMETERS="$data" \
+        -e INPUT_DESTINATION="$2" \
+        -e INPUT_PARAMETERS="$1" \
         -e MOTU_LOGIN="mjaouen" \
         -e MOTU_PASSWORD="Azerty123456" \
         -e PYTHONDONTWRITEBYTECODE=1 \
-        -it $image_tag:latest
+        -it $DATAIMPORT_IMAGE:latest
 }
 
 function run_in_interactive_mode {
-    local container_name="$1"
-    local image_tag="$2"
-    local data="$3"
-    stop_existed_container $container_name
+    stop_existed_container $DATAIMPORT_CONTAINER
     create_volumes
-    local hash=`echo -n "$data" | md5sum | head -c 32`
-    local output_dir="/media/share/data/$hash/"
-
 
     docker run \
         --rm \
-        --name $container_name \
+        --name $DATAIMPORT_CONTAINER \
         --volume "$SHARED_VOLUME_NAME":/media/share \
         --volume $(pwd)/global:/media/global \
         --volume $(pwd)/dataimport/src/start.py:/opt/start.py \
         --volume $(pwd)/dataimport/src/general.py:/opt/general.py \
-        -e INPUT_DESTINATION="$output_dir" \
-        -e INPUT_PARAMETERS="$data" \
+        -e INPUT_DESTINATION="$2" \
+        -e INPUT_PARAMETERS="$1" \
         -e PYTHONDONTWRITEBYTECODE=1 \
         -e MOTU_LOGIN="mjaouen" \
         -e MOTU_PASSWORD="Azerty123456" \
         --entrypoint=/bin/bash \
-        -it $image_tag:latest
+        -it $DATAIMPORT_IMAGE:latest
 }

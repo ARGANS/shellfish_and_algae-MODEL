@@ -1,14 +1,14 @@
 import os
-from models.ModelProperties import ModelProperties
+# from models.ModelProperties import ModelProperties
 
-model_properties = ModelProperties(os.getenv('DATASET_ID'), os.getenv('TASK_ID'))
-try:
-    model_properties.parse(os.getenv('PARAMETERS_JSON'))
-except:
-    raise RuntimeError('Cannot parse the value of the parameters_json environment variable')
+# model_properties = ModelProperties(os.getenv('DATASET_ID'), os.getenv('TASK_ID'))
+# try:
+#     model_properties.parse(os.getenv('PARAMETERS_JSON'))
+# except:
+#     raise RuntimeError('Cannot parse the value of the parameters_json environment variable')
 
-if not model_properties.isDataDownloadTaskCompleted():
-    raise RuntimeError('Data not downloaded')
+# if not model_properties.isDataDownloadTaskCompleted():
+#     raise RuntimeError('Data not downloaded')
 
 # TODO: how to get this ?
 dict_dataCmd = model_properties.<something to get the dict>

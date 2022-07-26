@@ -292,11 +292,7 @@ def processCollectionOfProperties(collection:dict, outputDirectory:str, year:int
         frequency = properties[FREQ_PROP]
         type = properties['type']
         servicetype = properties['dataimport']
-        ###############
-        # frequency == 'monthly'
-        # frequency == 'daily'
-        # servicetype = 'cdsapi'
-        ###############
+        
         print(f'Frequency {frequency} type {type} servicetype {servicetype}')
 
 
@@ -305,7 +301,6 @@ def processCollectionOfProperties(collection:dict, outputDirectory:str, year:int
             ranges = zip(rangeList[0], rangeList[1])
         else:
             ranges = [(dateBeginning, dateEnd)]
-
 
         if servicetype == 'Copernicus':
             for (startDate, endDate) in ranges:
