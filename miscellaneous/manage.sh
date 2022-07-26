@@ -62,11 +62,17 @@ function action_bash {
 }
 
 
-# DATASET PROPERTIES: year depth-min depth-max datasets
+# DATASET PROPERTIES: year depth-min depth-max datasets (from metadata)
 datasetProperties_json=`cat $DIR/__dataimport_input_parameters.json` 
+modelProperties_json=`cat $DIR/__user1_alaria_IBI_26-07-2022.json`
+
 datasetProperties_hash=`echo -n "$datasetProperties_json" | md5sum | head -c 32`
-dataimport_destination="/media/share/data/$datasetProperties_hash/"
+modelProperties_hash=`echo -n "$modelProperties_json" | md5sum | head -c 32`
+
+dataimport_destination="/media/share/data/$datasetProperties_hash"
 pretreatment_source="$dataimport_destination"
+dataread_source="$dataimport_destination"
+dataread_destination="$dataimport_destination/_dataread/$modelProperties_hash"
 
 
 
@@ -101,7 +107,7 @@ function handle_arguments {
             build_dataread_image
             ;;
         'execute_dataread')
-            run_dataread
+            run_dataread "$dataread_source" "$dataread_destination" "$modelProperties_json"
             ;;
         
 
@@ -120,7 +126,7 @@ function handle_arguments {
             run_container_for_posttreatment "ac-posttreatment_run" "ac-posttreatment/runtime"
             ;;
         
-        
+
         'bash')
             action_bash
             ;;

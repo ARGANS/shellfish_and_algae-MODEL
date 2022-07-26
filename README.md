@@ -54,6 +54,7 @@ docker run \
 ### step 0: build images
 0.1. `./miscellaneous/manage.sh build_dataimport`
 0.2. `./miscellaneous/manage.sh build_pretreatment`
+0.3. `./miscellaneous/manage.sh build_dataread`
 
 ### step 1: dataimport
 1.0. `./miscellaneous/manage.sh execute_dataimport`
@@ -62,6 +63,9 @@ docker run \
 2.0. `./miscellaneous/manage.sh execute_pretreatment`
 
 ### step 3: dataread
+3.1. `./miscellaneous/manage.sh execute_dataread`
 
-### step 4: posttreatment
+### step 4: B
+
+### step 5: posttreatment
 

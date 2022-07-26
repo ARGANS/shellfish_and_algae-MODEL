@@ -14,21 +14,17 @@ def get_file_content(path:str) -> str:
 
 class ModelProperties():
     attrs = {}
-    task_id:str = None
-    dataset_id:str = None
+    source_path:str = None
+    destination_path:str = None
     year:int = None
 
-    def __init__(self, dataset_id, task_id) -> None:
-        self.dataset_id = dataset_id
-        self.task_id = task_id
-    
+    def __init__(self, source_path, destination_path) -> None:
+        self.source_path = source_path
+        self.destination_path = destination_path
+        
     def parse(self, parameters_json_value:str):
         self.attrs = json.loads(parameters_json_value)
-        self.parse_metadata()  
 
-    def parse_metadata(self):
-        print('[CALL parse_metadata]')
-        pprint(self.attrs)
         if 'metadata' not in self.attrs:
             raise RuntimeError('Invalid input metadata schema 1')
 
@@ -39,16 +35,9 @@ class ModelProperties():
 
         self.year = int(self.attrs['metadata']['year'])
 
-        self.dataset_id = '-'.join([
-            metadata['zone'],
-            str(metadata['year']),
-            str(metadata['depth_min']),
-            str(metadata['depth_max']),
-        ])
-
     @property
     def file_template(self) -> str:
-        return f'/media/share/data/{self.dataset_id}/{{param}}/{{param}}{{zone}}modelNetCDF{self.year}-01to{self.year + 1}-01.nc'
+        return f'{self.source_path}/_pretreated/{{param}}/{{param}}{{zone}}modelNetCDF{self.year}-01to{self.year + 1}-01.nc'
         
 
     @property
@@ -58,17 +47,15 @@ class ModelProperties():
 
     def isDataDownloadTaskCompleted(self) -> bool:
         try:
-            _ = get_file_content(f'/media/share/data/{self.dataset_id}/task.mark')
+            _ = get_file_content(f'{self.source_path}/task.mark')
             return True
         except FileNotFoundError:
             return False
-
-        pass
 
     def getMonthlySimulationsPath(self, i:int) -> str:
         return f'{self.results_dir_path}/monthly_simulations_{i:03d}.nc'
 
     @property
     def results_dir_path(self) -> str:
-        return f'/media/share/results/{self.dataset_id}/{self.task_id}'
+        return self.destination_path
     

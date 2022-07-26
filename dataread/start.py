@@ -11,9 +11,9 @@ from read_netcdf import *
 
 dataRef: pd.DataFrame = pd.read_csv('/media/global/dataCmd.csv', delimiter=';')
 
-model_properties = ModelProperties(os.getenv('DATASET_ID'), os.getenv('TASK_ID'))
+model_properties = ModelProperties(os.getenv('INPUT_SOURCE'), os.getenv('INPUT_DESTINATION'))
 try:
-    model_properties.parse(os.getenv('PARAMETERS_JSON'))
+    model_properties.parse(os.getenv('INPUT_MODEL_PROPERTIES_JSON'))
 except:
     raise RuntimeError('Cannot parse the value of the parameters_json environment variable')
 
@@ -53,10 +53,10 @@ parms_harvest = list(model_properties.parameters['harvest'].values())[0]['parame
 harvest_type = list(model_properties.parameters['harvest'].keys())[0]
 
 sim_area = {
-    # 'longitude': (-4, -3),
-    # 'latitude': (48.5, 49),
-    'longitude': (parms_run['min_lon'], parms_run['max_lon']),
-    'latitude': (parms_run['min_lat'], parms_run['max_lat']),
+    'longitude': (-4, -3),
+    'latitude': (48.5, 49),
+    # 'longitude': (parms_run['min_lon'], parms_run['max_lon']),
+    # 'latitude': (parms_run['min_lat'], parms_run['max_lat']),
     'time_index': 0,
     'depth': parms_farm['z']
 }
