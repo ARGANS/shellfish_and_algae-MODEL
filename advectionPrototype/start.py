@@ -95,8 +95,7 @@ longitudeMax, latitudeMax = givecoor(longitudes,latitudes, parms_run['max_lon'],
 
 firstday = datetime.datetime.strptime(parms_run['dateBeginning'], '%Y-%m-%d %H:%M:%S')
 
-latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * longitudes[latitudeMin:latitudeMax]
-
+latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * latitudes[latitudeMin:latitudeMax]
 decenturedEwc = u2d_cgrid_cur(dataEwc)
 decenturedNwc = v2d_cgrid_cur(dataNwc)
 
