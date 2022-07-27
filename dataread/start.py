@@ -54,10 +54,10 @@ parms_harvest = list(model_properties.parameters['harvest'].values())[0]['parame
 harvest_type = list(model_properties.parameters['harvest'].keys())[0]
 
 sim_area = {
-    'longitude': (-4, -3),
-    'latitude': (48.5, 49),
-    # 'longitude': (parms_run['min_lon'], parms_run['max_lon']),
-    # 'latitude': (parms_run['min_lat'], parms_run['max_lat']),
+    # 'longitude': (-4, -3),
+    # 'latitude': (48.5, 49),
+    'longitude': (parms_run['min_lon'], parms_run['max_lon']),
+    'latitude': (parms_run['min_lat'], parms_run['max_lat']),
     'time_index': 0,
     'depth': parms_farm['z']
 }
@@ -102,6 +102,6 @@ n_cells = pool.starmap_async(run_scenario_a_monthly, [(
         True
     ) for i in range(n_slices)]).get()
 
-with open(model_properties.results_dir_path + '/stats.log', 'w') as file:
+with open(model_properties.destination_path + '/stats.log', 'w') as file:
     file.write(str(n_cells) + '\n')
     file.write(str((time.time() - t0) / sum(n_cells)) + '\n')

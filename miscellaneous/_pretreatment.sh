@@ -34,6 +34,7 @@ function run_pretreatment {
         --volume "$SHARED_VOLUME_NAME":/media/share \
         --volume $(pwd)/global:/media/global \
         -e INPUT_SOURCE="$1" \
+        -e INPUT_DESTINATION="$2" \
         -e PYTHONDONTWRITEBYTECODE=1 \
         -it $PRETREATMENT_IMAGE:latest
 }
@@ -49,6 +50,7 @@ function run_pretreatment_in_interactive_mode {
         --volume $(pwd)/global:/media/global \
         --volume $(pwd)/pretreatment/src/:/opt/ \
         -e INPUT_SOURCE="$1" \
+        -e INPUT_DESTINATION="$2" \
         -e PYTHONDONTWRITEBYTECODE=1 \
         --entrypoint=/bin/bash \
         -it $PRETREATMENT_IMAGE:latest

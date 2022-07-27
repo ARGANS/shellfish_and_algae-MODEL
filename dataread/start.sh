@@ -2,6 +2,7 @@
 
 workdir=$INPUT_DESTINATION
 mkdir -p $workdir
+rm -rf $workdir/*
 
 echo -n $INPUT_MODEL_PROPERTIES_JSON > $workdir/parameters.json
 error_log=$workdir/error.txt

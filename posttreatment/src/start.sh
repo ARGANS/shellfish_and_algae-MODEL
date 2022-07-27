@@ -3,7 +3,6 @@ input_path="$SOURCE_DIR"
 destination=$input_path/posttreatment
 tmp_path=/tmp/$(basename $input_path)
 
-
 mkdir -p $destination
 mkdir -p $tmp_path
 rm -rf $tmp_path/*

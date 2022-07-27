@@ -5,6 +5,7 @@ def cleanFinalSlash(value: str) -> str:
     return value[:-1] if value.endswith('/') else value
 
 source_path:str = cleanFinalSlash(os.getenv('INPUT_SOURCE')) 
+destination_path:str = cleanFinalSlash(os.getenv('INPUT_DESTINATION')) 
 
 try:
     with open(source_path + '/parameters.json') as file:
@@ -21,7 +22,7 @@ year = input_parameters.get('year')
 
 for param, dataset_properties in dict_dataCmd.items():
     dir_data = source_path + '/' + param
-    dir_data_pretreated = source_path + '/_pretreated/' + param
+    dir_data_pretreated = destination_path + '/' + param
     zone = dataset_properties.get('Place')
 
     file_name = f'{param}{zone}modelNetCDF{year}-01to{year + 1}-01.nc'

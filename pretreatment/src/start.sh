@@ -1,6 +1,8 @@
 #!/bin/bash
 
-destination=$INPUT_SOURCE/_pretreated
+# TODO get 
+# destination=$INPUT_SOURCE/_pretreated
+destination=$INPUT_DESTINATION
 mkdir -p $destination
 rm -rf $destination/*
 mkdir -p $destination/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature,pCO2,disolved_inorganic_carbon,primary_producer_POC,ocean_mixed_layer_thickness,par}

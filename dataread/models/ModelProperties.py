@@ -37,7 +37,8 @@ class ModelProperties():
 
     @property
     def file_template(self) -> str:
-        return f'{self.source_path}/_pretreated/{{param}}/{{param}}{{zone}}modelNetCDF{self.year}-01to{self.year + 1}-01.nc'
+        # return f'{self.source_path}/_pretreated/{{param}}/{{param}}{{zone}}modelNetCDF{self.year}-01to{self.year + 1}-01.nc'
+        return f'{self.source_path}/{{param}}/{{param}}{{zone}}modelNetCDF{self.year}-01to{self.year + 1}-01.nc'
         
 
     @property
@@ -53,9 +54,5 @@ class ModelProperties():
             return False
 
     def getMonthlySimulationsPath(self, i:int) -> str:
-        return f'{self.results_dir_path}/monthly_simulations_{i:03d}.nc'
-
-    @property
-    def results_dir_path(self) -> str:
-        return self.destination_path
+        return f'{self.destination_path}/monthly_simulations_{i:03d}.nc'
     

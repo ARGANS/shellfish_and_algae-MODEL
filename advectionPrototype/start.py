@@ -6,6 +6,8 @@ import pandas as pd
 from numpy import ma
 import netCDF4 as nc
 
+# TODO in Dockerfile use the root directory
+# TODO create a custom versin of the runtime.Dockerfile
 from advectionPrototype.climatology_ellipses import degrees_to_meters
 from advectionPrototype.quickestHadley import quickest, sortData, giveResol, givecoor, v2d_cgrid_cur, u2d_cgrid_cur, \
     giveCFL
@@ -14,24 +16,23 @@ from dataread.make_runs import open_data_input
 from dataread.models.ModelProperties import ModelProperties
 from dataread.read_netcdf import AllData
 
-dataRef: pd.DataFrame = pd.read_csv('/media/global/dataCmd.csv', delimiter=';')
+DATA_CMD_PATH = '/media/global/dataCmd.csv'
 
-model_properties = ModelProperties(os.getenv('DATASET_ID'), os.getenv('TASK_ID'))
-try:
-    model_properties.parse(os.getenv('PARAMETERS_JSON'))
-except:
-    raise RuntimeError('Cannot parse the value of the parameters_json environment variable')
+dataRef: pd.DataFrame = pd.read_csv(DATA_CMD_PATH, delimiter=';')
 
-if not model_properties.isDataDownloadTaskCompleted():
-    raise RuntimeError('Data not downloaded')
+# model_properties = ModelProperties(os.getenv('DATASET_ID'), os.getenv('TASK_ID'))
+# try:
+#     model_properties.parse(os.getenv('PARAMETERS_JSON'))
+# except:
+#     raise RuntimeError('Cannot parse the value of the parameters_json environment variable')
+
+# if not model_properties.isDataDownloadTaskCompleted():
+#     raise RuntimeError('Data not downloaded')
 
 parms_run = list(model_properties.parameters['run'].values())[0]['parameters']
 parms_farm = list(model_properties.parameters['farm'].values())[0]['parameters']
 
-paramNames = ['Nitrate', 'northward_Water_current', 'Ammonium', 'eastward_Water_current',
-                      'Temperature']
-
-dataCmdpath = './../global/dataCmd.csv'
+paramNames = ['Nitrate', 'northward_Water_current', 'Ammonium', 'eastward_Water_current', 'Temperature']
 
 input_args = {
         'zone': model_properties.attrs['metadata']['zone'],
@@ -81,6 +82,7 @@ dataTemp = ma.masked_outside(dataTemp, -1e4, 1e4)
 dataPAR = ma.masked_outside(dataPAR, -1e-2, 1e4)
 dataPAR = dataPAR.filled(fill_value=8)
 
+# TODO use dataRef
 dataFin = pd.read_csv('./../global/dataCmd.csv', ';')
 
 nwcDataLine = dataFin.loc[(dataFin["Parameter"] == 'Nitrate') & (dataFin["Place"] == model_properties.attrs['metadata']['zone'])]
