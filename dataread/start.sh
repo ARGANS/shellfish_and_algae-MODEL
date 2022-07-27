@@ -1,8 +1,9 @@
 #!/bin/bash
-workdir=/media/share/results/$DATASET_ID/$TASK_ID
+
+workdir=$INPUT_DESTINATION
 mkdir -p $workdir
 
-echo -n $PARAMETERS_JSON > $workdir/parameters.json
+echo -n $INPUT_MODEL_PROPERTIES_JSON > $workdir/parameters.json
 error_log=$workdir/error.txt
 
 python start.py 2>$error_log

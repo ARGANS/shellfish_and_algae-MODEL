@@ -49,7 +49,7 @@ function run_container_for_posttreatment {
 }
 
 function action_bash {
-    local image_tag="ac-posttreatment/runtime"
+    local image_tag="ac-dataread/runtime"
 
     docker run \
         --rm \

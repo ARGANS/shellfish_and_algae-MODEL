@@ -31,7 +31,8 @@ dict_to_AllData = open_data_input(**input_args)
 
 #TODO: make a different PAR file for each year ?
 dict_to_AllData['PAR'] = {
-            'file_name': '/media/share/PAR/PAR_ref_OC_2020.nc',
+            # 'file_name': '/media/share/PAR/PAR_ref_OC_2020.nc',
+            'file_name': '/media/global/PAR_ref_OC_2020.nc',
             'variable_name': 'par',
             'latitude_name': 'lat',
             'longitude_name': 'lon',
