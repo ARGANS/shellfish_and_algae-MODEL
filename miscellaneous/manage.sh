@@ -4,6 +4,7 @@ DIR=$(dirname $0)
 echo $DIR
 source $DIR/_common.sh
 source $DIR/_dataread.sh
+source $DIR/_dataread_b.sh
 source $DIR/_dataimport.sh
 source $DIR/_pretreatment.sh
 source $DIR/_posttreatment.sh
@@ -75,6 +76,17 @@ function handle_arguments {
             run_dataread "$dataread_source" "$dataread_destination" "$modelProperties_json"
             ;;
         
+
+        'build_datareadb')
+            build_datareadb_image
+            ;;
+        'execute_datareadb')
+            run_datareadb "$dataread_source" "$dataread_destination" "$modelProperties_json"
+            ;;
+        'run_datareadb')
+            run_datareadb_in_interactive_mode "$dataread_source" "$dataread_destination" "$modelProperties_json"
+            ;;
+
 
         'ls')
             sudo ls -al /var/lib/docker/volumes/$SHARED_VOLUME_NAME/_data/$2

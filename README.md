@@ -25,7 +25,7 @@ Use one of the following commands to access the volume:
 0.1. `./miscellaneous/manage.sh build_dataimport`
 0.2. `./miscellaneous/manage.sh build_pretreatment`
 0.3. `./miscellaneous/manage.sh build_dataread`
-0.4. 
+0.4. `./miscellaneous/manage.sh build_datareadb`
 0.5. `./miscellaneous/manage.sh build_posttreatment`
 
 ### step 1: dataimport
@@ -35,9 +35,12 @@ Use one of the following commands to access the volume:
 2.0. `./miscellaneous/manage.sh execute_pretreatment`
 
 ### step 3: dataread
+
+#### Scenario A
 3.1. `./miscellaneous/manage.sh execute_dataread`
 
-### step 4: B
+#### scenario B
+3.2  `./miscellaneous/manage.sh execute_datareadb`
 
 ### step 5: posttreatment
-5.1. `./miscellaneous/manage.sh execute_posttreatment`
+4.1. `./miscellaneous/manage.sh execute_posttreatment`

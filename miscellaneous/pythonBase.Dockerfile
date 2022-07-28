@@ -5,9 +5,13 @@ RUN apt-get update && \
     python -m pip install --upgrade pip
 
 # Install GDAL
+# Have to use `setuptools==58.0.0` due to https://github.com/pypa/setuptools/issues/2781
+# The Debian repositories do not contain the fix version of the GDAL package
 ARG WITH_GDAL
 RUN if [ ! -z "$WITH_GDAL" ] ; then \
     apt-get install -y build-essential binutils libproj-dev gdal-bin libgdal-dev python3-gdal python-dev nano && \
+    pip install setuptools==58.0.0; \
+    pip install numpy==1.21.5; \
     pip install GDAL==$(gdal-config --version); \
     else echo "Without GDAL"; \
     fi

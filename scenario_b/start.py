@@ -4,10 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 from numpy import ma
-import netCDF4 as nc
 
-# TODO in Dockerfile use the root directory
-# TODO create a custom versin of the runtime.Dockerfile
 from advectionPrototype.climatology_ellipses import degrees_to_meters
 from advectionPrototype.quickestHadley import quickest, sortData, giveResol, givecoor, v2d_cgrid_cur, u2d_cgrid_cur, \
     giveCFL
@@ -20,27 +17,26 @@ DATA_CMD_PATH = '/media/global/dataCmd.csv'
 
 dataRef: pd.DataFrame = pd.read_csv(DATA_CMD_PATH, delimiter=';')
 
-# model_properties = ModelProperties(os.getenv('DATASET_ID'), os.getenv('TASK_ID'))
-# try:
-#     model_properties.parse(os.getenv('PARAMETERS_JSON'))
-# except:
-#     raise RuntimeError('Cannot parse the value of the parameters_json environment variable')
+model_properties = ModelProperties(os.getenv('INPUT_SOURCE'), os.getenv('INPUT_DESTINATION'))
 
-# if not model_properties.isDataDownloadTaskCompleted():
-#     raise RuntimeError('Data not downloaded')
+try:
+    model_properties.parse(os.getenv('INPUT_MODEL_PROPERTIES_JSON'))
+except:
+    raise RuntimeError('Cannot parse the value of the parameters_json environment variable')
+
+if not model_properties.isDataDownloadTaskCompleted():
+    raise RuntimeError('Data not downloaded')
 
 parms_run = list(model_properties.parameters['run'].values())[0]['parameters']
 parms_farm = list(model_properties.parameters['farm'].values())[0]['parameters']
 
-paramNames = ['Nitrate', 'northward_Water_current', 'Ammonium', 'eastward_Water_current', 'Temperature']
-
 input_args = {
-        'zone': model_properties.attrs['metadata']['zone'],
-        'file_adress': model_properties.file_template,
-        'dataRef': dataRef,
-        'paramNames': paramNames,
-        'frequency': 'daily'
-    }
+    'zone': model_properties.attrs['metadata']['zone'],
+    'file_adress': model_properties.file_template,
+    'dataRef': dataRef,
+    'paramNames': ['Nitrate', 'northward_Water_current', 'Ammonium', 'eastward_Water_current', 'Temperature'],
+    'frequency': 'daily'
+}
 
 dict_to_AllData = open_data_input(**input_args)
 
@@ -57,8 +53,10 @@ dict_to_AllData['PAR'] = {
 }
 
 sim_area = {
-    'longitude': (parms_run['min_lon'], parms_run['max_lon']),
-    'latitude': (parms_run['min_lat'], parms_run['max_lat']),
+    'longitude': (-4, -3),
+    'latitude': (48.5, 49),
+    # 'longitude': (parms_run['min_lon'], parms_run['max_lon']),
+    # 'latitude': (parms_run['min_lat'], parms_run['max_lat']),
     'depth': (0, parms_farm['z']*1.4),
     'averagingDims': ('depth',),
     'weighted': False
@@ -83,6 +81,7 @@ dataPAR = ma.masked_outside(dataPAR, -1e-2, 1e4)
 dataPAR = dataPAR.filled(fill_value=8)
 
 # TODO use dataRef
+# TODO check if the results change
 dataFin = pd.read_csv('./../global/dataCmd.csv', ';')
 
 nwcDataLine = dataFin.loc[(dataFin["Parameter"] == 'Nitrate') & (dataFin["Place"] == model_properties.attrs['metadata']['zone'])]
