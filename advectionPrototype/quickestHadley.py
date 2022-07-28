@@ -12,7 +12,7 @@ from dateutil.relativedelta import *
 
 # extract the data value at depth in the merged files (all the daily data merged in one file)
 from advectionPrototype.climatology_ellipses import degrees_to_meters
-from advectionPrototype.saveAsTiff import saveAsTiff, getMetadata
+from advectionPrototype.saveAsTiff import saveAsTiff, giveMetadata
 from dataread.launch_model import MA_model_scipy
 from dataread.make_runs import open_data_input
 from dataread.read_netcdf import extractVarSubset , AllData
@@ -398,10 +398,10 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, d
 
 
 if __name__ == "__main__":
-    zone = "Baltic"
+    zone = "NWS"
     depth = 0
     PAR_year = 2020
-    getAmmonium = True
+    getAmmonium = False
 
     dateBeginning = '2020-09-01 00:00:00'
     dateEnd = '2020-04-30 00:00:00'
@@ -415,8 +415,7 @@ if __name__ == "__main__":
     scenC = False
 
     # discr = 144
-    discr = 96
-    #discr = 72  # Baltic, NWS, IBI
+    discr = 72  # Baltic, NWS, IBI
     #discr = 48 #BS
     dt = 1 / discr
 
@@ -452,10 +451,6 @@ if __name__ == "__main__":
 
     dataCmdpath = './../global/dataCmd.csv'
     mergedFilepath = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/'.format(zone=zone)
-
-    _, ds = getwantedMergeData('northward_Water_current', depth, dataCmdpath,zone, mergedFilepath)
-    '''dataNH4, ds = getwantedMergeData('Ammonium', depth, dataCmdpath)
-    dataTemp, ds = getwantedMergeData('Temperature', depth, dataCmdpath)'''
 
     input_args = {
         'zone': zone,
@@ -517,10 +512,6 @@ if __name__ == "__main__":
     dataPAR = ma.masked_outside(dataPAR, -1e-2, 1e4)
     dataPAR = dataPAR.filled(fill_value=8)
 
-    print(type(dataTemp[0]))
-    print(type(dataNwc[0]))
-    print(type(dataNH4[0]))
-
     fileV = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_northward_Water_current_{zone}.nc'.format(zone=zone)
     dataBaseNwc = nc.Dataset(fileV)
 
@@ -534,17 +525,11 @@ if __name__ == "__main__":
     longitudes, _ = algaeData.parameterData['Temperature'].getVariable('longitude', **sim_area)
     latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **sim_area)
 
-    longitudeMin, latitudeMin = givecoor(longitudes, latitudes, lonmin,
-                                         latmin)  # we get the indices of the wanted position
-    longitudeMax, latitudeMax = givecoor(longitudes, latitudes, lonmax,
-                                         latmax)  # we get the indices of the wanted position
-
-
     '''    print(type(dataEwc))
     dataEwc[np.where(np.abs(dataEwc) >1e8)]=0
     dataNwc[np.where(np.abs(dataNwc) >1e8)] = 0'''
 
-    latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * longitudes[latitudeMin:latitudeMax]
+    latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * latitudes
 
     decenturedEwc = u2d_cgrid_cur(dataEwc)
     decenturedNwc = v2d_cgrid_cur(dataNwc)
@@ -566,9 +551,7 @@ if __name__ == "__main__":
         if np.max(CFL) > maxCFL:
             maxCFL = np.max(CFL)
             print(maxCFL)
-    xsize, ysize, ulx, uly, xres, yres = getMetadata(ds, nwcDataLine.iloc[-1]["latName"],
-                                                     nwcDataLine.iloc[-1]["longName"],latitudeMin, latitudeMax,
-                                                     longitudeMin, longitudeMax)
+    xsize, ysize, ulx, uly, xres, yres = giveMetadata(latitudes, longitudes)
     saveAsTiff(dataNO3[0], xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/IBI/test.tiff")
     NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlist, dt,
                                                                                  decenturedEwc, decenturedNwc, dataEwc,
