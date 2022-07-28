@@ -8,8 +8,8 @@ import pickle
 
 import time
 
-import sys
-sys.path.insert(1, 'P:\\Aquaculture\\shellfish_and_algae-MODEL\\')
+# import sys
+# sys.path.insert(1, 'P:\\Aquaculture\\shellfish_and_algae-MODEL\\')
 from dataread.read_netcdf import *
 
 def degrees_to_meters(lonDist, latDist, refLat):

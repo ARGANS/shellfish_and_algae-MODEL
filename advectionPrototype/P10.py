@@ -5,7 +5,7 @@ import numpy as np
 import netCDF4 as nc
 import matplotlib.pyplot as plt
 import pandas as pd
-from dataread.read_netcdf import extractWithAverage, extractVarSubset
+from dataread.src.read_netcdf import extractWithAverage, extractVarSubset
 from saveAsTiff import getMetadata, saveAsTiff
 
 data = 'Nitrate'

@@ -41,7 +41,9 @@ input_args = {
 dict_to_AllData = open_data_input(**input_args)
 
 dict_to_AllData['PAR'] = {
-    'file_name': model_properties.file_template,
+    # TODO ???
+    # 'file_name': model_properties.file_template,
+    'file_name': '/media/global/PAR_ref_OC_2020.nc',
     'variable_name': 'par',
     'latitude_name': 'lat',
     'longitude_name': 'lon',
@@ -72,7 +74,12 @@ dataNwc = algaeData.parameterData['northward_Water_current'].getVariable(**sim_a
 dataEwc = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0]
 dataPAR = algaeData.parameterData['PAR'].getVariable(**sim_area)[0]
 
-sortedList = sortData(parms_run['dateBeginning'], parms_run['dateEnd'], len(dataNO3))
+print('parms_run')
+print(parms_run)
+
+# No 'dateBeginning' and no 'dateEnd'
+
+# sortedList = sortData(parms_run['dateBeginning'], parms_run['dateEnd'], len(dataNO3))
 
 dataNH4 = ma.masked_outside(dataNH4, -1e4, 1e4)
 dataNO3 = ma.masked_outside(dataNO3, -1e4, 1e4)
@@ -82,7 +89,7 @@ dataPAR = dataPAR.filled(fill_value=8)
 
 # TODO use dataRef
 # TODO check if the results change
-dataFin = pd.read_csv('./../global/dataCmd.csv', ';')
+dataFin = pd.read_csv(DATA_CMD_PATH, ';')
 
 nwcDataLine = dataFin.loc[(dataFin["Parameter"] == 'Nitrate') & (dataFin["Place"] == model_properties.attrs['metadata']['zone'])]
 nwcdataName = nwcDataLine.iloc[-1]["variable"]  # we find the data name in the dataset

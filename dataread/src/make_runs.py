@@ -1,13 +1,13 @@
 import datetime
 import numpy as np
 import pandas as pd
-from read_netcdf import *
-from launch_model import *
 import time
 from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
 import multiprocessing as mp
-from utils import import_json
+from .read_netcdf import *
+from .launch_model import *
+from .utils import import_json
 
 def degrees_to_meters(lonDist, latDist, refLat):
     """Converts degrees of latDist,lonDist to meters assuming that the latitude

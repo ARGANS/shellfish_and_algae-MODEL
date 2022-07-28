@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from saveAsTiff import getMetadata, saveAsTiff
-from dataread.read_netcdf import extractWithAverage
+from dataread.src.read_netcdf import extractWithAverage
 
 mainpath = 'I:/work-he/apps/safi/data/IBI/'
 datanorth = 'northward_Water_current'

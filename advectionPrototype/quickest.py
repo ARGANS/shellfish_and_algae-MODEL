@@ -13,7 +13,7 @@ from dateutil.relativedelta import *
 
 # extract the data value at depth in the merged files (all the daily data merged in one file)
 from advectionPrototype.climatology_ellipses import degrees_to_meters
-from dataread.read_netcdf import extractVarSubset
+from dataread.src.read_netcdf import extractVarSubset
 
 def getwantedMergeData(data, depth, dataCmdpath, mergedFilepath='D:/Profils/mjaouen/Documents/alternance/EASME/data/'):
     csvFile = pd.read_csv(dataCmdpath, ';')

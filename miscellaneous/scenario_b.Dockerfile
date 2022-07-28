@@ -7,7 +7,7 @@ WORKDIR /opt
 RUN mkdir -p /opt/dataread && \
     mkdir -p /opt/advectionPrototype
 
-COPY ./dataread dataread
+COPY ./dataread/src dataread
 COPY ./advectionPrototype advectionPrototype
 COPY ./scenario_b/. .
 

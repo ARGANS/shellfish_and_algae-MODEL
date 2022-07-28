@@ -1,13 +1,13 @@
-from make_runs import open_data_input, initialize_result, run_scenario_a_monthly
 import pandas as pd
 import numpy as np
 import datetime
 import time
 import os
 import multiprocessing as mp
-from launch_model import MA_model_scipy
-from models.ModelProperties import ModelProperties
-from read_netcdf import *
+from src.make_runs import open_data_input, initialize_result, run_scenario_a_monthly
+from src.launch_model import MA_model_scipy
+from src.models.ModelProperties import ModelProperties
+from src.read_netcdf import *
 
 dataRef: pd.DataFrame = pd.read_csv('/media/global/dataCmd.csv', delimiter=';')
 
@@ -105,3 +105,7 @@ n_cells = pool.starmap_async(run_scenario_a_monthly, [(
 with open(model_properties.destination_path + '/stats.log', 'w') as file:
     file.write(str(n_cells) + '\n')
     file.write(str((time.time() - t0) / sum(n_cells)) + '\n')
+
+
+def main():
+    print(1)

@@ -42,3 +42,18 @@ function run_dataread {
         -e PYTHONDONTWRITEBYTECODE=1 \
         -it $DATAREAD_IMAGE:latest
 }
+
+function run_dataread_in_interactive_mode {
+    docker run \
+        --rm \
+        --name $DATAIMPORT_CONTAINER \
+        --volume "$SHARED_VOLUME_NAME":/media/share \
+        --volume $(pwd)/global:/media/global \
+        --volume $(pwd)/dataread:/opt/ \
+        -e INPUT_SOURCE="$1" \
+        -e INPUT_DESTINATION="$2" \
+        -e INPUT_MODEL_PROPERTIES_JSON="$3" \
+        -e PYTHONDONTWRITEBYTECODE=1 \
+        --entrypoint=/bin/bash \
+        -it $DATAREADB_IMAGE:latest
+}

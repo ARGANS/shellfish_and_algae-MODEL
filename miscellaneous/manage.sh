@@ -75,6 +75,9 @@ function handle_arguments {
         'execute_dataread')
             run_dataread "$dataread_source" "$dataread_destination" "$modelProperties_json"
             ;;
+        'run_dataread')
+            run_dataread_in_interactive_mode "$dataread_source" "$dataread_destination" "$modelProperties_json"
+            ;;
         
 
         'build_datareadb')
