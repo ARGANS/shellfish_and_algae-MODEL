@@ -25,6 +25,19 @@ def getMetadata(ds,latname = 'latitude',lonname='longitude', latitudeMin=None, l
 
     return xsize, ysize, ulx, uly, xres, yres
 
+#return ds metadatas
+def giveMetadata(lats,lons):
+    xres = lons[1] - lons[0]
+    yres = lats[1] - lats[0]
+
+    ysize = len(lats)
+    xsize = len(lons)
+
+    ulx = lons[0]
+    uly = lats[-1]
+
+    return xsize, ysize, ulx, uly, xres, yres
+
 #save dataArray in a geotiff file
 def saveAsTiff(dataArray,xsize, ysize, ulx, uly, xres, yres, filepath ):
     driver = gdal.GetDriverByName('GTiff')
