@@ -80,6 +80,7 @@ print(parms_run)
 # No 'dateBeginning' and no 'dateEnd'
 
 # sortedList = sortData(parms_run['dateBeginning'], parms_run['dateEnd'], len(dataNO3))
+sortedList = sortData(parms_run['dateBeginning'], parms_run['dateEnd'], len(dataNO3))
 
 dataNH4 = ma.masked_outside(dataNH4, -1e4, 1e4)
 dataNO3 = ma.masked_outside(dataNO3, -1e4, 1e4)

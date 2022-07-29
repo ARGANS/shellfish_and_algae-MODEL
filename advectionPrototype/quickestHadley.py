@@ -424,7 +424,7 @@ if __name__ == "__main__":
 
     CPlat, CPlon = 153, 56
 
-    model_params = "D:/Profils/mjaouen/Documents/alternance/EASME/gitcode/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
+    model_params = "./../macroalgae/macroalgae_model_parameters_input.json"
     json_data = import_json(model_params)
 
     paramSacch = json_data['parameters']['species']['saccharina']['parameters']
@@ -550,7 +550,7 @@ if __name__ == "__main__":
         CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, decenturedEwc[i], decenturedNwc[i], nbrx, nbry)
         if np.max(CFL) > maxCFL:
             maxCFL = np.max(CFL)
-            print(maxCFL)
+    print('maxCFL: '+ str(maxCFL))
     xsize, ysize, ulx, uly, xres, yres = giveMetadata(latitudes, longitudes)
     saveAsTiff(dataNO3[0], xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/IBI/test.tiff")
     NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlist, dt,
