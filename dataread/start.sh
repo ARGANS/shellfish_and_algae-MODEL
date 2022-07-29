@@ -4,6 +4,7 @@ workdir=$INPUT_DESTINATION
 mkdir -p $workdir
 rm -rf $workdir/*
 
+echo -n $(date +%s) > $workdir/start.mark
 echo -n $INPUT_MODEL_PROPERTIES_JSON > $workdir/parameters.json
 error_log=$workdir/error.txt
 
@@ -24,4 +25,4 @@ if [ ! $? -eq 0 ]; then
     cat $error_log    
 fi
 
-echo -n $(date +%s) > $workdir/task.mark
+echo -n $(date +%s) > $workdir/end.mark

@@ -33,7 +33,7 @@ function run_container_for_dataimport {
         --rm \
         --name $DATAIMPORT_CONTAINER \
         --volume "$SHARED_VOLUME_NAME":/media/share \
-        --volume $(pwd)/global:/media/global \
+        --volume "$GLOBAL_VOLUME_NAME":/media/global \
         -e INPUT_DESTINATION="$2" \
         -e INPUT_PARAMETERS="$1" \
         -e MOTU_LOGIN="mjaouen" \
@@ -50,7 +50,7 @@ function run_in_interactive_mode {
         --rm \
         --name $DATAIMPORT_CONTAINER \
         --volume "$SHARED_VOLUME_NAME":/media/share \
-        --volume $(pwd)/global:/media/global \
+        --volume "$GLOBAL_VOLUME_NAME":/media/global \
         --volume $(pwd)/dataimport/src/start.py:/opt/start.py \
         --volume $(pwd)/dataimport/src/general.py:/opt/general.py \
         -e INPUT_DESTINATION="$2" \

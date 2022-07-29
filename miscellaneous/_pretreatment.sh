@@ -32,7 +32,7 @@ function run_pretreatment {
         --rm \
         --name $PRETREATMENT_CONTAINER \
         --volume "$SHARED_VOLUME_NAME":/media/share \
-        --volume $(pwd)/global:/media/global \
+        --volume "$GLOBAL_VOLUME_NAME":/media/global \
         -e INPUT_SOURCE="$1" \
         -e INPUT_DESTINATION="$2" \
         -e PYTHONDONTWRITEBYTECODE=1 \
@@ -47,7 +47,7 @@ function run_pretreatment_in_interactive_mode {
         --rm \
         --name $PRETREATMENT_CONTAINER \
         --volume "$SHARED_VOLUME_NAME":/media/share \
-        --volume $(pwd)/global:/media/global \
+        --volume "$GLOBAL_VOLUME_NAME":/media/global \
         --volume $(pwd)/pretreatment/src/:/opt/ \
         -e INPUT_SOURCE="$1" \
         -e INPUT_DESTINATION="$2" \

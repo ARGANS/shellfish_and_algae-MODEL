@@ -35,7 +35,7 @@ function run_dataread {
         --rm \
         --name $DATAREAD_CONTAINER \
         --volume "$SHARED_VOLUME_NAME:/media/share" \
-        --volume $(pwd)/global:/media/global \
+        --volume "$GLOBAL_VOLUME_NAME":/media/global \
         -e INPUT_SOURCE="$1" \
         -e INPUT_DESTINATION="$2" \
         -e INPUT_MODEL_PROPERTIES_JSON="$3" \
@@ -48,7 +48,7 @@ function run_dataread_in_interactive_mode {
         --rm \
         --name $DATAIMPORT_CONTAINER \
         --volume "$SHARED_VOLUME_NAME":/media/share \
-        --volume $(pwd)/global:/media/global \
+        --volume "$GLOBAL_VOLUME_NAME":/media/global \
         --volume $(pwd)/dataread:/opt/ \
         -e INPUT_SOURCE="$1" \
         -e INPUT_DESTINATION="$2" \

@@ -1,4 +1,5 @@
 SHARED_VOLUME_NAME='ac_share'
+GLOBAL_VOLUME_NAME='ac_global'
 
 function stop_existed_container {
     local container_name="$1"
@@ -11,8 +12,18 @@ function stop_existed_container {
 }
 
 function create_volumes {
+    echo "::" $(pwd)/global
     docker volume create --name $SHARED_VOLUME_NAME
+    docker volume create \
+        --driver local \
+        --opt type=none \
+        --opt device=$(pwd)/global \
+        --opt o=bind \
+        $GLOBAL_VOLUME_NAME
 }
+
+#  docker volume create -d local-persist -o mountpoint=/mnt/ --name=extra-addons
+
 
 # DEPRECATED
 # function prepare_runtime {

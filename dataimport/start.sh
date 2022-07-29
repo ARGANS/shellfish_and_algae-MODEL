@@ -3,6 +3,8 @@
 destination="$INPUT_DESTINATION"
 mkdir -p $destination
 rm -rf $destination/*
+
+echo -n $(date +%s) > $destination/start.mark
 mkdir -p $destination/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature,pCO2,disolved_inorganic_carbon,primary_producer_POC,ocean_mixed_layer_thickness,par}
 
 echo -n $INPUT_PARAMETERS > $destination/parameters.json
@@ -18,6 +20,6 @@ else
   cat $error_log
 fi
 
-echo -n $(date +%s) > $destination/task.mark
+echo -n $(date +%s) > $destination/end.mark
 
 chmod -R 777 $destination

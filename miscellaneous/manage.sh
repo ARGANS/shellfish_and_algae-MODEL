@@ -17,6 +17,7 @@ function action_bash {
         --rm \
         --volume "$SHARED_VOLUME_NAME:/media/share" \
         --volume "${HOME}:/media/home" \
+        --volume "$GLOBAL_VOLUME_NAME":/media/global \
         --workdir=/media/share \
         -e PYTHONDONTWRITEBYTECODE=1 \
         --entrypoint=/bin/bash \
@@ -104,6 +105,11 @@ function handle_arguments {
             ;;
         'execute_posttreatment')
             run_posttreatment_action "$posttreatment_source"
+            ;;
+
+
+        'test')
+            create_volumes
             ;;
         
 
