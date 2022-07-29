@@ -4,6 +4,7 @@ import time
 import netCDF4 as nc
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
 import numpy.ma as ma
 from scipy import interpolate
 from scipy.sparse import dia_matrix
@@ -12,7 +13,7 @@ from dateutil.relativedelta import *
 
 # extract the data value at depth in the merged files (all the daily data merged in one file)
 from advectionPrototype.climatology_ellipses import degrees_to_meters
-from advectionPrototype.saveAsTiff import saveAsTiff, giveMetadata
+from advectionPrototype.saveAsTiff import saveAsTiff, getMetadata
 from dataread.launch_model import MA_model_scipy
 from dataread.make_runs import open_data_input
 from dataread.read_netcdf import extractVarSubset , AllData
@@ -250,7 +251,6 @@ def giveEpsilon(day, temp, NH4, NO3,cNO3, cNH4, advNO3, advNH4, N_s, N_f, D, Nwc
     return model.derivative_fast_advection(day, y, data_in,cNO3, cNH4, advNO3, advNH4, nbrx, nbry, dt,
                                            latRef, model)
 
-#get in the dataLine comming from dataCmd.csv the resolution of the data
 def giveResol(dataLine):
     resolString = dataLine.iloc[-1]["resolution"]
     splitedString = resolString.split('*')
@@ -290,17 +290,20 @@ def sortData(dateBeginning, dateEnd,lenDataArr):
         return np.concatenate([np.arange(firstdayNbr,lenDataArr),np.arange(0,lastdayNbr)])
 
 #apply the quickest scheme
-def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, dataNH4, dataTemp, dataPAR, Ks, firstday,
-             model, Zmix, scenC,sortedList):
+def quickest(dyMeter, dxlist, dt, discr, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, dataNH4, dataTemp, dataPAR, Ks, firstday,
+             model, Zmix, scenC,sortedList,farmx,farmy,farmx2,farmy2):
     #we initate the variables
-    discr = 1/dt
     nbrStep = int(len(sortedList) * discr)
     cNO3 = np.zeros(np.shape(dataNO3[0]))
     cNH4 = np.zeros(np.shape(dataNH4[0]))
-    N_s = np.ones(np.shape(dataNH4[0])) * 1000
-    N_f = np.ones(np.shape(dataNH4[0])) * 1000
+    N_s = np.zeros(np.shape(dataNH4[0])) * 1000
+    N_f = np.zeros(np.shape(dataNH4[0])) * 1000
     D = np.ones(np.shape(dataNH4[0])) * 0.1
 
+    N_s[farmx,farmy] = 1000
+    N_f[farmx, farmy] = 1000
+    N_s[farmx2, farmy2] = 1000
+    N_f[farmx2, farmy2] = 1000
     totalNH4deficit = np.zeros(np.shape(dataNH4[0]))
     totalNO3deficit = np.zeros(np.shape(dataNO3[0]))
     (nbrx, nbry) = np.shape(dataNO3[0])
@@ -328,6 +331,7 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, d
         N_s[maskpos2D] = 1e-5
         #we compute the CFL
         CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, Ewc[hNbr], Nwc[hNbr], nbrx, nbry)
+        # print('CFL max: ', max(CFL))
         alpha1 = (1 / 6) * (1 - CFL) * (2 - CFL)
         alpha2 = (1 / 6) * (1 - CFL) * (1 + CFL)
         if np.max(CFL)>maxCFL:
@@ -344,7 +348,6 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, d
         no3Hatv = matN.dot(oldNO3Cline)
         nh4Hatu = matE.dot(oldNH4Cline)
         nh4Hatv = matN.dot(oldNH4Cline)
-        #we compute the advection terms
         advNO3 = - cy * no3Hatv - cx * no3Hatu + (dt / dyMeter) * Ks * matN.dot(no3Hatv) + (
                     dt / dx) * Ks * matE.dot(no3Hatu)
         advNH4 = - cy * nh4Hatv - cx * nh4Hatu + (dt / dyMeter) * Ks * matN.dot(nh4Hatv) + (
@@ -356,28 +359,32 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, d
         if scenC:
             derivArray = prepareDerivArrayScenC(derivArray,[westNanList, eastNanList, upNanList, downNanList, downEastNanList, upWestNanList, downWestNanList, upEastNanList])
 
-        CNO3line = oldNO3Cline +advNO3 + derivArray[1].reshape(nbrx * nbry) * dt
+        newDerivArr = np.zeros(np.shape(derivArray))
+        newDerivArr[:,farmx,farmy] = derivArray[:,farmx,farmy]
+        newDerivArr[:, farmx2, farmy2] = derivArray[:, farmx2, farmy2]
+
+        CNO3line = oldNO3Cline +advNO3 + newDerivArr[1].reshape(nbrx * nbry) * dt
         cNO3 = np.minimum(CNO3line.reshape(nbrx, nbry), 0)
         #cNO3 = CNO3line.reshape(nbrx, nbry)
 
-        totalNO3deficit += derivArray[1]
+        totalNO3deficit += newDerivArr[1]
 
-        CNH4line = oldNH4Cline +advNH4 + derivArray[0].reshape(nbrx * nbry) * dt
+        CNH4line = oldNH4Cline +advNH4 + newDerivArr[0].reshape(nbrx * nbry) * dt
         cNH4 = np.minimum(CNH4line.reshape(nbrx, nbry), 0)
         #cNH4 = CNH4line.reshape(nbrx, nbry)
 
-        totalNH4deficit += derivArray[0]
+        totalNH4deficit += newDerivArr[0]
 
         oldDCline = D.reshape(nbrx * nbry)
         CDline = oldDCline - cy * matN.dot(oldDCline) - cx * matE.dot(oldDCline) + (
                 dt / dyMeter) * Ks * matN.dot(matN.dot(oldDCline)) + (
-                         dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(matN.dot(oldDCline)) + derivArray[4].reshape(
+                         dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(matN.dot(oldDCline)) + newDerivArr[4].reshape(
             nbrx * nbry) * dt
         D = np.maximum(CDline.reshape(nbrx, nbry),1e-4)
 
-        N_s += derivArray[2] * dt
+        N_s += newDerivArr[2] * dt
 
-        N_f += derivArray[3] * dt
+        N_f += newDerivArr[3] * dt
 
         N_f = np.maximum(N_f,-1e-6)
         N_s = np.maximum(N_s, -1e-6)
@@ -415,17 +422,22 @@ if __name__ == "__main__":
 
     scenC = False
 
+    farmLat = 54.92
+    farmLon = 1.89
+
+    farmLat2 = 42.5
+    farmLon2 = -9.34
+
     # discr = 144
-    discr = 72  # Baltic, NWS, IBI
+    discr = 72
+    #discr = 72  # Baltic, NWS, IBI
     #discr = 48 #BS
     dt = 1 / discr
 
     Ks = 1e-3
     Ks *= 60 * 60 * 24
 
-    CPlat, CPlon = 153, 56
-
-    model_params = "./../macroalgae/macroalgae_model_parameters_input.json"
+    model_params = "D:/Profils/mjaouen/Documents/alternance/EASME/gitcode/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
     json_data = import_json(model_params)
 
     paramSacch = json_data['parameters']['species']['saccharina']['parameters']
@@ -452,6 +464,10 @@ if __name__ == "__main__":
 
     dataCmdpath = './../global/dataCmd.csv'
     mergedFilepath = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/'.format(zone=zone)
+
+    _, ds = getwantedMergeData('northward_Water_current', depth, dataCmdpath,zone, mergedFilepath)
+    '''dataNH4, ds = getwantedMergeData('Ammonium', depth, dataCmdpath)
+    dataTemp, ds = getwantedMergeData('Temperature', depth, dataCmdpath)'''
 
     input_args = {
         'zone': zone,
@@ -480,10 +496,10 @@ if __name__ == "__main__":
     sim_area = {
         'longitude': (lonmin, lonmax),
         'latitude': (latmin, latmax),
-        'depth': 0
-        #'depth': (0, Zmix),
-        #'averagingDims': ('depth',),
-        #'weighted': False
+        #'depth': 0
+        'depth': (0, Zmix),
+        'averagingDims': ('depth',),
+        'weighted': False
     }
 
     ### Initialize the netcdf reading interface
@@ -513,6 +529,10 @@ if __name__ == "__main__":
     dataPAR = ma.masked_outside(dataPAR, -1e-2, 1e4)
     dataPAR = dataPAR.filled(fill_value=8)
 
+    print(type(dataTemp[0]))
+    print(type(dataNwc[0]))
+    print(type(dataNH4[0]))
+
     fileV = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_northward_Water_current_{zone}.nc'.format(zone=zone)
     dataBaseNwc = nc.Dataset(fileV)
 
@@ -526,11 +546,14 @@ if __name__ == "__main__":
     longitudes, _ = algaeData.parameterData['Temperature'].getVariable('longitude', **sim_area)
     latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **sim_area)
 
-    '''    print(type(dataEwc))
-    dataEwc[np.where(np.abs(dataEwc) >1e8)]=0
-    dataNwc[np.where(np.abs(dataNwc) >1e8)] = 0'''
+    longitudeMin, latitudeMin = givecoor(longitudes, latitudes, lonmin,
+                                         latmin)  # we get the indices of the wanted position
+    longitudeMax, latitudeMax = givecoor(longitudes, latitudes, lonmax,
+                                         latmax)  # we get the indices of the wanted position
+    farmy,farmx = givecoor(longitudes, latitudes, farmLon, farmLat)  # we get the indices of the wanted position
+    farmy2, farmx2 = givecoor(longitudes, latitudes, farmLon2, farmLat2)  # we get the indices of the wanted position
 
-    latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * latitudes
+    latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * latitudes[latitudeMin:latitudeMax]
 
     decenturedEwc = u2d_cgrid_cur(dataEwc)
     decenturedNwc = v2d_cgrid_cur(dataNwc)
@@ -551,14 +574,16 @@ if __name__ == "__main__":
         CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, decenturedEwc[i], decenturedNwc[i], nbrx, nbry)
         if np.max(CFL) > maxCFL:
             maxCFL = np.max(CFL)
-    print('maxCFL: '+ str(maxCFL))
-    xsize, ysize, ulx, uly, xres, yres = giveMetadata(latitudes, longitudes)
+            print(maxCFL)
+    xsize, ysize, ulx, uly, xres, yres = getMetadata(ds, nwcDataLine.iloc[-1]["latName"],
+                                                     nwcDataLine.iloc[-1]["longName"],latitudeMin, latitudeMax,
+                                                     longitudeMin, longitudeMax)
     saveAsTiff(dataNO3[0], xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/IBI/test.tiff")
-    NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlist, dt,
+    NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlist, dt, discr,
                                                                                  decenturedEwc, decenturedNwc, dataEwc,
                                                                                  dataNwc, latRef.T, dataNO3, dataNH4,
                                                                                  dataTemp, dataPAR, Ks, firstday, model,
-                                                                                 Zmix,scenC,sortedList)
+                                                                                 Zmix,scenC,sortedList,farmx,farmy,farmx2,farmy2)
 
     DW = N_f / Q_min  # gDW m-3
     DW_line = DW * h_MA * w_MA / 1000  # kg/m (i.e. per m of rope)
