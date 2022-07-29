@@ -7,7 +7,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from advectionPrototype.saveAsTiff import saveAsTiff, getMetadata
-from dataread.src.read_netcdf import extractVarSubset
+from dataread.read_netcdf import extractVarSubset
 
 # extract the data value at depth in the merged files (all the daily data merged in one file)
 def getwantedMergeData(data, depth, dataCmdpath, mergedFilepath='I:/work-he/apps/safi/data/IBI/merged_files/'):

@@ -50,7 +50,7 @@ function run_datareadb_in_interactive_mode {
         --name $DATAIMPORT_CONTAINER \
         --volume "$SHARED_VOLUME_NAME":/media/share \
         --volume $(pwd)/global:/media/global \
-        --volume $(pwd)/dataread:/opt/dataread \
+        --volume $(pwd)/dataread/src:/opt/dataread \
         --volume $(pwd)/advectionPrototype:/opt/advectionPrototype \
         --volume $(pwd)/scenario_b/start.py:/opt/start.py \
         --volume $(pwd)/scenario_b/start.sh:/opt/start.sh \

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from saveAsTiff import getMetadata, saveAsTiff
 
-from dataread.src.read_netcdf import extractVarSubset
+from dataread.read_netcdf import extractVarSubset
 
 #mainpath = 'I:/work-he/apps/safi/data/IBI/'
 mainpath = '/mount/internal/work-he/apps/safi/data/IBI'

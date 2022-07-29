@@ -6,7 +6,7 @@ import pandas as pd
 import netCDF4 as nc
 
 from advectionPrototype.saveAsTiff import getMetadata
-from dataread.src.read_netcdf import extractVarSubset
+from dataread.read_netcdf import extractVarSubset
 
 
 def getwantedMergeData(data, depth, dataCmdpath, zone, mergedFilepath='D:/Profils/mjaouen/Documents/alternance/EASME/data/MED/'):
