@@ -54,10 +54,10 @@ parms_harvest = list(model_properties.parameters['harvest'].values())[0]['parame
 harvest_type = list(model_properties.parameters['harvest'].keys())[0]
 
 sim_area = {
-    'longitude': (-4, -3),
-    'latitude': (48.5, 49),
-    # 'longitude': (parms_run['min_lon'], parms_run['max_lon']),
-    # 'latitude': (parms_run['min_lat'], parms_run['max_lat']),
+    # 'longitude': (-4, -3),
+    # 'latitude': (48.5, 49),
+    'longitude': (parms_run['min_lon'], parms_run['max_lon']),
+    'latitude': (parms_run['min_lat'], parms_run['max_lat']),
     'time_index': 0,
     'depth': parms_farm['z']
 }
