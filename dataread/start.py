@@ -106,6 +106,3 @@ with open(model_properties.destination_path + '/stats.log', 'w') as file:
     file.write(str(n_cells) + '\n')
     file.write(str((time.time() - t0) / sum(n_cells)) + '\n')
 
-
-def main():
-    print(1)

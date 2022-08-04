@@ -17,4 +17,4 @@ else
   cat $error_log
 fi
 
-echo -n $(date +%s) > $workdir/task.mark
+echo -n $(date +%s) > $workdir/end.mark

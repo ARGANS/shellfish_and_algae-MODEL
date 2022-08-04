@@ -24,16 +24,18 @@ class ModelProperties():
         
     def parse(self, parameters_json_value:str):
         self.attrs = json.loads(parameters_json_value)
+        print('INPUT JSON')
+        print(self.attrs)
 
         if 'metadata' not in self.attrs:
-            raise RuntimeError('Invalid input metadata schema 1')
+            raise RuntimeError('Invalid input dataset schema 1')
 
-        metadata = self.attrs['metadata']
+        datasets = self.attrs['dataset_parameters']
         
-        if 'year' not in metadata:
-            raise RuntimeError('Invalid input metadata schema 2')
+        if 'year' not in datasets:
+            raise RuntimeError('Invalid input dataset schema 2')
 
-        self.year = int(self.attrs['metadata']['year'])
+        self.year = int(datasets['year'])
 
     @property
     def file_template(self) -> str:
@@ -48,7 +50,7 @@ class ModelProperties():
 
     def isDataDownloadTaskCompleted(self) -> bool:
         try:
-            _ = get_file_content(f'{self.source_path}/task.mark')
+            _ = get_file_content(f'{self.source_path}/end.mark')
             return True
         except FileNotFoundError:
             return False
