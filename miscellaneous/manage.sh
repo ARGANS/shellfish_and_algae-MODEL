@@ -108,7 +108,7 @@ function handle_arguments {
             ;;
 
 
-        'test')
+        'create_volumes')
             create_volumes
             ;;
         

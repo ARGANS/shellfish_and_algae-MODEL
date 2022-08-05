@@ -27,6 +27,7 @@ Use one of the following commands to access the volume:
 0.3. `./miscellaneous/manage.sh build_dataread`
 0.4. `./miscellaneous/manage.sh build_datareadb`
 0.5. `./miscellaneous/manage.sh build_posttreatment`
+0.6. `./miscellaneous/manage.sh create_volumes`
 
 ### step 1: dataimport
 1.0. `./miscellaneous/manage.sh execute_dataimport`
