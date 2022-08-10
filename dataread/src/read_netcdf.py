@@ -101,7 +101,7 @@ def extractVarSubset(ncDataset, variable, **kwargs):
                 lower_bound = ncDataset[dim.name][0] - (ncDataset[dim.name][1] - ncDataset[dim.name][0])
                 higher_bound = ncDataset[dim.name][-1] + (ncDataset[dim.name][-1] - ncDataset[dim.name][-2])
                 if kwargs[dim.name] < lower_bound or kwargs[dim.name] > higher_bound:
-                    print(f'Warning: Value "{kwargs[dim.name]}" is out of bound for dimension "{dim.name}", this happened when trying to read the "{variable} variable."')
+                    print(f'Warning: Value "{kwargs[dim.name]}" is out of bound for dimension "{dim.name}", this happened when trying to read the "{variable}" variable.')
                     asked_OOB = True
 
         elif dim.name+'_index' in kwargs:
@@ -234,11 +234,30 @@ class ParamData:
         self.ds = nc.Dataset(file_name)
         self._variableName = variable_name
         self._dimNames = {
-            'latitude': latitude_name,
-            'longitude': longitude_name,
             'time': time_name,
             'depth': depth_name
         }
+
+        if latitude_name in self.ds.dimensions.keys(): #refering to dimensions rather than variables
+            self._dimNames['latitude'] = latitude_name
+        else: # Test a few common values
+            alt_lat_names = ['latitude', 'lat']
+            self._dimNames['latitude'] = None
+            for alt_name in alt_lat_names:
+                if alt_name in self.ds.dimensions.keys():
+                    self._dimNames['latitude'] = alt_name
+            print(f'Warning: Dimension "{latitude_name}" not found in "{file_name}"; "{self._dimNames["latitude"]}" was used instead.')
+
+        if longitude_name in self.ds.dimensions.keys(): #refering to dimensions rather than variables
+            self._dimNames['longitude'] = longitude_name
+        else: # Test a few common values
+            alt_lon_names = ['longitude', 'lon', 'long']
+            self._dimNames['longitude'] = None
+            for alt_name in alt_lon_names:
+                if alt_name in self.ds.dimensions.keys():
+                    self._dimNames['longitude'] = alt_name
+            print(f'Warning: Dimension "{longitude_name}" not found in "{file_name}"; "{self._dimNames["longitude"]}" was used instead.')
+
         self._unitConversion = unit_conversion
 
         self._time_zero = time_zero # datetime.datetime object
