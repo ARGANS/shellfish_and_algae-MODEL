@@ -41,8 +41,6 @@ input_args = {
 dict_to_AllData = open_data_input(**input_args)
 
 dict_to_AllData['PAR'] = {
-    # TODO ???
-    # 'file_name': model_properties.file_template,
     'file_name': '/media/global/PAR_ref_OC_2020.nc',
     'variable_name': 'par',
     'latitude_name': 'lat',
@@ -77,9 +75,9 @@ dataPAR = algaeData.parameterData['PAR'].getVariable(**sim_area)[0]
 print('parms_run')
 print(parms_run)
 
-# No 'dateBeginning' and no 'dateEnd'
-
-# sortedList = sortData(parms_run['dateBeginning'], parms_run['dateEnd'], len(dataNO3))
+dateBeginning = f'{model_properties.year}-01-01 00:00:00'
+dateEnd = f'{model_properties.year + 1}-01-01 00:00:00'
+sortedList = sortData(dateBeginning, dateEnd, len(dataNO3))
 
 dataNH4 = ma.masked_outside(dataNH4, -1e4, 1e4)
 dataNO3 = ma.masked_outside(dataNO3, -1e4, 1e4)
@@ -101,7 +99,7 @@ latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **
 longitudeMin, latitudeMin = givecoor(longitudes,latitudes, parms_run['min_lon'], parms_run['min_lat'])  # we get the indices of the wanted position
 longitudeMax, latitudeMax = givecoor(longitudes,latitudes, parms_run['max_lon'], parms_run['max_lat'])  # we get the indices of the wanted position
 
-firstday = datetime.datetime.strptime(parms_run['dateBeginning'], '%Y-%m-%d %H:%M:%S')
+firstday = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
 
 latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * latitudes[latitudeMin:latitudeMax]
 decenturedEwc = u2d_cgrid_cur(dataEwc)

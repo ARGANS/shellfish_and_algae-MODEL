@@ -39,7 +39,6 @@ class ModelProperties():
 
     @property
     def file_template(self) -> str:
-        # return f'{self.source_path}/_pretreated/{{param}}/{{param}}{{zone}}modelNetCDF{self.year}-01to{self.year + 1}-01.nc'
         return f'{self.source_path}/{{param}}/{{param}}{{zone}}modelNetCDF{self.year}-01to{self.year + 1}-01.nc'
         
 
