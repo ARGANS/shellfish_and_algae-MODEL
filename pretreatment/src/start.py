@@ -45,6 +45,10 @@ for param, dataset_properties in dict_dataCmd.items():
         os.system(f"./resample_Arctic.sh {dir_data_pretreated} conc.nc {file_name} {dataset_properties['variable']}")
         os.system(f"rm {dir_data_pretreated}/conc.nc")
 
+    elif method == "Reference":
+        # Link to a reference file that is already stored
+        os.system(f"ln -s {dataset_properties['product-id']} {dir_data_pretreated}/{file_name}")
+
     # For when we add this step for Hermes or NASA data
     #elif line["pretreatment"] == "Hermes":
     #    ...
