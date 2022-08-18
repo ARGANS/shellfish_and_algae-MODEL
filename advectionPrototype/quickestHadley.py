@@ -7,6 +7,7 @@ import pandas as pd
 import numpy.ma as ma
 from scipy import interpolate
 from scipy.sparse import dia_matrix
+from scipy.sparse import spdiags
 import datetime
 from dateutil.relativedelta import *
 
@@ -18,79 +19,25 @@ from dataread.make_runs import open_data_input
 from dataread.read_netcdf import extractVarSubset , AllData
 from dataread.utils import import_json
 
-# return an array with all the data for the year
-def getwantedMergeData(data, depth, dataCmdpath, zone, mergedFilepath='D:/Profils/mjaouen/Documents/alternance/EASME/data/MED/'):
-    csvFile = pd.read_csv(dataCmdpath, ';')
-    DataLine = csvFile.loc[(csvFile["Parameter"] == data) & (csvFile["type"] == 'model') & (csvFile["Place"] == zone)]
-    variable = DataLine.iloc[0]["variable"]
-    # we search after the file containing the wanted data
-    for r, d, f in os.walk(mergedFilepath):
-        for i in range(len(f)):
-            filename = f[i]
-            # if it is the wanted file
-            if filename[:10] == 'merged_' + data[:3]:
-                fn = mergedFilepath + f[i]
-                ncDataset = nc.Dataset(fn)
-                break
-    return 0, ncDataset
 
 
-# sort the list of data from the older to the newer
-def sortDateList(listValue, ldate):
-    sortLval = []  # we define the sorted data list
-    sortldate = []  # we define the sorted date list
-    # we read the list we have to sort
-    for k in range(len(ldate)):
-        i = 0
-        # while we didn't red all the sorted list
-        while i < len(sortLval):
-            # if the list element is graeter than the element we want to place in the list
-            if ldate[k] < sortldate[i]:
-                # we place this element before the element who is greater than it
-                sortldate = sortldate[:i] + [ldate[k]] + sortldate[i:]
-                sortLval = sortLval[:i] + [listValue[k]] + sortLval[i:]
-                i = len(sortLval) + 1
-            i += 1
-        if i == len(sortLval) - 1 or i == len(sortLval):
-            sortldate += [ldate[k]]
-            sortLval += [listValue[k]]
-    return np.array(sortLval), np.array(sortldate)
 
 
-# give the indices coresponding to lonval, and latval in the list of coordinates
-def givecoor(lonList,latList, lonval, latval):
-    i = 0
-    loni = lonList[i]
-    # we browse the data until we find a coordiate bigger than the wanted coordiante
-    if lonval == None:
-        i= None
-    else:
-        while i + 1 < len(lonList) and lonval > loni:
-            i += 1
-            loni = lonList[i]
-    j = 0
-    lati = latList[j]
-    if latval == None:
-        j = None
-    else:
-        while j + 1 < len(latList) and latval > lati:
-            j += 1
-            lati = latList[j]
-    return i, j
 
 #this function decentralize the u speeds
-def u2d_cgrid_cur(var):
+def u2d_cgrid_cur(var): 
+    # var: 3D array ( time, lat, lon)
     varcg = np.zeros((var.shape[0], var.shape[1], var.shape[2] + 1))
     for i in range(var.shape[1]):
-        for j in range(var.shape[2] - 2, -1, -1):
+        for j in range(var.shape[2] - 1):
             if ((not ma.is_masked(var[0, i, j])) & (not ma.is_masked(var[0, i, j + 1]))):
                 varcg[:, i, j] = (var[:, i, j] + var[:, i, j + 1]) / 2
     return varcg
 
-#this function decentralize the u speeds
+#this function decentralize the v speeds
 def v2d_cgrid_cur(var):
     varcg = np.zeros((var.shape[0], var.shape[1] + 1, var.shape[2]))
-    for i in range(var.shape[1] - 2, -1, -1):
+    for i in range(var.shape[1] - 1):
         for j in range(var.shape[2]):
             if ((not ma.is_masked(var[0, i, j])) & (not ma.is_masked(var[0, i + 1, j]))):
                 varcg[:, i, j] = (var[:, i, j] + var[:, i + 1, j]) / 2
@@ -98,77 +45,49 @@ def v2d_cgrid_cur(var):
 
 #return the CFL number, cx and cy
 def giveCFL(dx, dy, dt, Ewc, Nwc, nbrx, nbry):
-    Cx = np.abs(Ewc[:, 1:] * dt / dx)
-    Cy = np.abs(Nwc[1:] * dt / dy)
-    return np.maximum(Cx, Cy).reshape(nbrx * nbry), Cx.reshape(nbrx * nbry), Cy.reshape(nbrx * nbry)
+    Cx = np.abs(Ewc[:, 1:] * dt / dx).reshape(nbrx * nbry)
+    Cy = np.abs(Nwc[1:, :] * dt / dy).reshape(nbrx * nbry)
+    return np.maximum(Cx, Cy), Cx, Cy
 
 #take as input a mask (tuple), and return the position of the masked values in a vector (dim x * dim y)
 def createListNan(maskPosition, nbry):
-    listeNan = []
+    listNan = []
     for k in range(len(maskPosition[0])):
         i, j = maskPosition[0][k], maskPosition[1][k]
         n = j + nbry * i
-        listeNan += [n]
-    return listeNan
+        listNan.append(n)
+    return listNan
 
 #return the nan or masked data position
-def findNan(dataNO3, nbry):
-    dataNO3Copy = copy.deepcopy(dataNO3)
+def findNan(dataNO3):
+    # dataNO3: 3D array (time, lat, lon)
+
+    # Why the copy ?
+    dataNO3Copy = copy.deepcopy(dataNO3[0])
     mask = dataNO3Copy.mask
-    maskpos2D = np.where(mask[0] == True)
-    dataNO3Copy[0][maskpos2D] = np.nan
+    nbrx, nbry = mask.shape
 
-    westNanij_1 = np.where(np.isnan(dataNO3Copy[0][:, :-1]))
-    westNan = (westNanij_1[0], westNanij_1[1] + 1)  # we have a Nan at the west
+    nanPositions = np.empty((5,5), dtype=np.object)
+    # examples:
+    #   - nanPositions[0,0] = mask
+    #   - nanPositions[0,1] = eastNan
+    #   - nanPositions[0,-1] = westNan
+    #   - nanPositions[2,0] = up2Nan / north2Nan
+    #   - nanPositions[1,-1] = upWestNan / northWestNan
 
-    eastNan = np.where(np.isnan(dataNO3Copy[0][:, 1:]))  # we have a Nan at the east
+    for iRel in [-2, -1, 0, 1, 2]: # along latitude
+        for jRel in [-2, -1, 0, 1, 2]: # along longitude
+            # Matrix to shift mask along E-W by -jRel
+            shiftMatE = spdiags([1]*nbry, -jRel, nbry, nbry).todense()
+            # Matrix to shift mask along N-S by -iRel
+            shiftMatN = spdiags([1]*nbrx, iRel, nbrx, nbrx).todense()
+            nanPositions[iRel, jRel] = np.flatnonzero(shiftMatN.dot(mask).dot(shiftMatE))
 
-    downNani_1j = np.where(np.isnan(dataNO3Copy[0][:-1]))
-    downNan = (downNani_1j[0] + 1, downNani_1j[1])
+    return nanPositions
 
-    upNan = np.where(np.isnan(dataNO3Copy[0][1:]))
-
-    up2Nan = np.where(np.isnan(dataNO3Copy[0][2:]))
-
-    down2Nani_1j = np.where(np.isnan(dataNO3Copy[0][:-2]))
-    down2Nan = (down2Nani_1j[0] + 2, down2Nani_1j[1])
-
-    east2Nan = np.where(np.isnan(dataNO3Copy[0][:, 2:]))
-
-    west2Nani_1j = np.where(np.isnan(dataNO3Copy[0][:, :-2]))
-    west2Nan = (west2Nani_1j[0], west2Nani_1j[1] + 2)
-
-    upEastNan = np.where(np.isnan(dataNO3Copy[0][1:, 1:]))
-
-    downWestNani_1j_1 = np.where(np.isnan(dataNO3Copy[0][:-1, :-1]))
-    downWestNan = (downWestNani_1j_1[0] + 1, downWestNani_1j_1[1] + 1)
-
-    upWestNanj_1 = np.where(np.isnan(dataNO3Copy[0][1:, :-1]))
-    upWestNan = (upWestNanj_1[0], upWestNanj_1[1] + 1)
-
-    downEastNani_1 = np.where(np.isnan(dataNO3Copy[0][:-1, 1:]))
-    downEastNan = (downEastNani_1[0] + 1, downEastNani_1[1])
-
-    upNanList = createListNan(upNan, nbry)
-    downNanList = createListNan(downNan, nbry)
-    eastNanList = createListNan(eastNan, nbry)
-    westNanList = createListNan(westNan, nbry)
-
-    up2NanList = createListNan(up2Nan, nbry)
-    down2NanList = createListNan(down2Nan, nbry)
-    east2NanList = createListNan(east2Nan, nbry)
-    west2NanList = createListNan(west2Nan, nbry)
-
-    downEastNanList = createListNan(downEastNan, nbry)
-    upWestNanList = createListNan(upWestNan, nbry)
-    downWestNanList = createListNan(downWestNan, nbry)
-    upEastNanList = createListNan(upEastNan, nbry)
-
-    return westNanList, eastNanList, upNanList, downNanList, west2NanList, east2NanList, up2NanList, down2NanList, \
-           downEastNanList, upWestNanList, downWestNanList, upEastNanList
 
 #creates the matrix to compute the flux in u direction
-def createMatE(nbrx, nbry, decenturedEwc, eastNanList, westNanList, east2NanList, west2NanList, alpha1, alpha2):
+def createMatE(nbrx, nbry, decenturedEwc, nanLists, alpha1, alpha2):
     offset = np.array([0, -1, 1, -2, 2])
     uGreater0 = ((decenturedEwc[:, 1:] > 0) * 1).reshape(nbrx * nbry)
     termA = (1 - 2 * alpha1 + alpha2) * uGreater0 - (1 - uGreater0) * (2 * alpha1 + alpha2 - 1)
@@ -180,17 +99,18 @@ def createMatE(nbrx, nbry, decenturedEwc, eastNanList, westNanList, east2NanList
     termB[::nbry] = 0
     termC[nbry - 1::nbry] = 0
 
-    termA[westNanList] = 0
-    termB[westNanList] = 0
+    termA[nanLists[0, -1]] = 0
+    termB[nanLists[0, -1]] = 0
 
-    termA[eastNanList] = 0
-    termC[eastNanList] = 0
+    termA[nanLists[0, 1]] = 0
+    termC[nanLists[0, 1]] = 0
 
-    termA[west2NanList] = 0
-    termB[west2NanList] = 0
+    termA[nanLists[0, -2]] = 0
+    termB[nanLists[0, -2]] = 0
 
-    termA[east2NanList] = 0
-    termC[east2NanList] = 0
+    termA[nanLists[0, 2]] = 0
+    termC[nanLists[0, 2]] = 0
+
     data = np.zeros((5, nbrx * nbry))
     data[0] = termA
     data[1][:-1] = termB[1:]
@@ -202,7 +122,7 @@ def createMatE(nbrx, nbry, decenturedEwc, eastNanList, westNanList, east2NanList
     return Mat
 
 #creates the matrix to compute the flux in v direction
-def createMatN(nbrx, nbry, decenturedNwc, downNanList, upNanList, down2NanList, up2NanList, alpha1, alpha2):
+def createMatN(nbrx, nbry, decenturedNwc, nanLists, alpha1, alpha2):
     offset = np.array([0, -nbry, nbry, -2 * nbry, 2 * nbry])
     vGreater0 = ((decenturedNwc[1:] > 0) * 1).reshape(nbrx * nbry)
     termA = (1 - 2 * alpha1 + alpha2) * vGreater0 - (1 - vGreater0) * (2 * alpha1 + alpha2 - 1)
@@ -211,17 +131,18 @@ def createMatN(nbrx, nbry, decenturedNwc, downNanList, upNanList, down2NanList, 
     termD = vGreater0 * alpha2
     termE = alpha2 * (1 - vGreater0)
 
-    termA[downNanList] = 0
-    termB[downNanList] = 0
+    termA[nanLists[-1, 0]] = 0
+    termB[nanLists[-1, 0]] = 0
 
-    termA[upNanList] = 0
-    termC[upNanList] = 0
+    termA[nanLists[1, 0]] = 0
+    termC[nanLists[1, 0]] = 0
 
-    termA[down2NanList] = 0
-    termB[down2NanList] = 0
+    termA[nanLists[-2, 0]] = 0
+    termB[nanLists[-2, 0]] = 0
 
-    termA[up2NanList] = 0
-    termC[up2NanList] = 0
+    termA[nanLists[2, 0]] = 0
+    termC[nanLists[2, 0]] = 0
+
     data = np.zeros((5, nbrx * nbry))
     data[0] = termA
     data[1][:-nbry] = termB[nbry:]
@@ -261,7 +182,7 @@ def giveResol(dataLine):
 
 def prepareDerivArrayScenC(derivArray,nanLists):
     for i in range(len(derivArray)):
-        for nanL in nanLists:
+        for nanL in nanLists.flatten():
             derivArrayLine = derivArray[i].reshape(nbrx*nbry)
             derivArrayLine[nanL] = 1e-10
             derivArray[i] = derivArrayLine.reshape(nbrx,nbry)
@@ -307,8 +228,7 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, d
     mask = dataNO3.mask
     maskpos2D = np.where(mask[0] == True)
     init = time.time()
-    westNanList, eastNanList, upNanList, downNanList, west2NanList, east2NanList, up2NanList, down2NanList, \
-    downEastNanList, upWestNanList, downWestNanList, upEastNanList = findNan(dataNO3, nbry)
+    nanLists = findNan(dataNO3)
 
     daylist = [firstday]
 
@@ -332,8 +252,8 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, d
         alpha2 = (1 / 6) * (1 - CFL) * (1 + CFL)
         if np.max(CFL)>maxCFL:
             maxCFL = np.max(CFL)
-        matE = createMatE(nbrx, nbry, Ewc[hNbr], eastNanList, westNanList, east2NanList, west2NanList, alpha1, alpha2)
-        matN = createMatN(nbrx, nbry, Nwc[hNbr], downNanList, upNanList, down2NanList, up2NanList, alpha1, alpha2)
+        matE = createMatE(nbrx, nbry, Ewc[hNbr], nanLists, alpha1, alpha2)
+        matN = createMatN(nbrx, nbry, Nwc[hNbr], nanLists, alpha1, alpha2)
 
         days = (daylist[-1] - datetime.datetime(daylist[-1].year, 1, 1,
                                                 0)).days  # we get the number of the day in the year
@@ -354,7 +274,7 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, d
                                  advNO3, advNH4, N_s, N_f, D,
                                  centNwc[hNbr], centEwc[hNbr], dataPAR[month], latRef, model, nbrx, nbry, dt,Zmix)
         if scenC:
-            derivArray = prepareDerivArrayScenC(derivArray,[westNanList, eastNanList, upNanList, downNanList, downEastNanList, upWestNanList, downWestNanList, upEastNanList])
+            derivArray = prepareDerivArrayScenC(derivArray, nanLists)
 
         CNO3line = oldNO3Cline +advNO3 + derivArray[1].reshape(nbrx * nbry) * dt
         cNO3 = np.minimum(CNO3line.reshape(nbrx, nbry), 0)
