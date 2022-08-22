@@ -12,7 +12,6 @@ import datetime
 from dateutil.relativedelta import *
 
 # extract the data value at depth in the merged files (all the daily data merged in one file)
-from advectionPrototype.climatology_ellipses import degrees_to_meters
 from advectionPrototype.saveAsTiff import saveAsTiff, giveMetadata
 from dataread.launch_model import MA_model_scipy
 from dataread.make_runs import open_data_input
@@ -42,6 +41,17 @@ def v2d_cgrid_cur(var):
             if ((not ma.is_masked(var[0, i, j])) & (not ma.is_masked(var[0, i + 1, j]))):
                 varcg[:, i, j] = (var[:, i, j] + var[:, i + 1, j]) / 2
     return varcg
+
+def degrees_to_meters(lonDist, latDist, refLat):
+    """Converts degrees of latDist,lonDist to meters assuming that the latitude
+    stays near refLat.
+    """
+    lat_degree = 111000 # conversion of latitude degrees to meters
+
+    Dx = lonDist * lat_degree * np.cos(np.deg2rad(refLat))
+    Dy = latDist * lat_degree
+
+    return Dx, Dy
 
 #return the CFL number, cx and cy
 def giveCFL(dx, dy, dt, Ewc, Nwc, nbrx, nbry):
@@ -153,6 +163,17 @@ def createMatN(nbrx, nbry, decenturedNwc, nanLists, alpha1, alpha2):
 
     return Mat
 
+#returns the space step
+def giveDxDy(latitudes, longitudes, latRef):
+    Dx = np.zeros((len(longitudes),len(latitudes)))
+    Dy = np.zeros((len(latitudes), len(longitudes)))
+    Dy[:,:-1] = longitudes[1:]-longitudes[:-1]
+    Dy[:,-1] = Dy[:,-2]
+    Dx[:, :-1] = latitudes[1:] - latitudes[:-1]
+    Dx[:, -1] = Dx[:, -2]
+    DxMeter, DyMeter = degrees_to_meters(Dx,Dy,latRef)
+    return DxMeter.T, DyMeter
+
 #return the variation of each quantities in the algae model
 def giveEpsilon(day, temp, NH4, NO3,cNO3, cNH4, advNO3, advNH4, N_s, N_f, D, Nwc, Ewc, PAR, latRef, model, nbrx, nbry, dt, Zmix):
     data_in = {
@@ -234,13 +255,14 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, d
 
     maxCFL = 0
     dx = dxlist.reshape(nbrx * nbry)
+    dy = dyMeter.reshape(nbrx * nbry)
     #for each time step
     for k in range(nbrStep):
         daylist += [firstday + relativedelta(minutes=int(k * 24 * 60 / discr))]
         #we compute the day, hour and month number
         dayNbr = sortedList[k // int(discr)]
         hNbr = dayNbr #if we don't use hourly speeds, hNbr = dayNbr
-        month = k // int(30.5*discr)
+        month = dayNbr // int(30.5*discr)
         cNO3[maskpos2D] = 1e-5
         cNH4[maskpos2D] = 1e-5
         D[maskpos2D] = 1e-5
@@ -265,9 +287,9 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, d
         nh4Hatu = matE.dot(oldNH4Cline)
         nh4Hatv = matN.dot(oldNH4Cline)
         #we compute the advection terms
-        advNO3 = - cy * no3Hatv - cx * no3Hatu + (dt / dyMeter) * Ks * matN.dot(no3Hatv) + (
+        advNO3 = - cy * no3Hatv - cx * no3Hatu + (dt / dy) * Ks * matN.dot(no3Hatv) + (
                     dt / dx) * Ks * matE.dot(no3Hatu)
-        advNH4 = - cy * nh4Hatv - cx * nh4Hatu + (dt / dyMeter) * Ks * matN.dot(nh4Hatv) + (
+        advNH4 = - cy * nh4Hatv - cx * nh4Hatu + (dt / dy) * Ks * matN.dot(nh4Hatv) + (
                     dt / dx) * Ks * matE.dot(nh4Hatu)
 
         derivArray = giveEpsilon(days, dataTemp[dayNbr], cNH4 + dataNH4[dayNbr], cNO3 + dataNO3[dayNbr], cNO3, cNH4,
@@ -290,8 +312,8 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, d
 
         oldDCline = D.reshape(nbrx * nbry)
         CDline = oldDCline - cy * matN.dot(oldDCline) - cx * matE.dot(oldDCline) + (
-                dt / dyMeter) * Ks * matN.dot(matN.dot(oldDCline)) + (
-                         dt / dxlist.reshape(nbrx * nbry)) * Ks * matE.dot(matN.dot(oldDCline)) + derivArray[4].reshape(
+                dt / dy) * Ks * matN.dot(matN.dot(oldDCline)) + (
+                         dt / dx) * Ks * matE.dot(matN.dot(oldDCline)) + derivArray[4].reshape(
             nbrx * nbry) * dt
         D = np.maximum(CDline.reshape(nbrx, nbry),1e-4)
 
@@ -455,11 +477,7 @@ if __name__ == "__main__":
     decenturedEwc = u2d_cgrid_cur(dataEwc)
     decenturedNwc = v2d_cgrid_cur(dataNwc)
 
-    if km:
-        dxlist, dyMeter = resx * np.ones(np.shape(dataNwc[0])), resy  # baltic
-    else:
-        dxlist, dyMeter = degrees_to_meters(resx, resy, latRef)
-        dxlist = dxlist.T
+    dxlist, dyMeter = giveDxDy(latitudes,longitudes,latRef)
 
     dylist = dyMeter * np.ones(np.shape(dxlist))
 

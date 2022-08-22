@@ -96,12 +96,9 @@ resx, resy, km = giveResol(nwcDataLine)
 longitudes, _ = algaeData.parameterData['Temperature'].getVariable('longitude', **sim_area)
 latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **sim_area)
 
-longitudeMin, latitudeMin = givecoor(longitudes,latitudes, parms_run['min_lon'], parms_run['min_lat'])  # we get the indices of the wanted position
-longitudeMax, latitudeMax = givecoor(longitudes,latitudes, parms_run['max_lon'], parms_run['max_lat'])  # we get the indices of the wanted position
-
 firstday = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
 
-latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * latitudes[latitudeMin:latitudeMax]
+latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * latitudes
 decenturedEwc = u2d_cgrid_cur(dataEwc)
 decenturedNwc = v2d_cgrid_cur(dataNwc)
 
