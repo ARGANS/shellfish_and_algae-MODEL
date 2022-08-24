@@ -41,20 +41,21 @@ class resample:
         return rowCoor.astype(int), columnCoor.astype(int)
 
 
-def resampleData(resa, dxlist, latRef, dataNH4, dataPAR, dataNO3, dataEwc, dataNwc, dataTemp, newArrayShape, i, j):
-    rowCoor, columnCoor = resa.giveNewMatCoor(newArrayShape, i, j)
-    dxlistarray = dxlist[rowCoor, columnCoor].reshape(newArrayShape)
-    latRefarray = latRef.T[rowCoor, columnCoor].reshape(newArrayShape)
+    def resampleData(resa, dxlist,dyMeter, latRef, dataNH4, dataPAR, dataNO3, dataEwc, dataNwc, dataTemp, newArrayShape, i, j):
+        rowCoor, columnCoor = resa.giveNewMatCoor(newArrayShape, i, j)
+        dyMeterarray = dyMeter[rowCoor, columnCoor].reshape(newArrayShape)
+        dxlistarray = dxlist[rowCoor, columnCoor].reshape(newArrayShape)
+        latRefarray = latRef.T[rowCoor, columnCoor].reshape(newArrayShape)
 
-    dataNH4array = dataNH4[:, rowCoor, columnCoor].reshape((len(dataNH4),) + newArrayShape)
-    dataPARarray = dataPAR[:, rowCoor, columnCoor].reshape((len(dataPAR),) + newArrayShape)
-    dataNO3array = dataNO3[:, rowCoor, columnCoor].reshape((len(dataNO3),) + newArrayShape)
-    dataEwcarray = dataEwc[:, rowCoor, columnCoor].reshape((len(dataEwc),) + newArrayShape)
-    dataNwcarray = dataNwc[:, rowCoor, columnCoor].reshape((len(dataNwc),) + newArrayShape)
-    dataTemparray = dataTemp[:, rowCoor, columnCoor].reshape((len(dataTemp),) + newArrayShape)
-    decenturedEwcarray = u2d_cgrid_cur(dataEwcarray)
-    decenturedNwcarray = v2d_cgrid_cur(dataNwcarray)
-    return dxlistarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, decenturedNwcarray
+        dataNH4array = dataNH4[:, rowCoor, columnCoor].reshape((len(dataNH4),) + newArrayShape)
+        dataPARarray = dataPAR[:, rowCoor, columnCoor].reshape((len(dataPAR),) + newArrayShape)
+        dataNO3array = dataNO3[:, rowCoor, columnCoor].reshape((len(dataNO3),) + newArrayShape)
+        dataEwcarray = dataEwc[:, rowCoor, columnCoor].reshape((len(dataEwc),) + newArrayShape)
+        dataNwcarray = dataNwc[:, rowCoor, columnCoor].reshape((len(dataNwc),) + newArrayShape)
+        dataTemparray = dataTemp[:, rowCoor, columnCoor].reshape((len(dataTemp),) + newArrayShape)
+        decenturedEwcarray = u2d_cgrid_cur(dataEwcarray)
+        decenturedNwcarray = v2d_cgrid_cur(dataNwcarray)
+        return dxlistarray,dyMeterarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, decenturedNwcarray
 
 
 # this function decentralize the u speeds
@@ -246,7 +247,7 @@ def giveResol(dataLine):
         return float(splitedString[0]) * 1e-2, float(splitedString[1]) * 1e-2, False
 
 
-def prepareDerivArrayScenC(derivArray, nanLists):
+def prepareDerivArrayScenC(derivArray, nanLists, nbrx,nbry):
     for i in range(len(derivArray)):
         for nanL in nanLists.flatten():
             derivArrayLine = derivArray[i].reshape(nbrx * nbry)
@@ -344,7 +345,7 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, d
                                  advNO3, advNH4, N_s, N_f, D,
                                  centNwc[hNbr], centEwc[hNbr], dataPAR[month], latRef, model, nbrx, nbry, dt, Zmix)
         if scenC:
-            derivArray = prepareDerivArrayScenC(derivArray, nanLists)
+            derivArray = prepareDerivArrayScenC(derivArray, nanLists,nbrx,nbry)
 
         CNO3line = oldNO3Cline + advNO3 + derivArray[1].reshape(nbrx * nbry) * dt
         cNO3 = np.minimum(CNO3line.reshape(nbrx, nbry), 0)
@@ -528,6 +529,8 @@ if __name__ == "__main__":
 
     dxlist, dyMeter = giveDxDy(latitudes, longitudes, latRef)
 
+    resx, resy = np.mean(dxlist), np.mean(dyMeter)
+
     dxRatio = 1852 / np.mean(dxlist)
     dyRatio = 1852 / np.mean(dyMeter)
 
@@ -551,15 +554,15 @@ if __name__ == "__main__":
         for j in range(0, nbry, int(50000 / resy)):
             print(i, j)
             NO3Oldarray = dataNO3[:, i:i + int(50000 / resx), j:j + int(50000 / resy)].filled(np.nan)
-            if (np.sum(np.isnan(NO3Oldarray))) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
+            if (np.sum(np.isnan(NO3Oldarray))>0) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
                 '''plt.imshow(NO3Oldarray[0])
                 plt.show()'''
-                dxlistarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
+                dxlistarray,dyMeterarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
                 dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, \
-                decenturedNwcarray = resa.resampleData(dxlist, latRef, dataNH4, dataPAR, dataNO3, dataEwc, dataNwc,
+                decenturedNwcarray = resa.resampleData(dxlist,dyMeter, latRef, dataNH4, dataPAR, dataNO3, dataEwc, dataNwc,
                                                        dataTemp, newArrayShape,
                                                        i, j)
-                NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlistarray, dt,
+                NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeterarray, dxlistarray, dt,
                                                                                              decenturedEwcarray,
                                                                                              decenturedNwcarray,
                                                                                              dataEwcarray,
@@ -569,18 +572,79 @@ if __name__ == "__main__":
                                                                                              dataPARarray, Ks, firstday,
                                                                                              model,
                                                                                              Zmix, scenC, sortedList)
+                xsize, ysize = len(NO3field), np.shape(NO3field)[1]
+                giveMetadata(latitudes[i:i + int(50000 / resx)], longitudes[j:j + int(50000 / resy)])
+                ulx = longitudes[j]
+                uly = latitudes[i + int(50000 / resx)]
+
+                xres = (longitudes[1] - longitudes[0])*dxRatio
+                yres = (latitudes[1] - latitudes[0])*dyRatio
+
+                DW = N_f / Q_min  # gDW m-3
+                DW_line = DW * h_MA * w_MA / 1000  # kg/m (i.e. per m of rope)
+                DW_PUA = DW * h_MA * density_MA / 1000  # kg/m^2 (multiply be density to account for unused space within farm)
+
+                FW = DW / DF_MA  # gFW m-3
+                FW_line = DW_line / DF_MA  # kg/m (i.e. per m of rope)
+                FW_PUA = DW_PUA / DF_MA  # kg/m^2
+
+                # Energy
+                kcal_PUA = DW * h_MA * density_MA * kcal_MA  # kcal/m^2
+
+                # protein
+                protein_PUA = DW_PUA * prot_MA  # kg/m^2
+
+                # CO2 uptake
+                Biomass_CO2 = (N_f / 14) * CN_MA * 44 / 1000  # g (CO2) /m^3    (44 is rmm of CO2)
+                CO2_uptake_PUA = Biomass_CO2 * h_MA * density_MA / 1000  # kg (CO2) / m^2
+
+                '''saveAsTiff(NO3field, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/NO3field{i}{j}.tif")
+                saveAsTiff(NH4field, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/NH4field{i}{j}.tif")
+                saveAsTiff(D, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/D{i}{j}.tif")
+                saveAsTiff(N_f, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/N_f{i}{j}.tif")
+                saveAsTiff(N_s, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/N_s{i}{j}.tif")
+                saveAsTiff(DW, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/DW{i}{j}.tif")
+                saveAsTiff(totalNH4deficit, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/totalNH4deficit{i}{j}.tif")
+                saveAsTiff(totalNO3deficit, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/totalNO3deficit{i}{j}.tif")'''
+                saveAsTiff(DW_PUA, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/DW_PUA{i}{j}.tif")
+                '''saveAsTiff(FW, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/FW{i}{j}.tif")
+                saveAsTiff(FW_line, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/FW_line{i}{j}.tif")
+                saveAsTiff(FW_PUA, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/FW_PUA{i}{j}.tif")
+                saveAsTiff(kcal_PUA, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/kcal_PUA{i}{j}.tif")
+                saveAsTiff(protein_PUA, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/protein_PUA{i}{j}.tif")
+                saveAsTiff(Biomass_CO2, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/Biomass_CO2{i}{j}.tif")
+                saveAsTiff(CO2_uptake_PUA, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/CO2_uptake_PUA{i}{j}.tif")
+                saveAsTiff(DW_line, xsize, ysize, ulx, uly, xres, yres,
+                           f"I:/work-he/apps/safi/data/{zone}/DW_line{i}{j}.tif")'''
+
     if int(50000 / resx) != 50000 / resx:
         i = np.shape(dataNO3)[1] - 1 - int(50000 / resx)
         for j in range(0, nbry, int(50000 / resy)):
             print(i, j)
             NO3Oldarray = dataNO3[:, i:i + int(50000 / resx), j:j + int(50000 / resy)].filled(np.nan)
-            if (np.sum(np.isnan(NO3Oldarray))) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
-                dxlistarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
+            if (np.sum(np.isnan(NO3Oldarray))>0) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
+                dxlistarray,dyMeterarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
                 dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, \
-                decenturedNwcarray = resa.resampleData(dxlist, latRef, dataNH4, dataPAR, dataNO3, dataEwc, dataNwc,
+                decenturedNwcarray = resa.resampleData(dxlist,dyMeter, latRef, dataNH4, dataPAR, dataNO3, dataEwc, dataNwc,
                                                        dataTemp, newArrayShape,
                                                        i, j)
-                NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlistarray, dt,
+                NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeterarray, dxlistarray, dt,
                                                                                              decenturedEwcarray,
                                                                                              decenturedNwcarray,
                                                                                              dataEwcarray,
@@ -595,13 +659,13 @@ if __name__ == "__main__":
         for i in range(0, nbrx, int(50000 / resx)):
             print(i, j)
             NO3Oldarray = dataNO3[:, i:i + int(50000 / resx), j:j + int(50000 / resy)].filled(np.nan)
-            if (np.sum(np.isnan(NO3Oldarray))) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
-                dxlistarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
+            if (np.sum(np.isnan(NO3Oldarray))>0) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
+                dxlistarray,dyMeterarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
                 dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, \
-                decenturedNwcarray = resa.resampleData(dxlist, latRef, dataNH4, dataPAR, dataNO3, dataEwc, dataNwc,
+                decenturedNwcarray = resa.resampleData(dxlist,dyMeter, latRef, dataNH4, dataPAR, dataNO3, dataEwc, dataNwc,
                                                        dataTemp, newArrayShape,
                                                        i, j)
-                NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlistarray,
+                NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeterarray, dxlistarray,
                                                                                              dt,
                                                                                              decenturedEwcarray,
                                                                                              decenturedNwcarray,
@@ -620,13 +684,13 @@ if __name__ == "__main__":
         j = np.shape(dataNO3)[2] - 1 - int(50000 / resy)
         i = np.shape(dataNO3)[1] - 1 - int(50000 / resx)
         NO3Oldarray = dataNO3[:, i:i + int(50000 / resx), j:j + int(50000 / resy)].filled(np.nan)
-        if (np.sum(np.isnan(NO3Oldarray))) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
-            dxlistarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
+        if (np.sum(np.isnan(NO3Oldarray))>0) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
+            dxlistarray,dyMeterarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
             dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, \
-            decenturedNwcarray = resa.resampleData(dxlist, latRef, dataNH4, dataPAR, dataNO3, dataEwc, dataNwc,
+            decenturedNwcarray = resa.resampleData(dxlist,dyMeter, latRef, dataNH4, dataPAR, dataNO3, dataEwc, dataNwc,
                                                    dataTemp, newArrayShape,
                                                    i, j)
-            NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlistarray,
+            NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeterarray, dxlistarray,
                                                                                          dt,
                                                                                          decenturedEwcarray,
                                                                                          decenturedNwcarray,

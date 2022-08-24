@@ -355,12 +355,14 @@ class AllData:
             self.parameterData[parameterName] = ParamData(**dataArgs)
 
 
-    def getData(self, parameters=None, averagingDims=None, weighted=True, **kwargs):
+    def getData(self, variable=None, parameters=None, averagingDims=None, weighted=True, **kwargs):
         """Extracts the data for any number of specified parameters, with
         optional averaging.
 
         Parameters
         ----------
+        variable: str
+            Used to specify the desired variable, useful to get dimension data.
         parameters: list[str]
             Any number of parameter names, as they have been specified in
             __init__. If None, then all parameters are returned.
@@ -385,23 +387,25 @@ class AllData:
         values: dict
             Dictionary with the parameter names as keys, containing masked
             numpy arrays with the data
-        remainingDims: tuple[str]
-            The names of the dimensions remaining in the arrays contained in
-            values.
+        remainingDims: dict
+            Dictionary containing the names of the dimensions remaining in each
+            array contained in values.
         """
 
         if parameters is None:
             parameters = self.parameterData.keys()
 
         values = {}
+        dims_remaining = {}
 
         for param in parameters:
-            data, dims = self.parameterData[param].getVariable(averagingDims=averagingDims,
+            data, dims = self.parameterData[param].getVariable(variable=variable,
+                                                               averagingDims=averagingDims,
                                                                weighted=weighted, **kwargs)
             values[param] = data
+            dims_remaining[param] = dims
 
-        # TODO: check that all remainingDims are the same
-        return values, dims
+        return values, dims_remaining
 
 
     def getTimeSeries(self, latitude, longitude, dateRange, depth, parameters=None):
