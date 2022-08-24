@@ -54,9 +54,9 @@ def degrees_to_meters(lonDist, latDist, refLat):
     return Dx, Dy
 
 #return the CFL number, cx and cy
-def giveCFL(dx, dy, dt, Ewc, Nwc, nbrx, nbry):
-    Cx = np.abs(Ewc[:, 1:] * dt / dx).reshape(nbrx * nbry)
-    Cy = np.abs(Nwc[1:, :] * dt / dy).reshape(nbrx * nbry)
+def giveCFL(dx, dy, dt, Ewc, Nwc):
+    Cx = np.abs(Ewc[:, 1:] * dt / dx).flatten()
+    Cy = np.abs(Nwc[1:, :] * dt / dy).flatten()
     return np.maximum(Cx, Cy), Cx, Cy
 
 #take as input a mask (tuple), and return the position of the masked values in a vector (dim x * dim y)
@@ -69,15 +69,12 @@ def createListNan(maskPosition, nbry):
     return listNan
 
 #return the nan or masked data position
-def findNan(dataNO3):
-    # dataNO3: 3D array (time, lat, lon)
+def findNan(mask):
+    # mask: 2D array (lat, lon) of booleans, typically the mask of a maskedArray
 
-    # Why the copy ?
-    dataNO3Copy = copy.deepcopy(dataNO3[0])
-    mask = dataNO3Copy.mask
-    nbrx, nbry = mask.shape
+    nbry, nbrx = mask.shape
 
-    nanPositions = np.empty((5,5), dtype=np.object)
+    nanPositions = np.empty((5,5), dtype=object)
     # examples:
     #   - nanPositions[0,0] = mask
     #   - nanPositions[0,1] = eastNan
@@ -88,18 +85,20 @@ def findNan(dataNO3):
     for iRel in [-2, -1, 0, 1, 2]: # along latitude
         for jRel in [-2, -1, 0, 1, 2]: # along longitude
             # Matrix to shift mask along E-W by -jRel
-            shiftMatE = spdiags([1]*nbry, -jRel, nbry, nbry).todense()
+            shiftMatE = spdiags([1]*nbrx, -jRel, nbrx, nbrx).todense()
             # Matrix to shift mask along N-S by -iRel
-            shiftMatN = spdiags([1]*nbrx, iRel, nbrx, nbrx).todense()
+            shiftMatN = spdiags([1]*nbry, iRel, nbry, nbry).todense()
             nanPositions[iRel, jRel] = np.flatnonzero(shiftMatN.dot(mask).dot(shiftMatE))
 
     return nanPositions
 
 
 #creates the matrix to compute the flux in u direction
-def createMatE(nbrx, nbry, decenturedEwc, nanLists, alpha1, alpha2):
+def createMatE(decenteredEwc, nanLists, alpha1, alpha2):
+    nbrx, nbry = decenteredEwc[:, 1:].shape
+
     offset = np.array([0, -1, 1, -2, 2])
-    uGreater0 = ((decenturedEwc[:, 1:] > 0) * 1).reshape(nbrx * nbry)
+    uGreater0 = ((decenteredEwc[:, 1:] > 0) * 1).flatten()
     termA = (1 - 2 * alpha1 + alpha2) * uGreater0 - (1 - uGreater0) * (2 * alpha1 + alpha2 - 1)
     termB = (alpha1 - 2 * alpha2 - 1) * uGreater0 - alpha1 * (1 - uGreater0)
     termC = alpha1 * uGreater0 + (1 - alpha1 - 2 * alpha2) * (1 - uGreater0)
@@ -122,19 +121,21 @@ def createMatE(nbrx, nbry, decenturedEwc, nanLists, alpha1, alpha2):
     termC[nanLists[0, 2]] = 0
 
     data = np.zeros((5, nbrx * nbry))
-    data[0] = termA
-    data[1][:-1] = termB[1:]
-    data[2][1:] = termC[:-1]
-    data[3][:-2] = termD[2:]
-    data[4][2:] = termE[:-2]
+    data[0, :] = termA
+    data[1, :-1] = termB[1:]
+    data[2, 1:] = termC[:-1]
+    data[3, :-2] = termD[2:]
+    data[4, 2:] = termE[:-2]
     Mat = dia_matrix((data, offset), shape=(nbrx * nbry, nbrx * nbry))
 
     return Mat
 
 #creates the matrix to compute the flux in v direction
-def createMatN(nbrx, nbry, decenturedNwc, nanLists, alpha1, alpha2):
+def createMatN(decenteredNwc, nanLists, alpha1, alpha2):
+    nbrx, nbry = decenteredNwc[1:, :].shape
+
     offset = np.array([0, -nbry, nbry, -2 * nbry, 2 * nbry])
-    vGreater0 = ((decenturedNwc[1:] > 0) * 1).reshape(nbrx * nbry)
+    vGreater0 = ((decenteredNwc[1:, :] > 0) * 1).flatten()
     termA = (1 - 2 * alpha1 + alpha2) * vGreater0 - (1 - vGreater0) * (2 * alpha1 + alpha2 - 1)
     termB = (alpha1 - 2 * alpha2 - 1) * vGreater0 - alpha1 * (1 - vGreater0)
     termC = alpha1 * vGreater0 + (1 - alpha1 - 2 * alpha2) * (1 - vGreater0)
@@ -155,42 +156,42 @@ def createMatN(nbrx, nbry, decenturedNwc, nanLists, alpha1, alpha2):
 
     data = np.zeros((5, nbrx * nbry))
     data[0] = termA
-    data[1][:-nbry] = termB[nbry:]
-    data[2][nbry:] = termC[:-nbry]
-    data[3][:-2 * nbry] = termD[2 * nbry:]
-    data[4][2 * nbry:] = termE[:-2 * nbry]
+    data[1, :-nbry] = termB[nbry:]
+    data[2, nbry:] = termC[:-nbry]
+    data[3, :-2 * nbry] = termD[2 * nbry:]
+    data[4, 2 * nbry:] = termE[:-2 * nbry]
     Mat = dia_matrix((data, offset), shape=(nbrx * nbry, nbrx * nbry))
 
     return Mat
 
 #returns the space step
-def giveDxDy(latitudes, longitudes, latRef):
-    Dx = np.zeros((len(longitudes),len(latitudes)))
+def giveDxDy(latitudes, longitudes):
+    Dx = np.zeros((len(latitudes), len(longitudes)))
     Dy = np.zeros((len(latitudes), len(longitudes)))
-    Dy[:,:-1] = longitudes[1:]-longitudes[:-1]
-    Dy[:,-1] = Dy[:,-2]
-    Dx[:, :-1] = latitudes[1:] - latitudes[:-1]
-    Dx[:, -1] = Dx[:, -2]
-    DxMeter, DyMeter = degrees_to_meters(Dx,Dy,latRef)
-    return DxMeter.T, DyMeter
+    latRef = np.zeros((len(latitudes), len(longitudes)))
+
+    Dx[:-1, :] = np.diff(latitudes)[np.newaxis].T
+    Dx[-1, :] = Dx[-2, :]
+
+    Dy[:, :-1] = np.diff(longitudes)
+    Dy[:, -1] = Dy[:, -2]
+
+    latRef[:,:] = latitudes[np.newaxis].T
+
+    DxMeter, DyMeter = degrees_to_meters(Dx, Dy, latRef)
+    return DxMeter, DyMeter
 
 #return the variation of each quantities in the algae model
-def giveEpsilon(day, temp, NH4, NO3,cNO3, cNH4, advNO3, advNH4, N_s, N_f, D, Nwc, Ewc, PAR, latRef, model, nbrx, nbry, dt, Zmix):
+def giveEpsilon(day, temp, NH4, NO3, N_s, N_f, D, PAR, latRef, model, dt, Zmix):
     data_in = {
         'SST': temp,
         'PAR': PAR,
-        'NH4_ext': NH4,
-        'NO3_ext': NO3,
         'PO4_ext': 50,
         'K_d': 0.1,
-        'F_in': np.sqrt(Nwc ** 2 + Ewc ** 2),
-        'h_z_SML': 30,
-        't_z': Zmix,
-        'D_ext': 0.1
+        't_z': Zmix
     }
     y = dict(zip(["NH4", "NO3", "N_s", "N_f", "D"], [NH4, NO3, N_s, N_f, D]))
-    return model.derivative_fast_advection(day, y, data_in,cNO3, cNH4, advNO3, advNH4, nbrx, nbry, dt,
-                                           latRef, model)
+    return model.hadley_advection(day, y, data_in, dt, latRef)
 
 #get in the dataLine comming from dataCmd.csv the resolution of the data
 def giveResol(dataLine):
@@ -204,9 +205,9 @@ def giveResol(dataLine):
 def prepareDerivArrayScenC(derivArray,nanLists):
     for i in range(len(derivArray)):
         for nanL in nanLists.flatten():
-            derivArrayLine = derivArray[i].reshape(nbrx*nbry)
+            derivArrayLine = derivArray[i].flatten()
             derivArrayLine[nanL] = 1e-10
-            derivArray[i] = derivArrayLine.reshape(nbrx,nbry)
+            derivArray[i] = derivArrayLine.reshape(grid_shape)
     return derivArray
 
 def sortPAR(dateBeginning, dataArr):
@@ -231,9 +232,91 @@ def sortData(dateBeginning, dateEnd,lenDataArr):
     else:
         return np.concatenate([np.arange(firstdayNbr,lenDataArr),np.arange(0,lastdayNbr)])
 
+def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
+
+    # Parse the input json info
+    parms_run = list(model_json['parameters']['run'].values())[0]['parameters']
+    parms_farm = list(model_json['parameters']['farm'].values())[0]['parameters']
+    parms_harvest = list(model_json['parameters']['harvest'].values())[0]['parameters']
+    harvest_type = list(model_json['parameters']['harvest'].keys())[0]
+
+    year = model_json['dataset_parameters']['year']
+
+    # Define beginning and end times of the simulation
+    startDate = datetime.datetime(year, parms_harvest['deployment_month'], 1)
+    if harvest_type == "Winter_growth":
+        endDate = datetime.datetime(year + 1, parms_harvest['harvesting_month'], 1) + relativedelta(months=1) #first day of the next month at midnight
+    else:
+        endDate = datetime.datetime(year, parms_harvest['harvesting_month'], 1) + relativedelta(months=1) #first day of the next month at midnight
+
+    # Data import information, except for the time
+    data_kwargs = {
+                'longitude': (-4, -2),
+                'latitude': (49, 50), #TODO: get from json
+                "depth": (0, (1 + parms_run['Von_Karman']) * parms_farm["z"]),
+                "averagingDims": ("depth",)
+                }
+
+    # Time axis of each variable, stored in a dict
+    time_axes, _ = input_data.getData(variable='time')
+
+    # Initialize the working data at the start date, store the index used to detect when it will change.
+    nearest_time_i = {}
+    working_data = {}
+    for par_name, par_data in input_data.parameterData.items():
+        nearest_time_i[par_name] = iNearest(startDate, time_axes[par_name])
+        working_data[par_name], _ = par_data.getVariable(time_index=nearest_time_i[par_name], **data_kwargs) #TODO: are dims really laways lat,lon ?
+
+    grid_shape = working_data['Nitrate'].shape #the shape should be the same for all parameters
+
+    # Initialize the model variables
+    state_vars = {
+        'cNO3': np.zeros(grid_shape),
+        'cNH4': np.zeros(grid_shape),
+        'N_s': np.zeros(grid_shape),
+        'N_f': np.ones(grid_shape) * parms_harvest['deployment_Nf'],
+        'D': np.zeros(grid_shape),
+        'totalNH4deficit': np.zeros(grid_shape),
+        'totalNO3deficit': np.zeros(grid_shape)
+    }
+
+    dt = 1/72 # TODO: make into parameter in json
+    discr = 1/dt
+
+    longitudes, _ = algaeData.parameterData['Nitrate'].getVariable('longitude', **data_kwargs)
+    latitudes, _ = algaeData.parameterData['Nitrate'].getVariable('latitude', **data_kwargs)
+    dxMeter, dyMeter = giveDxDy(latitudes, longitudes)
+
+    # Simulation loop
+    sim_date = startDate
+    while sim_date < endDate:
+
+        # Alter the date after new year in case of winter growth
+        if harvest_type == "Winter_growth":
+            data_date = sim_date.replace(year = year)
+        else:
+            data_date = sim_date
+
+        # For each dataset, if the nearest i has changed, update the working data
+        for par_name, par_data in algaeData.parameterData.items():
+            new_i = iNearest(data_date, time_axes[par_name])
+            if new_i != nearest_time_i[par_name]:
+                nearest_time_i[par_name] = new_i
+                working_data[par_name], _ = par_data.getVariable(time_index=new_i, **data_kwargs)
+
+        update_model(state_vars=state_vars, working_data=working_data, dt=dt)
+
+        sim_date += datetime.timedelta(days = dt)
+
+
+def update_model(state_vars: dict, working_data: dict, dt):
+
+    pass
+
+
 #apply the quickest scheme
-def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, dataNH4, dataTemp, dataPAR, Ks, firstday,
-             model, Zmix, scenC,sortedList):
+def quickest(dyMeter, dxlist, dt, Ewc, Nwc, latRef, dataNO3, dataNH4, dataTemp, dataPAR, Ks, firstday,
+             model, Zmix, scenC, sortedList):
     #we initate the variables
     discr = 1/dt
     nbrStep = int(len(sortedList) * discr)
@@ -245,17 +328,16 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, d
 
     totalNH4deficit = np.zeros(np.shape(dataNH4[0]))
     totalNO3deficit = np.zeros(np.shape(dataNO3[0]))
-    (nbrx, nbry) = np.shape(dataNO3[0])
-    mask = dataNO3.mask
-    maskpos2D = np.where(mask[0] == True)
+    grid_shape = np.shape(dataNO3[0])
+    mask = dataNO3.mask[0, :, :]
     init = time.time()
-    nanLists = findNan(dataNO3)
+    nanLists = findNan(mask)
 
     daylist = [firstday]
 
     maxCFL = 0
-    dx = dxlist.reshape(nbrx * nbry)
-    dy = dyMeter.reshape(nbrx * nbry)
+    dx = dxlist.flatten()
+    dy = dyMeter.flatten()
     #for each time step
     for k in range(nbrStep):
         daylist += [firstday + relativedelta(minutes=int(k * 24 * 60 / discr))]
@@ -263,59 +345,70 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, d
         dayNbr = sortedList[k // int(discr)]
         hNbr = dayNbr #if we don't use hourly speeds, hNbr = dayNbr
         month = dayNbr // int(30.5*discr)
-        cNO3[maskpos2D] = 1e-5
-        cNH4[maskpos2D] = 1e-5
-        D[maskpos2D] = 1e-5
-        N_f[maskpos2D] = 1e-5
-        N_s[maskpos2D] = 1e-5
+        cNO3[mask] = 1e-5
+        cNH4[mask] = 1e-5
+        D[mask] = 1e-5
+        N_f[mask] = 1e-5
+        N_s[mask] = 1e-5
         #we compute the CFL
-        CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, Ewc[hNbr], Nwc[hNbr], nbrx, nbry)
+        CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, Ewc[hNbr], Nwc[hNbr])
         alpha1 = (1 / 6) * (1 - CFL) * (2 - CFL)
         alpha2 = (1 / 6) * (1 - CFL) * (1 + CFL)
         if np.max(CFL)>maxCFL:
             maxCFL = np.max(CFL)
-        matE = createMatE(nbrx, nbry, Ewc[hNbr], nanLists, alpha1, alpha2)
-        matN = createMatN(nbrx, nbry, Nwc[hNbr], nanLists, alpha1, alpha2)
+        matE = createMatE(Ewc[hNbr], nanLists, alpha1, alpha2)
+        matN = createMatN(Nwc[hNbr], nanLists, alpha1, alpha2)
 
         days = (daylist[-1] - datetime.datetime(daylist[-1].year, 1, 1,
                                                 0)).days  # we get the number of the day in the year
 
-        oldNO3Cline = cNO3.reshape(nbrx * nbry)
-        oldNH4Cline = cNH4.reshape(nbrx * nbry)
+        oldNO3Cline = cNO3.flatten()
+        oldNH4Cline = cNH4.flatten()
+        oldDline = D.flatten()
         no3Hatu = matE.dot(oldNO3Cline)
         no3Hatv = matN.dot(oldNO3Cline)
         nh4Hatu = matE.dot(oldNH4Cline)
         nh4Hatv = matN.dot(oldNH4Cline)
+        dHatu = matE.dot(oldDline)
+        dHatv = matN.dot(oldDline)
         #we compute the advection terms
         advNO3 = - cy * no3Hatv - cx * no3Hatu + (dt / dy) * Ks * matN.dot(no3Hatv) + (
                     dt / dx) * Ks * matE.dot(no3Hatu)
         advNH4 = - cy * nh4Hatv - cx * nh4Hatu + (dt / dy) * Ks * matN.dot(nh4Hatv) + (
                     dt / dx) * Ks * matE.dot(nh4Hatu)
+        advD = - cy * dHatv - cx * dHatu + (dt / dy) * Ks * matN.dot(dHatv) + (
+                    dt / dx) * Ks * matE.dot(dHatu)
 
-        derivArray = giveEpsilon(days, dataTemp[dayNbr], cNH4 + dataNH4[dayNbr], cNO3 + dataNO3[dayNbr], cNO3, cNH4,
-                                 advNO3, advNH4, N_s, N_f, D,
-                                 centNwc[hNbr], centEwc[hNbr], dataPAR[month], latRef, model, nbrx, nbry, dt,Zmix)
+        CNO3line = oldNO3Cline + advNO3
+        #cNO3 = np.minimum(CNO3line.reshape(grid_shape), 0)
+        cNO3 = CNO3line.reshape(grid_shape)
+
+        CNH4line = oldNH4Cline + advNH4
+        #cNH4 = np.minimum(CNH4line.reshape(grid_shape), 0)
+        cNH4 = CNH4line.reshape(grid_shape)
+
+        CDline = oldDline + advD
+        D = np.maximum(CDline.reshape(grid_shape),1e-4)
+
+        derivArray = giveEpsilon(days, dataTemp[dayNbr], cNH4 + dataNH4[dayNbr], cNO3 + dataNO3[dayNbr], N_s, N_f, D,
+                                 dataPAR[month], latRef, model, dt, Zmix)
         if scenC:
             derivArray = prepareDerivArrayScenC(derivArray, nanLists)
 
-        CNO3line = oldNO3Cline +advNO3 + derivArray[1].reshape(nbrx * nbry) * dt
-        cNO3 = np.minimum(CNO3line.reshape(nbrx, nbry), 0)
-        #cNO3 = CNO3line.reshape(nbrx, nbry)
+        CNO3line = CNO3line + derivArray[1].flatten() * dt
+        #cNO3 = np.minimum(CNO3line.reshape(grid_shape), 0)
+        cNO3 = CNO3line.reshape(grid_shape)
 
         totalNO3deficit += derivArray[1]
 
-        CNH4line = oldNH4Cline +advNH4 + derivArray[0].reshape(nbrx * nbry) * dt
-        cNH4 = np.minimum(CNH4line.reshape(nbrx, nbry), 0)
-        #cNH4 = CNH4line.reshape(nbrx, nbry)
+        CNH4line = CNH4line + derivArray[0].flatten() * dt
+        #cNH4 = np.minimum(CNH4line.reshape(grid_shape), 0)
+        cNH4 = CNH4line.reshape(grid_shape)
 
         totalNH4deficit += derivArray[0]
 
-        oldDCline = D.reshape(nbrx * nbry)
-        CDline = oldDCline - cy * matN.dot(oldDCline) - cx * matE.dot(oldDCline) + (
-                dt / dy) * Ks * matN.dot(matN.dot(oldDCline)) + (
-                         dt / dx) * Ks * matE.dot(matN.dot(oldDCline)) + derivArray[4].reshape(
-            nbrx * nbry) * dt
-        D = np.maximum(CDline.reshape(nbrx, nbry),1e-4)
+        CDline = CDline + derivArray[4].flatten() * dt
+        D = np.maximum(CDline.reshape(grid_shape),1e-4)
 
         N_s += derivArray[2] * dt
 
@@ -330,13 +423,13 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, centEwc, centNwc, latRef, dataNO3, d
             print('Max CFL',maxCFL)
 
     NO3field, NH4field, D, N_f, N_s = cNO3 + dataNO3[dayNbr - 1], cNH4 + dataNH4[dayNbr - 1], D, N_f, N_s
-    NO3field[maskpos2D] = np.nan
-    NH4field[maskpos2D] = np.nan
-    D[maskpos2D] = np.nan
-    N_f[maskpos2D] = np.nan
-    N_s[maskpos2D] = np.nan
-    totalNH4deficit[maskpos2D] = np.nan
-    totalNO3deficit[maskpos2D] = np.nan
+    NO3field[mask] = np.nan
+    NH4field[mask] = np.nan
+    D[mask] = np.nan
+    N_f[mask] = np.nan
+    N_s[mask] = np.nan
+    totalNH4deficit[mask] = np.nan
+    totalNO3deficit[mask] = np.nan
     return NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit
 
 
@@ -348,12 +441,6 @@ if __name__ == "__main__":
 
     dateBeginning = '2020-09-01 00:00:00'
     dateEnd = '2020-04-30 00:00:00'
-
-    latmin = None
-    latmax = None
-
-    lonmin = None
-    lonmax = None
 
     scenC = False
 
@@ -367,22 +454,15 @@ if __name__ == "__main__":
 
     CPlat, CPlon = 153, 56
 
-    model_params = "./../macroalgae/macroalgae_model_parameters_input.json"
+    model_params = "p:/Aquaculture/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
     json_data = import_json(model_params)
 
-    paramSacch = json_data['parameters']['species']['saccharina']['parameters']
+    parms_run = list(json_data['parameters']['run'].values())[0]['parameters']
+    parms_farm = list(json_data['parameters']['farm'].values())[0]['parameters']
+    parms_harvest = list(json_data['parameters']['harvest'].values())[0]['parameters']
+    harvest_type = list(json_data['parameters']['harvest'].keys())[0]
+
     model = MA_model_scipy(json_data['parameters'])
-
-    Q_min = paramSacch['Q_min']
-    density_MA = 0.4
-    h_MA = paramSacch['h_MA']
-    w_MA = paramSacch['w_MA']
-    DF_MA = 0.113
-    kcal_MA = 2.29
-    prot_MA = 0.08
-    CN_MA = 21
-
-    Zmix = h_MA * 1.4
 
     if getAmmonium:
         paramNames = ['Nitrate', 'northward_Water_current', 'Ammonium', 'eastward_Water_current',
@@ -420,13 +500,15 @@ if __name__ == "__main__":
     }
 
     sim_area = {
-        'longitude': (lonmin, lonmax),
-        'latitude': (latmin, latmax),
-        'depth': 0
-        #'depth': (0, Zmix),
-        #'averagingDims': ('depth',),
+        'longitude': (-4, -2),
+        'latitude': (49, 50),
+        #'depth': 0
+        'depth': (0, (1 + parms_run['Von_Karman']) * parms_farm["z"]),
+        'averagingDims': ('depth',),
         #'weighted': False
     }
+
+    Zmix = (1 + parms_run['Von_Karman']) * parms_farm["z"]
 
     ### Initialize the netcdf reading interface
     algaeData = AllData(dict_to_AllData)
@@ -474,79 +556,27 @@ if __name__ == "__main__":
 
     latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * latitudes
 
-    decenturedEwc = u2d_cgrid_cur(dataEwc)
-    decenturedNwc = v2d_cgrid_cur(dataNwc)
+    decenteredEwc = u2d_cgrid_cur(dataEwc)
+    decenteredNwc = v2d_cgrid_cur(dataNwc)
 
-    dxlist, dyMeter = giveDxDy(latitudes,longitudes,latRef)
+    dxlist, dyMeter = giveDxDy(latitudes,longitudes)
 
     dylist = dyMeter * np.ones(np.shape(dxlist))
 
-    print(Q_min,Zmix)
-
     maxCFL = 0
-    (nbrx, nbry) = np.shape(dataNO3[0])
+    grid_shape = np.shape(dataNO3[0])
     for i in range(len(dataEwc)):
-        CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, decenturedEwc[i], decenturedNwc[i], nbrx, nbry)
+        CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, decenteredEwc[i], decenteredNwc[i])
         if np.max(CFL) > maxCFL:
             maxCFL = np.max(CFL)
     print('maxCFL: '+ str(maxCFL))
-    xsize, ysize, ulx, uly, xres, yres = giveMetadata(latitudes, longitudes)
-    saveAsTiff(dataNO3[0], xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/IBI/test.tiff")
+    #xsize, ysize, ulx, uly, xres, yres = giveMetadata(latitudes, longitudes)
+    #saveAsTiff(dataNO3[0], xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/IBI/test.tiff")
     NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlist, dt,
-                                                                                 decenturedEwc, decenturedNwc, dataEwc,
-                                                                                 dataNwc, latRef.T, dataNO3, dataNH4,
+                                                                                 decenteredEwc, decenteredNwc,
+                                                                                 latRef.T, dataNO3, dataNH4,
                                                                                  dataTemp, dataPAR, Ks, firstday, model,
                                                                                  Zmix,scenC,sortedList)
 
-    DW = N_f / Q_min  # gDW m-3
-    DW_line = DW * h_MA * w_MA / 1000  # kg/m (i.e. per m of rope)
-    DW_PUA = DW * h_MA * density_MA / 1000  # kg/m^2 (multiply be density to account for unused space within farm)
 
-    FW = DW / DF_MA  # gFW m-3
-    FW_line = DW_line / DF_MA  # kg/m (i.e. per m of rope)
-    FW_PUA = DW_PUA / DF_MA  # kg/m^2
-
-    # Energy
-    kcal_PUA = DW * h_MA * density_MA * kcal_MA  # kcal/m^2
-
-    # protein
-    protein_PUA = DW_PUA * prot_MA  # kg/m^2
-
-    # CO2 uptake
-    Biomass_CO2 = (N_f / 14) * CN_MA * 44 / 1000  # g (CO2) /m^3    (44 is rmm of CO2)
-    CO2_uptake_PUA = Biomass_CO2 * h_MA * density_MA / 1000  # kg (CO2) / m^2
-
-    saveAsTiff(NO3field, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/NO3field.tif".format(zone=zone))
-    saveAsTiff(NH4field, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/NH4field.tif".format(zone=zone))
-    saveAsTiff(D, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/D.tif".format(zone=zone))
-    saveAsTiff(N_f, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/N_f.tif".format(zone=zone))
-    saveAsTiff(N_s, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/N_s.tif".format(zone=zone))
-    saveAsTiff(DW, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/DW.tif".format(zone=zone))
-    saveAsTiff(totalNH4deficit, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/totalNH4deficit.tif".format(zone=zone))
-    saveAsTiff(totalNO3deficit, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/totalNO3deficit.tif".format(zone=zone))
-    saveAsTiff(DW_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/DW_PUA.tif".format(zone=zone))
-    saveAsTiff(FW, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/FW.tif".format(zone=zone))
-    saveAsTiff(FW_line, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/FW_line.tif".format(zone=zone))
-    saveAsTiff(FW_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/FW_PUA.tif".format(zone=zone))
-    saveAsTiff(kcal_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/kcal_PUA.tif".format(zone=zone))
-    saveAsTiff(protein_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/protein_PUA.tif".format(zone=zone))
-    saveAsTiff(Biomass_CO2, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/Biomass_CO2.tif".format(zone=zone))
-    saveAsTiff(CO2_uptake_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/CO2_uptake_PUA.tif".format(zone=zone))
-    saveAsTiff(DW_line, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/DW_line.tif".format(zone=zone))
+    print(NO3field.shape)
