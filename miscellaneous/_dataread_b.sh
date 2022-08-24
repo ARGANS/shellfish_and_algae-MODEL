@@ -54,6 +54,8 @@ function run_datareadb_in_interactive_mode {
         --volume $(pwd)/advectionPrototype:/opt/advectionPrototype \
         --volume $(pwd)/scenario_b/start.py:/opt/start.py \
         --volume $(pwd)/scenario_b/start.sh:/opt/start.sh \
+        --memory=4g \
+		--memory-swap=8g \
         -e INPUT_SOURCE="$1" \
         -e INPUT_DESTINATION="$2" \
         -e INPUT_MODEL_PROPERTIES_JSON="$3" \

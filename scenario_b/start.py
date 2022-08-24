@@ -1,12 +1,13 @@
 import datetime
 import os
+from pprint import pprint
 
 import numpy as np
 import pandas as pd
 from numpy import ma
 
 from advectionPrototype.climatology_ellipses import degrees_to_meters
-from advectionPrototype.quickestHadley import quickest, sortData, giveResol, givecoor, v2d_cgrid_cur, u2d_cgrid_cur, \
+from advectionPrototype.quickestHadley import quickest, sortData, giveResol, v2d_cgrid_cur, u2d_cgrid_cur, \
     giveCFL
 from dataread.launch_model import MA_model_scipy
 from dataread.make_runs import open_data_input
@@ -18,6 +19,8 @@ DATA_CMD_PATH = '/media/global/dataCmd.csv'
 dataRef: pd.DataFrame = pd.read_csv(DATA_CMD_PATH, delimiter=';')
 
 model_properties = ModelProperties(os.getenv('INPUT_SOURCE'), os.getenv('INPUT_DESTINATION'))
+
+# model_properties.attrs['metadata']['scenario'] == 'B'
 
 try:
     model_properties.parse(os.getenv('INPUT_MODEL_PROPERTIES_JSON'))
@@ -52,11 +55,17 @@ dict_to_AllData['PAR'] = {
     'time_step': datetime.timedelta(days=1)
 }
 
+if False:
+    parms_run['min_lon'] = -4
+    parms_run['max_lon'] = -3
+    parms_run['min_lat'] = 48.5
+    parms_run['max_lat'] = 49
+
+print(f"Lon {parms_run['min_lon']}..{parms_run['max_lon']} Lat {parms_run['min_lat']}..{parms_run['max_lat']}")
+
 sim_area = {
-    'longitude': (-4, -3),
-    'latitude': (48.5, 49),
-    # 'longitude': (parms_run['min_lon'], parms_run['max_lon']),
-    # 'latitude': (parms_run['min_lat'], parms_run['max_lat']),
+    'longitude': (parms_run['min_lon'], parms_run['max_lon']),
+    'latitude': (parms_run['min_lat'], parms_run['max_lat']),
     'depth': (0, parms_farm['z']*1.4),
     'averagingDims': ('depth',),
     'weighted': False
@@ -65,11 +74,11 @@ sim_area = {
 ### Initialize the netcdf reading interface
 algaeData = AllData(dict_to_AllData)
 
+dataEwc = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0]
 dataNO3 = algaeData.parameterData['Nitrate'].getVariable(**sim_area)[0]
+dataNwc = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0]
 dataNH4 = algaeData.parameterData['Ammonium'].getVariable(**sim_area)[0]
 dataTemp = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0]
-dataNwc = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0]
-dataEwc = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0]
 dataPAR = algaeData.parameterData['PAR'].getVariable(**sim_area)[0]
 
 print('parms_run')
