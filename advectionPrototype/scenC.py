@@ -625,10 +625,10 @@ if __name__ == "__main__":
     print(int(50000 / resx))
     print(int(50000 / resy))
     # i, j are the coordinates in the top left corner of the studied area
-    for i in range(0, grid_shape[0], int(50000 / resx)):
-        for j in range(0, grid_shape[1], int(50000 / resy)):
+    for i in range(0, grid_shape[0], int(50000 / resy)):
+        for j in range(0, grid_shape[1], int(50000 / resx)):
             print(i, j)
-            NO3Oldarray = dataNO3[:, i:i + int(50000 / resx), j:j + int(50000 / resy)].filled(np.nan)
+            NO3Oldarray = dataNO3[:, i:i + int(50000 / resy), j:j + int(50000 / resx)].filled(np.nan)
             if (np.sum(np.isnan(NO3Oldarray)) > 0) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
                 '''plt.imshow(NO3Oldarray[0])
                 plt.show()'''
@@ -648,10 +648,10 @@ if __name__ == "__main__":
                                                                                              dataPARarray, Ks, firstday,
                                                                                              model,
                                                                                              Zmix, scenC, sortedList)
-                xsize, ysize = len(NO3field), np.shape(NO3field)[1]
-                giveMetadata(latitudes[i:i + int(50000 / resx)], longitudes[j:j + int(50000 / resy)])
+                ysize, xsize = len(NO3field), np.shape(NO3field)[1]
+                giveMetadata(latitudes[i:i + int(50000 / resy)], longitudes[j:j + int(50000 / resx)])
                 ulx = longitudes[j]
-                uly = latitudes[i + int(50000 / resx)]
+                uly = latitudes[i + int(50000 / resy)]
 
                 xres = (longitudes[1] - longitudes[0]) * dxRatio
                 yres = (latitudes[1] - latitudes[0]) * dyRatio
@@ -709,11 +709,11 @@ if __name__ == "__main__":
                 saveAsTiff(DW_line, xsize, ysize, ulx, uly, xres, yres,
                            f"I:/work-he/apps/safi/data/{zone}/DW_line{i}_{j}.tif")'''
 
-    if int(50000 / resx) != 50000 / resx:
-        i = np.shape(dataNO3)[1] - 1 - int(50000 / resx)
-        for j in range(0, grid_shape[1], int(50000 / resy)):
+    if int(50000 / resy) != 50000 / resy:
+        i = np.shape(dataNO3)[1] - 1 - int(50000 / resy)
+        for j in range(0, grid_shape[1], int(50000 / resx)):
             print(i, j)
-            NO3Oldarray = dataNO3[:, i:i + int(50000 / resx), j:j + int(50000 / resy)].filled(np.nan)
+            NO3Oldarray = dataNO3[:, i:i + int(50000 / resy), j:j + int(50000 / resx)].filled(np.nan)
             if (np.sum(np.isnan(NO3Oldarray)) > 0) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
                 dxlistarray, dyMeterarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
                 dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, \
@@ -731,11 +731,11 @@ if __name__ == "__main__":
                                                                                              dataPARarray, Ks, firstday,
                                                                                              model,
                                                                                              Zmix, scenC, sortedList)
-    if int(50000 / resy) != 50000 / resy:
+    if int(50000 / resx) != 50000 / resx:
         j = np.shape(dataNO3)[2] - 1 - int(50000 / resy)
-        for i in range(0, grid_shape[0], int(50000 / resx)):
+        for i in range(0, grid_shape[0], int(50000 / resy)):
             print(i, j)
-            NO3Oldarray = dataNO3[:, i:i + int(50000 / resx), j:j + int(50000 / resy)].filled(np.nan)
+            NO3Oldarray = dataNO3[:, i:i + int(50000 / resy), j:j + int(50000 / resx)].filled(np.nan)
             if (np.sum(np.isnan(NO3Oldarray)) > 0) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
                 dxlistarray, dyMeterarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
                 dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, \
@@ -756,10 +756,10 @@ if __name__ == "__main__":
                                                                                              Zmix, scenC,
                                                                                              sortedList)
 
-    if (int(50000 / resx) != 50000 / resx) and (int(50000 / resy) != 50000 / resy):
-        j = np.shape(dataNO3)[2] - 1 - int(50000 / resy)
-        i = np.shape(dataNO3)[1] - 1 - int(50000 / resx)
-        NO3Oldarray = dataNO3[:, i:i + int(50000 / resx), j:j + int(50000 / resy)].filled(np.nan)
+    if (int(50000 / resy) != 50000 / resy) and (int(50000 / resx) != 50000 / resx):
+        j = np.shape(dataNO3)[2] - 1 - int(50000 / resx)
+        i = np.shape(dataNO3)[1] - 1 - int(50000 / resy)
+        NO3Oldarray = dataNO3[:, i:i + int(50000 / resy), j:j + int(50000 / resx)].filled(np.nan)
         if (np.sum(np.isnan(NO3Oldarray)) > 0) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
             dxlistarray, dyMeterarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
             dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, \
