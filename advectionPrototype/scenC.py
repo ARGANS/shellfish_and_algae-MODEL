@@ -13,10 +13,11 @@ from dateutil.relativedelta import *
 
 # extract the data value at depth in the merged files (all the daily data merged in one file)
 from advectionPrototype.saveAsTiff import saveAsTiff, giveMetadata
-from dataread.launch_model import MA_model_scipy
-from dataread.make_runs import open_data_input
-from dataread.read_netcdf import extractVarSubset, AllData
-from dataread.utils import import_json
+from dataread.src.launch_model import MA_model_scipy
+from dataread.src.make_runs import open_data_input
+from dataread.src.read_netcdf import extractVarSubset , AllData
+from dataread.src.utils import import_json
+
 
 
 class resample:
@@ -490,6 +491,7 @@ if __name__ == "__main__":
     CPlat, CPlon = 153, 56
 
     model_params = "p:/Aquaculture/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
+    model_params = "./../macroalgae/macroalgae_model_parameters_input.json"
     json_data = import_json(model_params)
 
     paramSacch = json_data['parameters']['species']['alaria']['parameters']
@@ -732,7 +734,7 @@ if __name__ == "__main__":
                                                                                              model,
                                                                                              Zmix, scenC, sortedList)
     if int(50000 / resx) != 50000 / resx:
-        j = np.shape(dataNO3)[2] - 1 - int(50000 / resy)
+        j = np.shape(dataNO3)[2] - 1 - int(50000 / resx)
         for i in range(0, grid_shape[0], int(50000 / resy)):
             print(i, j)
             NO3Oldarray = dataNO3[:, i:i + int(50000 / resy), j:j + int(50000 / resx)].filled(np.nan)
