@@ -13,10 +13,10 @@ from dateutil.relativedelta import *
 
 # extract the data value at depth in the merged files (all the daily data merged in one file)
 from advectionPrototype.saveAsTiff import saveAsTiff, giveMetadata
-from dataread.src.launch_model import MA_model_scipy
-from dataread.src.make_runs import open_data_input
-from dataread.src.read_netcdf import extractVarSubset , AllData
-from dataread.src.utils import import_json
+from dataread.launch_model import MA_model_scipy
+from dataread.make_runs import open_data_input
+from dataread.read_netcdf import extractVarSubset , AllData
+from dataread.utils import import_json
 
 
 
@@ -491,7 +491,6 @@ if __name__ == "__main__":
     CPlat, CPlon = 153, 56
 
     model_params = "p:/Aquaculture/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
-    model_params = "./../macroalgae/macroalgae_model_parameters_input.json"
     json_data = import_json(model_params)
 
     paramSacch = json_data['parameters']['species']['alaria']['parameters']
