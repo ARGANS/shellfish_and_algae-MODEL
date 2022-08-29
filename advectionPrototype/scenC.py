@@ -26,16 +26,17 @@ class resample:
         self.dyRatio = dyRatio
 
     def findElmt(self, i, j):
-        newi = np.round(i * self.dxRatio).astype(int)
-        newj = np.round(j * self.dyRatio).astype(int)
+        newi = np.floor(i * self.dyRatio).astype(int)
+        newj = np.floor(j * self.dxRatio).astype(int)
         return newi, newj
 
     def giveNewMatCoor(self, matshape, imin, jmin):
         rowCoor = np.zeros(matshape[0] * matshape[1])
         columnCoor = np.zeros(matshape[0] * matshape[1])
         ival, jval = self.findElmt(np.arange(matshape[0]),
-                                   np.arange(matshape[1]))  # comment retrouver ou on était dans new
+                                   np.arange(matshape[1]))
         ival, jval = ival + imin, jval + jmin
+        #for each row value
         for k in range(matshape[0]):
             rowCoor[k * matshape[1]:(k + 1) * matshape[1]] = ival[k]
             columnCoor[k * matshape[1]:(k + 1) * matshape[1]] = jval
@@ -88,6 +89,17 @@ def degrees_to_meters(lonDist, latDist, refLat):
     Dy = latDist * lat_degree
 
     return Dx, Dy
+
+def meters_to_degrees(Dx, Dy, refLat):
+    """Converts degrees of latDist,lonDist to meters assuming that the latitude
+    stays near refLat.
+    """
+    lat_degree = 111000 # conversion of latitude degrees to meters
+
+    lonDist= Dx/ ( lat_degree * np.cos(np.deg2rad(refLat)))
+    latDist = Dy/ lat_degree
+
+    return lonDist, latDist
 
 #return the CFL number, cx and cy
 def giveCFL(dx, dy, dt, Ewc, Nwc):
@@ -358,16 +370,17 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, latRef, dataNO3, dataNH4, dataTemp, 
     nbrStep = int(len(sortedList) * discr)
     cNO3 = np.zeros(np.shape(dataNO3[0]))
     cNH4 = np.zeros(np.shape(dataNH4[0]))
-    N_s = np.ones(np.shape(dataNH4[0])) * 1000
+    N_s = np.ones(np.shape(dataNH4[0])) * 1000 #TODO: change init values?
     N_f = np.ones(np.shape(dataNH4[0])) * 1000
     D = np.ones(np.shape(dataNH4[0])) * 0.1
-
     totalNH4deficit = np.zeros(np.shape(dataNH4[0]))
     totalNO3deficit = np.zeros(np.shape(dataNO3[0]))
     grid_shapeTmp = np.shape(dataNO3[0])
     mask = dataNO3.mask[0, :, :]
     init = time.time()
     nanLists = findNan(mask)
+    if scenC:
+        N_s,N_f = prepareDerivArrayScenC([N_s,N_f], nanLists, grid_shapeTmp)
 
     daylist = [firstday]
 
@@ -453,10 +466,10 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, latRef, dataNO3, dataNH4, dataTemp, 
         N_f = np.maximum(N_f,-1e-6)
         N_s = np.maximum(N_s, -1e-6)
 
-        if k % int(30 * discr) == 0:
+        '''if k % int(30 * discr) == 0:
             print(k / discr)
             print(time.time() - init)
-            print('Max CFL',maxCFL)
+            print('Max CFL',maxCFL)'''
 
     NO3field, NH4field, D, N_f, N_s = cNO3 + dataNO3[dayNbr - 1], cNH4 + dataNH4[dayNbr - 1], D, N_f, N_s
     NO3field[mask] = np.nan
@@ -623,15 +636,19 @@ if __name__ == "__main__":
     #saveAsTiff(dataNO3[0], xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/IBI/test.tiff")
     resa = resample(dxRatio, dyRatio)
     newArrayShape = (int(50000 / 1852), int(50000 / 1852))
-    print(int(50000 / resx))
-    print(int(50000 / resy))
+    print(int(50000 / resx),int(50000 / resy))
+    print(resx,resy)
     # i, j are the coordinates in the top left corner of the studied area
     for i in range(0, grid_shape[0], int(50000 / resy)):
         for j in range(0, grid_shape[1], int(50000 / resx)):
             print(i, j)
             NO3Oldarray = dataNO3[:, i:i + int(50000 / resy), j:j + int(50000 / resx)].filled(np.nan)
+            #ewcOldarray = dataEwc[:, i:i + int(50000 / resy), j:j + int(50000 / resx)].filled(np.nan)
+            #print(i + int(50000 / resy), j + int(50000 / resx))
             if (np.sum(np.isnan(NO3Oldarray)) > 0) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
                 '''plt.imshow(NO3Oldarray[0])
+                plt.show()
+                plt.imshow(ewcOldarray[0])
                 plt.show()'''
                 dxlistarray, dyMeterarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
                 dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, \
@@ -639,6 +656,12 @@ if __name__ == "__main__":
                                                        dataNwc,
                                                        dataTemp, newArrayShape,
                                                        i, j)
+                '''plt.imshow(dxlistarray)
+                plt.show()
+                plt.imshow(dataEwcarray[0])
+                plt.show()
+                plt.imshow(decenturedEwcarray[0])
+                plt.show()'''
                 NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeterarray, dxlistarray,
                                                                                              dt,
                                                                                              decenturedEwcarray,
@@ -650,12 +673,13 @@ if __name__ == "__main__":
                                                                                              model,
                                                                                              Zmix, scenC, sortedList)
                 ysize, xsize = len(NO3field), np.shape(NO3field)[1]
-                giveMetadata(latitudes[i:i + int(50000 / resy)], longitudes[j:j + int(50000 / resx)])
                 ulx = longitudes[j]
-                uly = latitudes[i + int(50000 / resy)]
-
-                xres = (longitudes[1] - longitudes[0]) * dxRatio
-                yres = (latitudes[1] - latitudes[0]) * dyRatio
+                uly = latitudes[i + int(50000 / resy)-1]
+                #xres, yres = meters_to_degrees(1852,1852,latRef[i:i + int(50000 / resy), j:j + int(50000 / resx)])
+                xres = (longitudes[j+1] - longitudes[j]) * dxRatio
+                yres = (latitudes[i+1] - latitudes[i]) * dyRatio
+                xres = np.mean(xres)
+                print(xres,yres)
 
                 DW = N_f / Q_min  # gDW m-3
                 DW_line = DW * h_MA * w_MA / 1000  # kg/m (i.e. per m of rope)
