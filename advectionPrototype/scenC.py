@@ -5,6 +5,7 @@ import netCDF4 as nc
 import numpy as np
 import pandas as pd
 import numpy.ma as ma
+from matplotlib import pyplot as plt
 from scipy import interpolate
 from scipy.sparse import dia_matrix
 from scipy.sparse import spdiags
@@ -13,10 +14,10 @@ from dateutil.relativedelta import *
 
 # extract the data value at depth in the merged files (all the daily data merged in one file)
 from advectionPrototype.saveAsTiff import saveAsTiff, giveMetadata
-from dataread.launch_model import MA_model_scipy
-from dataread.make_runs import open_data_input
-from dataread.read_netcdf import extractVarSubset , AllData
-from dataread.utils import import_json
+from dataread.src.launch_model import MA_model_scipy
+from dataread.src.make_runs import open_data_input
+from dataread.src.read_netcdf import extractVarSubset , AllData
+from dataread.src.utils import import_json
 
 
 
@@ -504,6 +505,7 @@ if __name__ == "__main__":
     CPlat, CPlon = 153, 56
 
     model_params = "p:/Aquaculture/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
+    model_params = "./../macroalgae/macroalgae_model_parameters_input.json"
     json_data = import_json(model_params)
 
     paramSacch = json_data['parameters']['species']['alaria']['parameters']
@@ -675,10 +677,8 @@ if __name__ == "__main__":
                 ysize, xsize = len(NO3field), np.shape(NO3field)[1]
                 ulx = longitudes[j]
                 uly = latitudes[i + int(50000 / resy)-1]
-                #xres, yres = meters_to_degrees(1852,1852,latRef[i:i + int(50000 / resy), j:j + int(50000 / resx)])
-                xres = (longitudes[j+1] - longitudes[j]) * dxRatio
-                yres = (latitudes[i+1] - latitudes[i]) * dyRatio
-                xres = np.mean(xres)
+                xres = (longitudes[j + int(50000 / resx)] - longitudes[j])/xsize
+                yres = (latitudes[i + int(50000 / resy)] - latitudes[i])/ysize
                 print(xres,yres)
 
                 DW = N_f / Q_min  # gDW m-3
