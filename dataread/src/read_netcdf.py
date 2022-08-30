@@ -205,6 +205,7 @@ def averageOverMLD(array2D, mld, depthAxis):
 
     return np.average(array2D, 1, weights=weights)
 
+#TODO: make these into class methods
 def dateToNum(date, zero: datetime.datetime, step:datetime.timedelta):
     # Returns the numeric value associated to date in netCDF files
 
@@ -215,7 +216,7 @@ def dateToNum(date, zero: datetime.datetime, step:datetime.timedelta):
 def numToDate(num, zero: datetime.datetime, step:datetime.timedelta):
     # Returns the date associated to num that is found in netCDF files
 
-    date = zero + num * step
+    date = zero + (num * step)
 
     return date
 
@@ -328,7 +329,7 @@ class ParamData:
 
         # Change the output from numeric values to datetime() if we output time
         if variable == 'time' and not rawTime:
-            output = np.ma.masked_array([numToDate(a, self._time_zero, self._time_step) for a in output])
+            output = numToDate(output, self._time_zero, self._time_step)
 
         # TODO: ensure that the remaining dimensions are always output in the
         # same order, notably (time, depth)
