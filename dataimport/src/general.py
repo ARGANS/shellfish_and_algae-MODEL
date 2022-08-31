@@ -74,7 +74,7 @@ def getdataFromMarineCopernicus(dataInfo, dateBeginning, dateEnd, outputDirector
         output = line.decode().rstrip()
         print(output)
         if '[ERROR]' in output:
-            raise RuntimeError(output)
+            raise RuntimeError(options + ', ' + output)
 
 
 # give the file complete name depending of the filetype
