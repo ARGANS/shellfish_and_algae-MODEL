@@ -11,55 +11,49 @@ from scipy.sparse import dia_matrix
 from scipy.sparse import spdiags
 import datetime
 from dateutil.relativedelta import *
+import sys
 
 # extract the data value at depth in the merged files (all the daily data merged in one file)
-from advectionPrototype.saveAsTiff import saveAsTiff, giveMetadata
-from dataread.src.launch_model import MA_model_scipy
-from dataread.src.make_runs import open_data_input
-from dataread.src.read_netcdf import extractVarSubset , AllData
-from dataread.src.utils import import_json
+sys.path.append('p:/Aquaculture/shellfish_and_algae-MODEL/dataread/src/')
+#from saveAsTiff import saveAsTiff, giveMetadata
+from launch_model import MA_model_scipy
+from make_runs import open_data_input, initialize_result
+from src.read_netcdf import AllData, iNearest
+from utils import import_json
 
 
 
 class resample:
-    def __init__(self, dxRatio, dyRatio):
+    def __init__(self, dxRatio, dyRatio, grid_shape):
         self.dxRatio = dxRatio
         self.dyRatio = dyRatio
+        nbry, nbrx = grid_shape
+        self.newArrayShape = (int(nbry/dyRatio),int(nbrx/dxRatio))
 
     def findElmt(self, i, j):
         newi = np.floor(i * self.dyRatio).astype(int)
         newj = np.floor(j * self.dxRatio).astype(int)
         return newi, newj
 
-    def giveNewMatCoor(self, matshape, imin, jmin):
-        rowCoor = np.zeros(matshape[0] * matshape[1])
-        columnCoor = np.zeros(matshape[0] * matshape[1])
-        ival, jval = self.findElmt(np.arange(matshape[0]),
-                                   np.arange(matshape[1]))
-        ival, jval = ival + imin, jval + jmin
+    def giveNewMatCoor(self):
+        rowCoor = np.zeros(self.newArrayShape[0] * self.newArrayShape[1])
+        columnCoor = np.zeros(self.newArrayShape[0] * self.newArrayShape[1])
+        ival, jval = self.findElmt(np.arange(self.newArrayShape[0]),
+                                   np.arange(self.newArrayShape[1]))
         #for each row value
-        for k in range(matshape[0]):
-            rowCoor[k * matshape[1]:(k + 1) * matshape[1]] = ival[k]
-            columnCoor[k * matshape[1]:(k + 1) * matshape[1]] = jval
+        for k in range(self.newArrayShape[0]):
+            rowCoor[k * self.newArrayShape[1]:(k + 1) * self.newArrayShape[1]] = ival[k]
+            columnCoor[k * self.newArrayShape[1]:(k + 1) * self.newArrayShape[1]] = jval
         return rowCoor.astype(int), columnCoor.astype(int)
 
+    def resampleLonLat(self,lon,lat):
+        lat_id, lon_id = self.findElmt(np.arange(self.newArrayShape[0]), np.arange(self.newArrayShape[1]))
+        return lon[lon_id], lat[lat_id]
 
-    def resampleData(resa, dxlist,dyMeter, latRef, dataNH4, dataPAR, dataNO3, dataEwc, dataNwc, dataTemp, newArrayShape, i, j):
-        rowCoor, columnCoor = resa.giveNewMatCoor(newArrayShape, i, j)
-        dyMeterarray = dyMeter[rowCoor, columnCoor].reshape(newArrayShape)
-        dxlistarray = dxlist[rowCoor, columnCoor].reshape(newArrayShape)
-        latRefarray = latRef.T[rowCoor, columnCoor].reshape(newArrayShape)
-
-        dataNH4array = dataNH4[:, rowCoor, columnCoor].reshape((len(dataNH4),) + newArrayShape)
-        dataPARarray = dataPAR[:, rowCoor, columnCoor].reshape((len(dataPAR),) + newArrayShape)
-        dataNO3array = dataNO3[:, rowCoor, columnCoor].reshape((len(dataNO3),) + newArrayShape)
-        dataEwcarray = dataEwc[:, rowCoor, columnCoor].reshape((len(dataEwc),) + newArrayShape)
-        dataNwcarray = dataNwc[:, rowCoor, columnCoor].reshape((len(dataNwc),) + newArrayShape)
-        dataTemparray = dataTemp[:, rowCoor, columnCoor].reshape((len(dataTemp),) + newArrayShape)
-        decenturedEwcarray = u2d_cgrid_cur(dataEwcarray)
-        decenturedNwcarray = v2d_cgrid_cur(dataNwcarray)
-        return dxlistarray,dyMeterarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, decenturedNwcarray
-
+    def resampleData(self, dataArray):
+        rowCoor, columnCoor = self.giveNewMatCoor()
+        resampledArray = dataArray[rowCoor, columnCoor].reshape(self.newArrayShape)
+        return resampledArray
 
 #this function decentralize the u speeds
 def u2d_cgrid_cur(var):
@@ -90,17 +84,6 @@ def degrees_to_meters(lonDist, latDist, refLat):
     Dy = latDist * lat_degree
 
     return Dx, Dy
-
-def meters_to_degrees(Dx, Dy, refLat):
-    """Converts degrees of latDist,lonDist to meters assuming that the latitude
-    stays near refLat.
-    """
-    lat_degree = 111000 # conversion of latitude degrees to meters
-
-    lonDist= Dx/ ( lat_degree * np.cos(np.deg2rad(refLat)))
-    latDist = Dy/ lat_degree
-
-    return lonDist, latDist
 
 #return the CFL number, cx and cy
 def giveCFL(dx, dy, dt, Ewc, Nwc):
@@ -219,11 +202,11 @@ def giveDxDy(latitudes, longitudes):
     Dy = np.zeros((len(latitudes), len(longitudes)))
     latRef = np.zeros((len(latitudes), len(longitudes)))
 
-    Dx[:-1, :] = np.diff(latitudes)[np.newaxis].T
-    Dx[-1, :] = Dx[-2, :]
+    Dx[:, :-1] = np.diff(longitudes)
+    Dx[:, -1] = Dx[:, -2]
 
-    Dy[:, :-1] = np.diff(longitudes)
-    Dy[:, -1] = Dy[:, -2]
+    Dy[:-1, :] = np.diff(latitudes)[np.newaxis].T
+    Dy[-1, :] = Dy[-2, :]
 
     latRef[:,:] = latitudes[np.newaxis].T
 
@@ -251,13 +234,14 @@ def giveResol(dataLine):
     else:
         return float(splitedString[0])*1e-2, float(splitedString[1])*1e-2, False
 
-def prepareDerivArrayScenC(derivArray,nanLists,grid_shapeTmp):
-    for i in range(len(derivArray)):
-        for nanL in nanLists.flatten():
-            derivArrayLine = derivArray[i].flatten()
-            derivArrayLine[nanL] = 1e-10
-            derivArray[i] = derivArrayLine.reshape(grid_shapeTmp)
-    return derivArray
+def prepareScenC(nitrogenArray,nanLists, grid_shape):
+    for iRel in [-1, 0, 1]:  # along latitude
+        for jRel in [-1, 0, 1]:  # along longitude
+            nanL = nanLists[iRel,jRel]
+            nitArrayLine = nitrogenArray.flatten()
+            nitArrayLine[nanL] = 1e-10
+            nitrogenArray = nitArrayLine.reshape(grid_shape)
+    return nitrogenArray
 
 def sortPAR(dateBeginning, dataArr):
     datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
@@ -281,7 +265,10 @@ def sortData(dateBeginning, dateEnd,lenDataArr):
     else:
         return np.concatenate([np.arange(firstdayNbr,lenDataArr),np.arange(0,lastdayNbr)])
 
+
 def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
+
+    t_init = time.time()
 
     # Parse the input json info
     parms_run = list(model_json['parameters']['run'].values())[0]['parameters']
@@ -289,19 +276,22 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     parms_harvest = list(model_json['parameters']['harvest'].values())[0]['parameters']
     harvest_type = list(model_json['parameters']['harvest'].keys())[0]
 
-    year = model_json['dataset_parameters']['year']
+    year = int(model_json['dataset_parameters']['year'])
+
+    model = MA_model_scipy(json_data['parameters'])
 
     # Define beginning and end times of the simulation
-    startDate = datetime.datetime(year, parms_harvest['deployment_month'], 1)
+    startDate = datetime.datetime(year, int(parms_harvest['deployment_month']), 1)
     if harvest_type == "Winter_growth":
-        endDate = datetime.datetime(year + 1, parms_harvest['harvesting_month'], 1) + relativedelta(months=1) #first day of the next month at midnight
+        endDate = datetime.datetime(year + 1, int(parms_harvest['harvesting_month']), 1) + relativedelta(months=1) #first day of the next month at midnight
     else:
-        endDate = datetime.datetime(year, parms_harvest['harvesting_month'], 1) + relativedelta(months=1) #first day of the next month at midnight
+        endDate = datetime.datetime(year, int(parms_harvest['harvesting_month']), 1) + relativedelta(months=1) #first day of the next month at midnight
 
     # Data import information, except for the time
     data_kwargs = {
-                'longitude': (-4, -2),
-                'latitude': (49, 50), #TODO: get from json
+                'longitude': (-4, -1),
+                #'longitude': (-14, -13),
+                'latitude': (48, 50), #TODO: get from json
                 "depth": (0, (1 + parms_run['Von_Karman']) * parms_farm["z"]),
                 "averagingDims": ("depth",)
                 }
@@ -316,29 +306,64 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         nearest_time_i[par_name] = iNearest(startDate, time_axes[par_name])
         working_data[par_name], _ = par_data.getVariable(time_index=nearest_time_i[par_name], **data_kwargs) #TODO: are dims really laways lat,lon ?
 
+    for par_name, par_data in input_data.parameterData.items():
+        print(par_name)
+        print(working_data[par_name].shape)
+
     grid_shape = working_data['Nitrate'].shape #the shape should be the same for all parameters
-
-    # Initialize the model variables
-    state_vars = {
-        'cNO3': np.zeros(grid_shape),
-        'cNH4': np.zeros(grid_shape),
-        'N_s': np.zeros(grid_shape),
-        'N_f': np.ones(grid_shape) * parms_harvest['deployment_Nf'],
-        'D': np.zeros(grid_shape),
-        'totalNH4deficit': np.zeros(grid_shape),
-        'totalNO3deficit': np.zeros(grid_shape)
-    }
-
-    dt = 1/72 # TODO: make into parameter in json
-    discr = 1/dt
-
     longitudes, _ = algaeData.parameterData['Nitrate'].getVariable('longitude', **data_kwargs)
     latitudes, _ = algaeData.parameterData['Nitrate'].getVariable('latitude', **data_kwargs)
     dxMeter, dyMeter = giveDxDy(latitudes, longitudes)
+    latRef = np.zeros((len(latitudes), len(longitudes)))
+    latRef[:, :] = latitudes[np.newaxis].T
+
+    newArrayShape = grid_shape
+    if scenC:
+        dxRatio = 1852 / np.mean(dxMeter)
+        dyRatio = 1852 / np.mean(dyMeter)
+        resa = resample(dxRatio,dyRatio,grid_shape)
+        newArrayShape = resa.newArrayShape
+        for par_name, par_data in input_data.parameterData.items():
+            working_data[par_name] = resa.resampleData(working_data[par_name])
+        latRef = resa.resampleData(latRef)
+        dyMeter = resa.resampleData(dyMeter)
+        dxMeter = resa.resampleData(dxMeter)
+
+    for par_name, par_data in input_data.parameterData.items():
+        print(par_name)
+        print(working_data[par_name].shape)
+
+    mask = working_data['Nitrate'].mask
+    nanLists = findNan(mask)
+
+    # Initialize the model variables
+    state_vars = {
+        'cNO3': np.ma.masked_array(np.zeros(newArrayShape), mask),
+        'cNH4': np.ma.masked_array(np.zeros(newArrayShape), mask),
+        'N_s': np.ma.masked_array(np.zeros(newArrayShape), mask),
+        'N_f': np.ma.masked_array(np.ones(newArrayShape) * parms_harvest['deployment_Nf'], mask),
+        'D': np.ma.masked_array(np.ones(newArrayShape) * parms_run["Detritus"], mask)
+    }
+    if scenC:
+        state_vars['N_s'] = prepareScenC(state_vars['N_s'], nanLists, newArrayShape)
+        state_vars['N_f'] = prepareScenC(state_vars['N_f'], nanLists, newArrayShape)
+
+    working_data["decentered_U"] = np.ma.masked_array(np.zeros((newArrayShape[0], newArrayShape[1] + 1)))
+    working_data["decentered_U"][:, 1:-1] = (working_data['eastward_Water_current'][:, 1:] + working_data['eastward_Water_current'][:, :-1]) / 2
+    working_data["decentered_U"][working_data["decentered_U"].mask] = 0
+
+    working_data["decentered_V"] = np.ma.masked_array(np.zeros((newArrayShape[0] + 1, newArrayShape[1])))
+    working_data["decentered_V"][1:-1, :] = (working_data['northward_Water_current'][1:, :] + working_data['northward_Water_current'][:-1, :]) / 2
+    working_data["decentered_V"][working_data["decentered_V"].mask] = 0
+
+    dt = 1/72 # days # TODO: make into parameter in json
+    #dt = 0.2/72 # days # TODO: make into parameter in json
+    Ks = 1e-3 * 60 * 60 * 24 # m2/s
 
     # Simulation loop
     sim_date = startDate
     while sim_date < endDate:
+        print(f'{sim_date}')
 
         # Alter the date after new year in case of winter growth
         if harvest_type == "Winter_growth":
@@ -353,14 +378,204 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
                 nearest_time_i[par_name] = new_i
                 working_data[par_name], _ = par_data.getVariable(time_index=new_i, **data_kwargs)
 
-        update_model(state_vars=state_vars, working_data=working_data, dt=dt)
+                if scenC:
+                    working_data[par_name] = resa.resampleData(working_data[par_name])
+                # Update the centered currents as well
+                if par_name == "eastward_Water_current":
+                    working_data["decentered_U"][:, 1:-1] = (working_data['eastward_Water_current'][:, 1:] + working_data['eastward_Water_current'][:, :-1]) / 2
+                    working_data["decentered_U"][working_data["decentered_U"].mask] = 0
+                if par_name == "northward_Water_current":
+                    working_data["decentered_V"][1:-1, :] = (working_data['northward_Water_current'][1:, :] + working_data['northward_Water_current'][:-1, :]) / 2
+                    working_data["decentered_V"][working_data["decentered_V"].mask] = 0
+
+        # Compute the advection terms
+        advection_terms = advection_model(state_vars=state_vars, working_data=working_data,
+                                          dt=dt, dxMeter=dxMeter, dyMeter=dyMeter, nanLists=nanLists,
+                                          Ks=Ks)
+
+        # Apply the advection
+        for var_name in state_vars.keys():
+            state_vars[var_name] += advection_terms[var_name] * dt
+
+
+        days = (data_date - datetime.datetime(year, 1, 1)).days # Note: returns an integer only, that is sufficient precision for this
+
+        bgc_terms = bgc_model(state_vars=state_vars, working_data=working_data, dt=dt,
+                              model=model, parms_run=parms_run, days=days, latRef=latRef)
+
+
+        # Testing: value of dt for an adapting time step
+        '''
+        print(f'    Value of dt_max (minutes): {dt_max*(60*24)}')
+        dt_list = [dt_max]
+        for var_name in ['N_s', 'N_f']:#state_vars.keys():
+            value_array = state_vars[var_name].copy()
+            if var_name == 'cNO3':
+                value_array += working_data['Nitrate']
+            if var_name == 'cNH4':
+                value_array += working_data['Ammonium']
+
+            dt_array = - value_array/bgc_terms[var_name]
+            dt_array[dt_array <= 0] = np.inf
+            dt_pos = np.amin(dt_array)
+            print(f'    Value of dt for {var_name} > 0 (minutes): {dt_pos*(60*24)}')
+
+            dt_list.append(dt_pos * 0.8)
+
+        dt = min(dt_list)
+        print(f'Value of dt used: {dt*(60*24)} minutes')
+        '''
+
+        # Apply the bgc terms
+        if scenC:
+            for var_name in state_vars.keys():
+                bgc_terms[var_name] = prepareScenC(bgc_terms[var_name], nanLists, newArrayShape)
+        for var_name in state_vars.keys():
+            state_vars[var_name] += bgc_terms[var_name] * dt
+
+
+        # Safety maximum for now
+        state_vars['N_s'] = np.maximum(state_vars['N_s'], 1e-6)
+        state_vars['N_f'] = np.maximum(state_vars['N_f'], 1e-6)
+        state_vars['D'] = np.maximum(state_vars['D'], 1e-4)
+
+        # Debugging
+        '''
+        do_break = False
+        for var_name in ['N_s', 'N_f', 'D']:
+            if np.any(state_vars[var_name] < 0):
+                print(f"Boke the simulation because {var_name} is negative")
+                do_break = True
+        if do_break:
+            break
+
+        if np.any(state_vars['cNO3'] + working_data['Nitrate'] < 0) or np.any(state_vars['cNH4'] + working_data['Ammonium'] < 0) :
+            print("Boke the simulation because the total NO3 or NH4 is negative")
+            break
+        '''
+
+        # Time dissipation of the signal
+        #dissip_t = 3 #days
+        #state_vars['cNH4'] = state_vars['cNH4'] * (1 - dt/dissip_t)
+        #state_vars['cNO3'] = state_vars['cNO3'] * (1 - dt/dissip_t)
+        #state_vars['D'] = state_vars['cNO3'] * (1 - dt/dissip_t) + parms_run["Detritus"] * dt/dissip_t
 
         sim_date += datetime.timedelta(days = dt)
 
+    print(latitudes[0], latitudes[-1], longitudes[0], longitudes[-1])
+    if scenC:
+        latStep = (latitudes[-1]-latitudes[0])/(newArrayShape[0]-1)
+        lonStep = (longitudes[-1]-longitudes[0])/(newArrayShape[1]-1)
+        latitudes = latStep*np.arange(newArrayShape[0])+latitudes[0]
+        longitudes = lonStep * np.arange(newArrayShape[1]) + longitudes[0]
+    print(latitudes[0],latitudes[-1],longitudes[0],longitudes[-1])
 
-def update_model(state_vars: dict, working_data: dict, dt):
+    state_vars['NH4'] = working_data['Ammonium'] + state_vars['cNH4']
+    state_vars['NO3'] = working_data['Nitrate'] + state_vars['cNO3']
 
-    pass
+    state_vars['N_f'][mask] = np.nan
+    state_vars['N_s'][mask] = np.nan
+
+    for name in model.names:
+        fig1, ax1 = plt.subplots()
+        plt.imshow(state_vars[name])
+        plt.colorbar()
+        ax1.invert_yaxis()
+        # plt.clim(-10, 10)
+        ax1.set_title(name)
+        plt.show()
+
+    # Create output file
+    initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
+                      variableNames=['NH4', 'NO3', 'N_s', 'N_f', 'D'], mask=mask)
+    # Write values to file
+    ds = nc.Dataset(out_file_name, 'a')
+    for name in model.names:
+        ds[name][0,:,:] = np.ma.masked_array(state_vars[name], mask)
+    ds.close()
+
+    return time.time() - t_init
+
+
+#return the variation of each quantities in the algae model
+def bgc_model(state_vars: dict, working_data: dict, dt, model, parms_run, days, latRef):
+
+    data_in = {
+        'SST': working_data['Temperature'],
+        'PAR': working_data['par'],
+        'PO4_ext': 50, #TODO: from working data
+        'K_d': parms_run["K_d490"],
+        't_z': (1 + parms_run['Von_Karman']) * model._parameters["z"]
+    }
+
+    y = {
+        'NH4': working_data['Ammonium'] + state_vars['cNH4'],
+        'NO3': working_data['Nitrate'] + state_vars['cNO3'],
+        'N_s': state_vars['N_s'],
+        'N_f': state_vars['N_f'],
+        'D': state_vars['D'],
+    }
+
+    terms_list = model.hadley_advection(days, y, data_in, dt, latRef)
+    all_terms = dict(zip(["cNH4", "cNO3", "N_s", "N_f", "D"], terms_list))
+
+    return all_terms
+
+
+def advection_model(state_vars: dict, working_data: dict, dt, dxMeter: np.array, dyMeter: np.array,
+                    nanLists: np.array, Ks):
+
+    mask = working_data['Nitrate'].mask
+    grid_shape = working_data['Nitrate'].shape
+
+    CFL, cx, cy = giveCFL(dxMeter, dyMeter, dt,
+                          working_data["decentered_U"], working_data["decentered_V"])
+
+    alpha1 = (1 / 6) * (1 - CFL) * (2 - CFL)
+    alpha2 = (1 / 6) * (1 - CFL) * (1 + CFL)
+
+    matE = createMatE(working_data["decentered_U"], nanLists, alpha1, alpha2)
+    matN = createMatN(working_data["decentered_V"], nanLists, alpha1, alpha2)
+
+    cNO3_line = state_vars['cNO3'].flatten()
+    cNH4_line = state_vars['cNH4'].flatten()
+    D_line = state_vars['D'].flatten()
+    dx = dxMeter.flatten()
+    dy = dyMeter.flatten()
+
+    no3Hatu = matE.dot(cNO3_line)
+    no3Hatv = matN.dot(cNO3_line)
+    nh4Hatu = matE.dot(cNH4_line)
+    nh4Hatv = matN.dot(cNH4_line)
+    dHatu = matE.dot(D_line)
+    dHatv = matN.dot(D_line)
+    #we compute the advection terms
+    advNO3 = - cy*no3Hatv - cx*no3Hatu + (dt / dy) * Ks * matN.dot(no3Hatv) + \
+                                         (dt / dx) * Ks * matE.dot(no3Hatu)
+    advNH4 = - cy*nh4Hatv - cx*nh4Hatu + (dt / dy) * Ks * matN.dot(nh4Hatv) + \
+                                         (dt / dx) * Ks * matE.dot(nh4Hatu)
+    advD = - cy*dHatv - cx*dHatu + (dt / dy) * Ks * matN.dot(dHatv) + \
+                                   (dt / dx) * Ks * matE.dot(dHatu)
+
+    # reshape to the grid
+    advNO3 = advNO3.reshape(grid_shape)
+    advNH4 = advNH4.reshape(grid_shape)
+    advD = advD.reshape(grid_shape)
+
+    # reapply masks that were altered
+    advNO3.mask = mask
+    advNH4.mask = mask
+    advD.mask = mask
+
+    all_terms = {
+        'cNO3': advNO3 / dt,
+        'cNH4': advNH4 / dt,
+        'N_s': 0,
+        'N_f': 0,
+        'D': advD / dt
+    }
+
+    return all_terms
 
 
 #apply the quickest scheme
@@ -369,19 +584,21 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, latRef, dataNO3, dataNH4, dataTemp, 
     #we initate the variables
     discr = 1/dt
     nbrStep = int(len(sortedList) * discr)
-    cNO3 = np.zeros(np.shape(dataNO3[0]))
-    cNH4 = np.zeros(np.shape(dataNH4[0]))
-    N_s = np.ones(np.shape(dataNH4[0])) * 1000 #TODO: change init values?
-    N_f = np.ones(np.shape(dataNH4[0])) * 1000
-    D = np.ones(np.shape(dataNH4[0])) * 0.1
-    totalNH4deficit = np.zeros(np.shape(dataNH4[0]))
-    totalNO3deficit = np.zeros(np.shape(dataNO3[0]))
-    grid_shapeTmp = np.shape(dataNO3[0])
+
+    grid_shape = np.shape(dataNO3[0])
     mask = dataNO3.mask[0, :, :]
     init = time.time()
     nanLists = findNan(mask)
-    if scenC:
-        N_s,N_f = prepareDerivArrayScenC([N_s,N_f], nanLists, grid_shapeTmp)
+
+    print(mask)
+
+    cNO3 = np.ma.masked_array(np.zeros(grid_shape), mask)
+    cNH4 = np.ma.masked_array(np.zeros(grid_shape), mask)
+    N_s = np.ma.masked_array(np.ones(grid_shape) * 1000, mask)
+    N_f = np.ma.masked_array(np.ones(grid_shape) * 1000, mask)
+    D = np.ma.masked_array(np.ones(grid_shape) * 0.1, mask)
+    totalNH4deficit = np.ma.masked_array(np.zeros(grid_shape), mask)
+    totalNO3deficit = np.ma.masked_array(np.zeros(grid_shape), mask)
 
     daylist = [firstday]
 
@@ -395,11 +612,7 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, latRef, dataNO3, dataNH4, dataTemp, 
         dayNbr = sortedList[k // int(discr)]
         hNbr = dayNbr #if we don't use hourly speeds, hNbr = dayNbr
         month = dayNbr // int(30.5*discr)
-        cNO3[mask] = 1e-5
-        cNH4[mask] = 1e-5
-        D[mask] = 1e-5
-        N_f[mask] = 1e-5
-        N_s[mask] = 1e-5
+
         #we compute the CFL
         CFL, cx, cy = giveCFL(dxlist, dyMeter, dt, Ewc[hNbr], Nwc[hNbr])
         alpha1 = (1 / 6) * (1 - CFL) * (2 - CFL)
@@ -430,35 +643,33 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, latRef, dataNO3, dataNH4, dataTemp, 
                     dt / dx) * Ks * matE.dot(dHatu)
 
         CNO3line = oldNO3Cline + advNO3
-        #cNO3 = np.minimum(CNO3line.reshape(grid_shapeTmp), 0)
-        cNO3 = CNO3line.reshape(grid_shapeTmp)
+        cNO3 = CNO3line.reshape(grid_shape)
 
         CNH4line = oldNH4Cline + advNH4
-        #cNH4 = np.minimum(CNH4line.reshape(grid_shapeTmp), 0)
-        cNH4 = CNH4line.reshape(grid_shapeTmp)
+        cNH4 = CNH4line.reshape(grid_shape)
 
         CDline = oldDline + advD
-        D = np.maximum(CDline.reshape(grid_shapeTmp),1e-4)
+        D = np.maximum(CDline.reshape(grid_shape), 1e-4)
 
         derivArray = giveEpsilon(days, dataTemp[dayNbr], cNH4 + dataNH4[dayNbr], cNO3 + dataNO3[dayNbr], N_s, N_f, D,
                                  dataPAR[month], latRef, model, dt, Zmix)
         if scenC:
-            derivArray = prepareDerivArrayScenC(derivArray, nanLists, grid_shapeTmp)
+            derivArray = prepareDerivArrayScenC(derivArray, nanLists)
 
         CNO3line = CNO3line + derivArray[1].flatten() * dt
-        #cNO3 = np.minimum(CNO3line.reshape(grid_shapeTmp), 0)
-        cNO3 = CNO3line.reshape(grid_shapeTmp)
+        #cNO3 = np.minimum(CNO3line.reshape(grid_shape), 0)
+        cNO3 = CNO3line.reshape(grid_shape)
 
         totalNO3deficit += derivArray[1]
 
         CNH4line = CNH4line + derivArray[0].flatten() * dt
-        #cNH4 = np.minimum(CNH4line.reshape(grid_shapeTmp), 0)
-        cNH4 = CNH4line.reshape(grid_shapeTmp)
+        #cNH4 = np.minimum(CNH4line.reshape(grid_shape), 0)
+        cNH4 = CNH4line.reshape(grid_shape)
 
         totalNH4deficit += derivArray[0]
 
         CDline = CDline + derivArray[4].flatten() * dt
-        D = np.maximum(CDline.reshape(grid_shapeTmp),1e-4)
+        D = np.maximum(CDline.reshape(grid_shape),1e-4)
 
         N_s += derivArray[2] * dt
 
@@ -467,19 +678,21 @@ def quickest(dyMeter, dxlist, dt, Ewc, Nwc, latRef, dataNO3, dataNH4, dataTemp, 
         N_f = np.maximum(N_f,-1e-6)
         N_s = np.maximum(N_s, -1e-6)
 
-        '''if k % int(30 * discr) == 0:
+        cNO3.mask = mask
+        cNH4.mask = mask
+        D.mask = mask
+        N_s.mask = mask
+        N_f.mask = mask
+        totalNO3deficit.mask = mask
+        totalNH4deficit.mask = mask
+
+        if k % int(30 * discr) == 0:
             print(k / discr)
             print(time.time() - init)
-            print('Max CFL',maxCFL)'''
+            print('Max CFL',maxCFL)
 
     NO3field, NH4field, D, N_f, N_s = cNO3 + dataNO3[dayNbr - 1], cNH4 + dataNH4[dayNbr - 1], D, N_f, N_s
-    NO3field[mask] = np.nan
-    NH4field[mask] = np.nan
-    D[mask] = np.nan
-    N_f[mask] = np.nan
-    N_s[mask] = np.nan
-    totalNH4deficit[mask] = np.nan
-    totalNO3deficit[mask] = np.nan
+
     return NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit
 
 
@@ -505,20 +718,7 @@ if __name__ == "__main__":
     CPlat, CPlon = 153, 56
 
     model_params = "p:/Aquaculture/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
-    model_params = "./../macroalgae/macroalgae_model_parameters_input.json"
     json_data = import_json(model_params)
-
-    paramSacch = json_data['parameters']['species']['alaria']['parameters']
-    model = MA_model_scipy(json_data['parameters'])
-
-    Q_min = paramSacch['Q_min']
-    density_MA = 0.4
-    h_MA = paramSacch['h_MA']
-    w_MA = paramSacch['w_MA']
-    DF_MA = 0.113
-    kcal_MA = 2.29
-    prot_MA = 0.08
-    CN_MA = 21
 
     parms_run = list(json_data['parameters']['run'].values())[0]['parameters']
     parms_farm = list(json_data['parameters']['farm'].values())[0]['parameters']
@@ -535,23 +735,55 @@ if __name__ == "__main__":
 
     firstday = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
 
+    dataCmdpath = 'p:/Aquaculture/shellfish_and_algae-MODEL/global/dataCmd.csv'
     dataCmdpath = './../global/dataCmd.csv'
-    mergedFilepath = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/'.format(zone=zone)
 
     input_args = {
         'zone': zone,
-        'file_adress': 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_{param}_{zone}.nc',
+        'file_adress': 'D:/data_scenario_B/{zone}/merged_{param}_{zone}.nc',
         'dataRef': pd.read_csv(dataCmdpath, delimiter=';'),
         'paramNames': paramNames,
         'frequency': 'daily'
-        # 'with_PAR': PAR_year,
-        # 'PAR_file': 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/PAR_{zone}NewGrid.nc'.format(zone = zone)
     }
 
-    dict_to_AllData = open_data_input(**input_args)
+    #dict_to_AllData = open_data_input(**input_args)
+    #print(dict_to_AllData)
+    dict_to_AllData = {
+        "Temperature": {
+            'file_name': f'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_Temperature_{zone}.nc',
+            'variable_name': 'thetao',
+            'unit_conversion': 1,
+            'time_zero': datetime.datetime(1970, 1, 1),
+            'time_step': datetime.timedelta(seconds=1)
+        },
+        "Nitrate": {
+            'file_name': f'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_Nitrate_{zone}.nc',
+            'variable_name': 'no3',
+            'unit_conversion': 14,
+            'time_zero': datetime.datetime(1970, 1, 1),
+            'time_step': datetime.timedelta(seconds=1)
+        },
+        "eastward_Water_current": {
+            'file_name': f'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_eastward_Water_current_{zone}.nc',
+            'variable_name': 'uo',
+            'unit_conversion': 86400,
+            'time_zero': datetime.datetime(1970, 1, 1),
+            'time_step': datetime.timedelta(seconds=1)
+        },
+        "northward_Water_current": {
+            'file_name': f'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_northward_Water_current_{zone}.nc',
+            'variable_name': 'vo',
+            'unit_conversion': 86400,
+            'time_zero': datetime.datetime(1970, 1, 1),
+            'time_step': datetime.timedelta(seconds=1)
+        }
+    }
 
-    dict_to_AllData['PAR'] = {
-        'file_name': 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/PAR_{zone}NewGrid.nc'.format(zone=zone),
+    dict_to_AllData['Ammonium'] = dict_to_AllData['Nitrate'].copy()
+    dict_to_AllData['Ammonium']['unit_conversion'] /= 10
+
+    dict_to_AllData['par'] = {
+        'file_name': f'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/PAR_{zone}NewGrid.nc',
         'variable_name': 'par',
         'latitude_name': 'lat',
         'longitude_name': 'lon',
@@ -563,8 +795,8 @@ if __name__ == "__main__":
     }
 
     sim_area = {
-        'longitude': (None, None),
-        'latitude': (None, None),
+        'longitude': (-4, -2),
+        'latitude': (49, 50),
         #'depth': 0
         'depth': (0, (1 + parms_run['Von_Karman']) * parms_farm["z"]),
         'averagingDims': ('depth',),
@@ -576,6 +808,7 @@ if __name__ == "__main__":
     ### Initialize the netcdf reading interface
     algaeData = AllData(dict_to_AllData)
 
+    '''
     dataNO3 = algaeData.parameterData['Nitrate'].getVariable(**sim_area)[0]
     if getAmmonium:
         dataNH4 = algaeData.parameterData['Ammonium'].getVariable(**sim_area)[0]
@@ -584,7 +817,7 @@ if __name__ == "__main__":
     dataTemp = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0]
     dataNwc = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0]
     dataEwc = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0]
-    dataPAR = algaeData.parameterData['PAR'].getVariable(**sim_area)[0]
+    dataPAR = algaeData.parameterData['par'].getVariable(**sim_area)[0]
 
     print(np.shape(dataNO3))
     print(np.shape(dataNH4))
@@ -600,10 +833,8 @@ if __name__ == "__main__":
     dataPAR = ma.masked_outside(dataPAR, -1e-2, 1e4)
     dataPAR = dataPAR.filled(fill_value=8)
 
-    fileV = 'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_northward_Water_current_{zone}.nc'.format(zone=zone)
-    dataBaseNwc = nc.Dataset(fileV)
 
-    dataFin = pd.read_csv('./../global/dataCmd.csv', ';')
+    dataFin = pd.read_csv('p:/Aquaculture/shellfish_and_algae-MODEL/global/dataCmd.csv', ';')
 
     nwcDataLine = dataFin.loc[(dataFin["Parameter"] == 'Nitrate') & (dataFin["Place"] == zone)]
     nwcdataName = nwcDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
@@ -613,20 +844,17 @@ if __name__ == "__main__":
     longitudes, _ = algaeData.parameterData['Temperature'].getVariable('longitude', **sim_area)
     latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **sim_area)
 
+    #print(type(dataEwc))
+    #dataEwc[np.where(np.abs(dataEwc) >1e8)]=0
+    #dataNwc[np.where(np.abs(dataNwc) >1e8)] = 0
+
     latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * latitudes
 
     decenteredEwc = u2d_cgrid_cur(dataEwc)
     decenteredNwc = v2d_cgrid_cur(dataNwc)
 
-    dxlist, dyMeter = giveDxDy(latitudes,longitudes)
+    dxlist, dyMeter = giveDxDy(latitudes, longitudes)
 
-    #dylist = dyMeter * np.ones(np.shape(dxlist))
-
-    dxRatio = 1852 / np.mean(dxlist)
-    dyRatio = 1852 / np.mean(dyMeter)
-
-    resx = np.mean(dxlist)
-    resy = np.mean(dyMeter)
     maxCFL = 0
     grid_shape = np.shape(dataNO3[0])
     for i in range(len(dataEwc)):
@@ -636,224 +864,15 @@ if __name__ == "__main__":
     print('maxCFL: '+ str(maxCFL))
     #xsize, ysize, ulx, uly, xres, yres = giveMetadata(latitudes, longitudes)
     #saveAsTiff(dataNO3[0], xsize, ysize, ulx, uly, xres, yres, "I:/work-he/apps/safi/data/IBI/test.tiff")
-    resa = resample(dxRatio, dyRatio)
-    newArrayShape = (int(50000 / 1852), int(50000 / 1852))
-    print(int(50000 / resx),int(50000 / resy))
-    print(resx,resy)
-    # i, j are the coordinates in the top left corner of the studied area
-    for i in range(0, grid_shape[0], int(50000 / resy)):
-        for j in range(0, grid_shape[1], int(50000 / resx)):
-            print(i, j)
-            NO3Oldarray = dataNO3[:, i:i + int(50000 / resy), j:j + int(50000 / resx)].filled(np.nan)
-            #ewcOldarray = dataEwc[:, i:i + int(50000 / resy), j:j + int(50000 / resx)].filled(np.nan)
-            #print(i + int(50000 / resy), j + int(50000 / resx))
-            if (np.sum(np.isnan(NO3Oldarray)) > 0) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
-                '''plt.imshow(NO3Oldarray[0])
-                plt.show()
-                plt.imshow(ewcOldarray[0])
-                plt.show()'''
-                dxlistarray, dyMeterarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
-                dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, \
-                decenturedNwcarray = resa.resampleData(dxlist, dyMeter, latRef, dataNH4, dataPAR, dataNO3, dataEwc,
-                                                       dataNwc,
-                                                       dataTemp, newArrayShape,
-                                                       i, j)
-                '''plt.imshow(dxlistarray)
-                plt.show()
-                plt.imshow(dataEwcarray[0])
-                plt.show()
-                plt.imshow(decenturedEwcarray[0])
-                plt.show()'''
-                NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeterarray, dxlistarray,
-                                                                                             dt,
-                                                                                             decenturedEwcarray,
-                                                                                             decenturedNwcarray,
-                                                                                             latRefarray,
-                                                                                             dataNO3array, dataNH4array,
-                                                                                             dataTemparray,
-                                                                                             dataPARarray, Ks, firstday,
-                                                                                             model,
-                                                                                             Zmix, scenC, sortedList)
-                ysize, xsize = len(NO3field), np.shape(NO3field)[1]
-                ulx = longitudes[j]
-                uly = latitudes[i + int(50000 / resy)-1]
-                xres = (longitudes[j + int(50000 / resx)] - longitudes[j])/xsize
-                yres = (latitudes[i + int(50000 / resy)] - latitudes[i])/ysize
-                print(xres,yres)
+    """
+    NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlist, dt,
+                                                                                 decenteredEwc, decenteredNwc,
+                                                                                 latRef.T, dataNO3, dataNH4,
+                                                                                 dataTemp, dataPAR, Ks, firstday, model,
+                                                                                 Zmix,scenC,sortedList)
+    """
 
-                DW = N_f / Q_min  # gDW m-3
-                DW_line = DW * h_MA * w_MA / 1000  # kg/m (i.e. per m of rope)
-                DW_PUA = DW * h_MA * density_MA / 1000  # kg/m^2 (multiply be density to account for unused space within farm)
+    '''
+    result = run_simulation(out_file_name=f"I:/work-he/apps/safi/data/{zone}/resultScenC.nc", input_data=algaeData, model_json=json_data)
 
-                FW = DW / DF_MA  # gFW m-3
-                FW_line = DW_line / DF_MA  # kg/m (i.e. per m of rope)
-                FW_PUA = DW_PUA / DF_MA  # kg/m^2
-
-                # Energy
-                kcal_PUA = DW * h_MA * density_MA * kcal_MA  # kcal/m^2
-
-                # protein
-                protein_PUA = DW_PUA * prot_MA  # kg/m^2
-
-                # CO2 uptake
-                Biomass_CO2 = (N_f / 14) * CN_MA * 44 / 1000  # g (CO2) /m^3    (44 is rmm of CO2)
-                CO2_uptake_PUA = Biomass_CO2 * h_MA * density_MA / 1000  # kg (CO2) / m^2
-
-                '''saveAsTiff(NO3field, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/NO3field{i}_{j}.tif")
-                saveAsTiff(NH4field, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/NH4field{i}_{j}.tif")
-                saveAsTiff(D, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/D{i}_{j}.tif")
-                saveAsTiff(N_f, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/N_f{i}_{j}.tif")
-                saveAsTiff(N_s, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/N_s{i}_{j}.tif")
-                saveAsTiff(DW, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/DW{i}_{j}.tif")
-                saveAsTiff(totalNH4deficit, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/totalNH4deficit{i}_{j}.tif")
-                saveAsTiff(totalNO3deficit, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/totalNO3deficit{i}_{j}.tif")'''
-                saveAsTiff(DW_PUA, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/DW_PUA{i}_{j}.tif")
-                '''saveAsTiff(FW, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/FW{i}_{j}.tif")
-                saveAsTiff(FW_line, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/FW_line{i}_{j}.tif")
-                saveAsTiff(FW_PUA, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/FW_PUA{i}_{j}.tif")
-                saveAsTiff(kcal_PUA, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/kcal_PUA{i}_{j}.tif")
-                saveAsTiff(protein_PUA, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/protein_PUA{i}_{j}.tif")
-                saveAsTiff(Biomass_CO2, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/Biomass_CO2{i}_{j}.tif")
-                saveAsTiff(CO2_uptake_PUA, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/CO2_uptake_PUA{i}_{j}.tif")
-                saveAsTiff(DW_line, xsize, ysize, ulx, uly, xres, yres,
-                           f"I:/work-he/apps/safi/data/{zone}/DW_line{i}_{j}.tif")'''
-
-    if int(50000 / resy) != 50000 / resy:
-        i = np.shape(dataNO3)[1] - 1 - int(50000 / resy)
-        for j in range(0, grid_shape[1], int(50000 / resx)):
-            print(i, j)
-            NO3Oldarray = dataNO3[:, i:i + int(50000 / resy), j:j + int(50000 / resx)].filled(np.nan)
-            if (np.sum(np.isnan(NO3Oldarray)) > 0) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
-                dxlistarray, dyMeterarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
-                dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, \
-                decenturedNwcarray = resa.resampleData(dxlist, dyMeter, latRef, dataNH4, dataPAR, dataNO3, dataEwc,
-                                                       dataNwc,
-                                                       dataTemp, newArrayShape,
-                                                       i, j)
-                NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeterarray, dxlistarray,
-                                                                                             dt,
-                                                                                             decenturedEwcarray,
-                                                                                             decenturedNwcarray,
-                                                                                             latRefarray,
-                                                                                             dataNO3array, dataNH4array,
-                                                                                             dataTemparray,
-                                                                                             dataPARarray, Ks, firstday,
-                                                                                             model,
-                                                                                             Zmix, scenC, sortedList)
-    if int(50000 / resx) != 50000 / resx:
-        j = np.shape(dataNO3)[2] - 1 - int(50000 / resx)
-        for i in range(0, grid_shape[0], int(50000 / resy)):
-            print(i, j)
-            NO3Oldarray = dataNO3[:, i:i + int(50000 / resy), j:j + int(50000 / resx)].filled(np.nan)
-            if (np.sum(np.isnan(NO3Oldarray)) > 0) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
-                dxlistarray, dyMeterarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
-                dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, \
-                decenturedNwcarray = resa.resampleData(dxlist, dyMeter, latRef, dataNH4, dataPAR, dataNO3, dataEwc,
-                                                       dataNwc,
-                                                       dataTemp, newArrayShape,
-                                                       i, j)
-                NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeterarray, dxlistarray,
-                                                                                             dt,
-                                                                                             decenturedEwcarray,
-                                                                                             decenturedNwcarray,
-                                                                                             latRefarray,
-                                                                                             dataNO3array,
-                                                                                             dataNH4array,
-                                                                                             dataTemparray,
-                                                                                             dataPARarray, Ks,
-                                                                                             firstday, model,
-                                                                                             Zmix, scenC,
-                                                                                             sortedList)
-
-    if (int(50000 / resy) != 50000 / resy) and (int(50000 / resx) != 50000 / resx):
-        j = np.shape(dataNO3)[2] - 1 - int(50000 / resx)
-        i = np.shape(dataNO3)[1] - 1 - int(50000 / resy)
-        NO3Oldarray = dataNO3[:, i:i + int(50000 / resy), j:j + int(50000 / resx)].filled(np.nan)
-        if (np.sum(np.isnan(NO3Oldarray)) > 0) and (np.sum(~np.isnan(NO3Oldarray)) > 0):
-            dxlistarray, dyMeterarray, latRefarray, dataNH4array, dataPARarray, dataNO3array, \
-            dataTemparray, dataEwcarray, dataNwcarray, decenturedEwcarray, \
-            decenturedNwcarray = resa.resampleData(dxlist, dyMeter, latRef, dataNH4, dataPAR, dataNO3, dataEwc, dataNwc,
-                                                   dataTemp, newArrayShape,
-                                                   i, j)
-            NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeterarray, dxlistarray,
-                                                                                         dt,
-                                                                                         decenturedEwcarray,
-                                                                                         decenturedNwcarray,
-                                                                                         latRefarray,
-                                                                                         dataNO3array,
-                                                                                         dataNH4array,
-                                                                                         dataTemparray,
-                                                                                         dataPARarray, Ks,
-                                                                                         firstday, model,
-                                                                                         Zmix, scenC,
-                                                                                         sortedList)
-
-    DW = N_f / Q_min  # gDW m-3
-    DW_line = DW * h_MA * w_MA / 1000  # kg/m (i.e. per m of rope)
-    DW_PUA = DW * h_MA * density_MA / 1000  # kg/m^2 (multiply be density to account for unused space within farm)
-
-    FW = DW / DF_MA  # gFW m-3
-    FW_line = DW_line / DF_MA  # kg/m (i.e. per m of rope)
-    FW_PUA = DW_PUA / DF_MA  # kg/m^2
-
-    # Energy
-    kcal_PUA = DW * h_MA * density_MA * kcal_MA  # kcal/m^2
-
-    # protein
-    protein_PUA = DW_PUA * prot_MA  # kg/m^2
-
-    # CO2 uptake
-    Biomass_CO2 = (N_f / 14) * CN_MA * 44 / 1000  # g (CO2) /m^3    (44 is rmm of CO2)
-    CO2_uptake_PUA = Biomass_CO2 * h_MA * density_MA / 1000  # kg (CO2) / m^2
-
-    saveAsTiff(NO3field, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/NO3field.tif".format(zone=zone))
-    saveAsTiff(NH4field, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/NH4field.tif".format(zone=zone))
-    saveAsTiff(D, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/D.tif".format(zone=zone))
-    saveAsTiff(N_f, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/N_f.tif".format(zone=zone))
-    saveAsTiff(N_s, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/N_s.tif".format(zone=zone))
-    saveAsTiff(DW, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/DW.tif".format(zone=zone))
-    saveAsTiff(totalNH4deficit, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/totalNH4deficit.tif".format(zone=zone))
-    saveAsTiff(totalNO3deficit, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/totalNO3deficit.tif".format(zone=zone))
-    saveAsTiff(DW_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/DW_PUA.tif".format(zone=zone))
-    saveAsTiff(FW, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/FW.tif".format(zone=zone))
-    saveAsTiff(FW_line, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/FW_line.tif".format(zone=zone))
-    saveAsTiff(FW_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/FW_PUA.tif".format(zone=zone))
-    saveAsTiff(kcal_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/kcal_PUA.tif".format(zone=zone))
-    saveAsTiff(protein_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/protein_PUA.tif".format(zone=zone))
-    saveAsTiff(Biomass_CO2, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/Biomass_CO2.tif".format(zone=zone))
-    saveAsTiff(CO2_uptake_PUA, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/CO2_uptake_PUA.tif".format(zone=zone))
-    saveAsTiff(DW_line, xsize, ysize, ulx, uly, xres, yres,
-               "I:/work-he/apps/safi/data/{zone}/DW_line.tif".format(zone=zone))
-
+    print(f"Computation time (seconds): {result}")
