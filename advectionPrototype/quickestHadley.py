@@ -1,5 +1,6 @@
 import copy
 import os
+import stat
 import time
 import netCDF4 as nc
 import numpy as np
@@ -258,9 +259,8 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
     # Data import information, except for the time
     data_kwargs = {
-                'longitude': (-4, -1),
-                #'longitude': (-14, -13),
-                'latitude': (48, 50), #TODO: get from json
+                'longitude': (parms_run["min_lon"], parms_run["max_lon"]),
+                'latitude': (parms_run["min_lat"], parms_run["max_lat"]),
                 "depth": (0, (1 + parms_run['Von_Karman']) * parms_farm["z"]),
                 "averagingDims": ("depth",)
                 }
@@ -297,7 +297,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     }
 
     dt = 1/72 # days # TODO: make into parameter in json
-    #dt = 0.2/72 # days # TODO: make into parameter in json
     Ks = 1e-3 * 60 * 60 * 24 # m2/s
 
     longitudes, _ = algaeData.parameterData['Nitrate'].getVariable('longitude', **data_kwargs)
@@ -425,7 +424,7 @@ def bgc_model(state_vars: dict, working_data: dict, dt, model, parms_run, days, 
     data_in = {
         'SST': working_data['Temperature'],
         'PAR': working_data['par'],
-        'PO4_ext': 50, #TODO: from working data
+        'PO4_ext': working_data['Phosphate'], #TODO: from working data
         'K_d': parms_run["K_d490"],
         't_z': (1 + parms_run['Von_Karman']) * model._parameters["z"]
     }
