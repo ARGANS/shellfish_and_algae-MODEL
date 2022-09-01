@@ -15,10 +15,10 @@ import sys
 # extract the data value at depth in the merged files (all the daily data merged in one file)
 sys.path.append('p:/Aquaculture/shellfish_and_algae-MODEL/dataread/src/')
 #from saveAsTiff import saveAsTiff, giveMetadata
-from dataread.src.launch_model import MA_model_scipy
-from dataread.src.make_runs import open_data_input, initialize_result
-from dataread.src.read_netcdf import AllData, iNearest
-from dataread.src.utils import import_json
+from launch_model import MA_model_scipy
+from make_runs import open_data_input, initialize_result
+from read_netcdf import AllData, iNearest
+from utils import import_json
 
 
 
@@ -706,7 +706,7 @@ if __name__ == "__main__":
     CPlat, CPlon = 153, 56
 
     model_params = "p:/Aquaculture/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
-    model_params = "./../macroalgae/macroalgae_model_parameters_input.json"
+
     json_data = import_json(model_params)
 
     parms_run = list(json_data['parameters']['run'].values())[0]['parameters']
@@ -725,7 +725,6 @@ if __name__ == "__main__":
     firstday = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
 
     dataCmdpath = 'p:/Aquaculture/shellfish_and_algae-MODEL/global/dataCmd.csv'
-    dataCmdpath = './../global/dataCmd.csv'
 
     input_args = {
         'zone': zone,
@@ -862,6 +861,7 @@ if __name__ == "__main__":
     """
 
     '''
-    result = run_simulation(out_file_name=f"I:/work-he/apps/safi/data/{zone}/resultScenC.nc", input_data=algaeData, model_json=json_data)
+    result = run_simulation(out_file_name=f"D:/data_scenario_B/{zone}/test_2.nc", input_data=algaeData,
+                            model_json=json_data)
 
     print(f"Computation time (seconds): {result}")
