@@ -5,7 +5,6 @@ import netCDF4 as nc
 import numpy as np
 import pandas as pd
 import numpy.ma as ma
-from matplotlib import pyplot as plt
 from scipy import interpolate
 from scipy.sparse import dia_matrix
 from scipy.sparse import spdiags
@@ -16,10 +15,10 @@ import sys
 # extract the data value at depth in the merged files (all the daily data merged in one file)
 sys.path.append('p:/Aquaculture/shellfish_and_algae-MODEL/dataread/src/')
 #from saveAsTiff import saveAsTiff, giveMetadata
-from launch_model import MA_model_scipy
-from make_runs import open_data_input, initialize_result
-from src.read_netcdf import AllData, iNearest
-from utils import import_json
+from dataread.src.launch_model import MA_model_scipy
+from dataread.src.make_runs import open_data_input, initialize_result
+from dataread.src.read_netcdf import AllData, iNearest
+from dataread.src.utils import import_json
 
 
 
@@ -462,28 +461,17 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
         sim_date += datetime.timedelta(days = dt)
 
-    print(latitudes[0], latitudes[-1], longitudes[0], longitudes[-1])
     if scenC:
         latStep = (latitudes[-1]-latitudes[0])/(newArrayShape[0]-1)
         lonStep = (longitudes[-1]-longitudes[0])/(newArrayShape[1]-1)
         latitudes = latStep*np.arange(newArrayShape[0])+latitudes[0]
         longitudes = lonStep * np.arange(newArrayShape[1]) + longitudes[0]
-    print(latitudes[0],latitudes[-1],longitudes[0],longitudes[-1])
 
     state_vars['NH4'] = working_data['Ammonium'] + state_vars['cNH4']
     state_vars['NO3'] = working_data['Nitrate'] + state_vars['cNO3']
 
     state_vars['N_f'][mask] = np.nan
     state_vars['N_s'][mask] = np.nan
-
-    for name in model.names:
-        fig1, ax1 = plt.subplots()
-        plt.imshow(state_vars[name])
-        plt.colorbar()
-        ax1.invert_yaxis()
-        # plt.clim(-10, 10)
-        ax1.set_title(name)
-        plt.show()
 
     # Create output file
     initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
@@ -705,7 +693,7 @@ if __name__ == "__main__":
     dateBeginning = '2020-09-01 00:00:00'
     dateEnd = '2020-04-30 00:00:00'
 
-    scenC = True
+    scenC = False
 
     # discr = 144
     discr = 72  # Baltic, NWS, IBI
@@ -718,6 +706,7 @@ if __name__ == "__main__":
     CPlat, CPlon = 153, 56
 
     model_params = "p:/Aquaculture/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
+    model_params = "./../macroalgae/macroalgae_model_parameters_input.json"
     json_data = import_json(model_params)
 
     parms_run = list(json_data['parameters']['run'].values())[0]['parameters']
