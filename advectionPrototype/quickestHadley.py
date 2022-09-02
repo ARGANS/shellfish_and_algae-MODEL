@@ -1,5 +1,6 @@
 import copy
 import os
+import stat
 import time
 import netCDF4 as nc
 import numpy as np
@@ -22,11 +23,40 @@ from utils import import_json
 
 
 
+class resample:
+    def __init__(self, dxRatio, dyRatio, grid_shape):
+        self.dxRatio = dxRatio
+        self.dyRatio = dyRatio
+        nbry, nbrx = grid_shape
+        self.newArrayShape = (int(nbry/dyRatio),int(nbrx/dxRatio))
 
+    def findElmt(self, i, j):
+        newi = np.floor(i * self.dyRatio).astype(int)
+        newj = np.floor(j * self.dxRatio).astype(int)
+        return newi, newj
 
+    def giveNewMatCoor(self):
+        rowCoor = np.zeros(self.newArrayShape[0] * self.newArrayShape[1])
+        columnCoor = np.zeros(self.newArrayShape[0] * self.newArrayShape[1])
+        ival, jval = self.findElmt(np.arange(self.newArrayShape[0]),
+                                   np.arange(self.newArrayShape[1]))
+        #for each row value
+        for k in range(self.newArrayShape[0]):
+            rowCoor[k * self.newArrayShape[1]:(k + 1) * self.newArrayShape[1]] = ival[k]
+            columnCoor[k * self.newArrayShape[1]:(k + 1) * self.newArrayShape[1]] = jval
+        return rowCoor.astype(int), columnCoor.astype(int)
+
+    def resampleLonLat(self,lon,lat):
+        lat_id, lon_id = self.findElmt(np.arange(self.newArrayShape[0]), np.arange(self.newArrayShape[1]))
+        return lon[lon_id], lat[lat_id]
+
+    def resampleData(self, dataArray):
+        rowCoor, columnCoor = self.giveNewMatCoor()
+        resampledArray = dataArray[rowCoor, columnCoor].reshape(self.newArrayShape)
+        return resampledArray
 
 #this function decentralize the u speeds
-def u2d_cgrid_cur(var): 
+def u2d_cgrid_cur(var):
     # var: 3D array ( time, lat, lon)
     varcg = np.zeros((var.shape[0], var.shape[1], var.shape[2] + 1))
     for i in range(var.shape[1]):
@@ -204,13 +234,14 @@ def giveResol(dataLine):
     else:
         return float(splitedString[0])*1e-2, float(splitedString[1])*1e-2, False
 
-def prepareDerivArrayScenC(derivArray,nanLists):
-    for i in range(len(derivArray)):
-        for nanL in nanLists.flatten():
-            derivArrayLine = derivArray[i].flatten()
-            derivArrayLine[nanL] = 1e-10
-            derivArray[i] = derivArrayLine.reshape(grid_shape)
-    return derivArray
+def prepareScenC(nitrogenArray,nanLists, grid_shape):
+    for iRel in [-1, 0, 1]:  # along latitude
+        for jRel in [-1, 0, 1]:  # along longitude
+            nanL = nanLists[iRel,jRel]
+            nitArrayLine = nitrogenArray.flatten()
+            nitArrayLine[nanL] = 1e-10
+            nitrogenArray = nitArrayLine.reshape(grid_shape)
+    return nitrogenArray
 
 def sortPAR(dateBeginning, dataArr):
     datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
@@ -245,6 +276,8 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     parms_harvest = list(model_json['parameters']['harvest'].values())[0]['parameters']
     harvest_type = list(model_json['parameters']['harvest'].keys())[0]
 
+    scenC = (model_json['metadata']['scenario']=="C")
+
     year = int(model_json['dataset_parameters']['year'])
 
     model = MA_model_scipy(json_data['parameters'])
@@ -258,9 +291,8 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
     # Data import information, except for the time
     data_kwargs = {
-                'longitude': (-4, -1),
-                #'longitude': (-14, -13),
-                'latitude': (48, 50), #TODO: get from json
+                'longitude': (parms_run["min_lon"], parms_run["max_lon"]),
+                'latitude': (parms_run["min_lat"], parms_run["max_lat"]),
                 "depth": (0, (1 + parms_run['Von_Karman']) * parms_farm["z"]),
                 "averagingDims": ("depth",)
                 }
@@ -275,41 +307,64 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         nearest_time_i[par_name] = iNearest(startDate, time_axes[par_name])
         working_data[par_name], _ = par_data.getVariable(time_index=nearest_time_i[par_name], **data_kwargs) #TODO: are dims really laways lat,lon ?
 
+    for par_name, par_data in input_data.parameterData.items():
+        print(par_name)
+        print(working_data[par_name].shape)
+
     grid_shape = working_data['Nitrate'].shape #the shape should be the same for all parameters
-    mask = working_data['Nitrate'].mask
-    nanLists = findNan(mask)
-
-    working_data["decentered_U"] = np.ma.masked_array(np.zeros((grid_shape[0], grid_shape[1] + 1)))
-    working_data["decentered_U"][:, 1:-1] = (working_data['eastward_Water_current'][:, 1:] + working_data['eastward_Water_current'][:, :-1]) / 2
-    working_data["decentered_U"][working_data["decentered_U"].mask] = 0
-
-    working_data["decentered_V"] = np.ma.masked_array(np.zeros((grid_shape[0] + 1, grid_shape[1])))
-    working_data["decentered_V"][1:-1, :] = (working_data['northward_Water_current'][1:, :] + working_data['northward_Water_current'][:-1, :]) / 2
-    working_data["decentered_V"][working_data["decentered_V"].mask] = 0
-
-    # Initialize the model variables
-    state_vars = {
-        'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask),
-        'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask),
-        'N_s': np.ma.masked_array(np.zeros(grid_shape), mask),
-        'N_f': np.ma.masked_array(np.ones(grid_shape) * parms_harvest['deployment_Nf'], mask),
-        'D': np.ma.masked_array(np.ones(grid_shape) * parms_run["Detritus"], mask)
-    }
-
-    dt = 1/72 # days # TODO: make into parameter in json
-    #dt = 0.2/72 # days # TODO: make into parameter in json
-    Ks = 1e-3 * 60 * 60 * 24 # m2/s
-
     longitudes, _ = algaeData.parameterData['Nitrate'].getVariable('longitude', **data_kwargs)
     latitudes, _ = algaeData.parameterData['Nitrate'].getVariable('latitude', **data_kwargs)
     dxMeter, dyMeter = giveDxDy(latitudes, longitudes)
     latRef = np.zeros((len(latitudes), len(longitudes)))
-    latRef[:,:] = latitudes[np.newaxis].T
+    latRef[:, :] = latitudes[np.newaxis].T
+
+    newArrayShape = grid_shape
+    if scenC:
+        dxRatio = 1852 / np.mean(dxMeter)
+        dyRatio = 1852 / np.mean(dyMeter)
+        resa = resample(dxRatio,dyRatio,grid_shape)
+        newArrayShape = resa.newArrayShape
+        for par_name, par_data in input_data.parameterData.items():
+            working_data[par_name] = resa.resampleData(working_data[par_name])
+        latRef = resa.resampleData(latRef)
+        dyMeter = resa.resampleData(dyMeter)
+        dxMeter = resa.resampleData(dxMeter)
+
+    for par_name, par_data in input_data.parameterData.items():
+        print(par_name)
+        print(working_data[par_name].shape)
+
+    mask = working_data['Nitrate'].mask
+    nanLists = findNan(mask)
+
+    # Initialize the model variables
+    state_vars = {
+        'cNO3': np.ma.masked_array(np.zeros(newArrayShape), mask),
+        'cNH4': np.ma.masked_array(np.zeros(newArrayShape), mask),
+        'N_s': np.ma.masked_array(np.zeros(newArrayShape), mask),
+        'N_f': np.ma.masked_array(np.ones(newArrayShape) * parms_harvest['deployment_Nf'], mask),
+        'D': np.ma.masked_array(np.ones(newArrayShape) * parms_run["Detritus"], mask)
+    }
+    if scenC:
+        state_vars['N_s'] = prepareScenC(state_vars['N_s'], nanLists, newArrayShape)
+        state_vars['N_f'] = prepareScenC(state_vars['N_f'], nanLists, newArrayShape)
+
+    working_data["decentered_U"] = np.ma.masked_array(np.zeros((newArrayShape[0], newArrayShape[1] + 1)))
+    working_data["decentered_U"][:, 1:-1] = (working_data['eastward_Water_current'][:, 1:] + working_data['eastward_Water_current'][:, :-1]) / 2
+    working_data["decentered_U"][working_data["decentered_U"].mask] = 0
+
+    working_data["decentered_V"] = np.ma.masked_array(np.zeros((newArrayShape[0] + 1, newArrayShape[1])))
+    working_data["decentered_V"][1:-1, :] = (working_data['northward_Water_current'][1:, :] + working_data['northward_Water_current'][:-1, :]) / 2
+    working_data["decentered_V"][working_data["decentered_V"].mask] = 0
+
+    dt = 1/72 # days # TODO: make into parameter in json
+
+    Ks = 1e-3 * 60 * 60 * 24 # m2/s
 
     # Simulation loop
     sim_date = startDate
     while sim_date < endDate:
-        print(f'{sim_date=}')
+        print(f'{sim_date}')
 
         # Alter the date after new year in case of winter growth
         if harvest_type == "Winter_growth":
@@ -324,6 +379,8 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
                 nearest_time_i[par_name] = new_i
                 working_data[par_name], _ = par_data.getVariable(time_index=new_i, **data_kwargs)
 
+                if scenC:
+                    working_data[par_name] = resa.resampleData(working_data[par_name])
                 # Update the centered currents as well
                 if par_name == "eastward_Water_current":
                     working_data["decentered_U"][:, 1:-1] = (working_data['eastward_Water_current'][:, 1:] + working_data['eastward_Water_current'][:, :-1]) / 2
@@ -371,6 +428,9 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         '''
 
         # Apply the bgc terms
+        if scenC:
+            for var_name in state_vars.keys():
+                bgc_terms[var_name] = prepareScenC(bgc_terms[var_name], nanLists, newArrayShape)
         for var_name in state_vars.keys():
             state_vars[var_name] += bgc_terms[var_name] * dt
 
@@ -403,13 +463,18 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
         sim_date += datetime.timedelta(days = dt)
 
-    # Create output file
-    initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
-                       variableNames=['NH4', 'NO3', 'N_s', 'N_f', 'D'], mask=mask)
+    if scenC:
+        latStep = (latitudes[-1]-latitudes[0])/(newArrayShape[0]-1)
+        lonStep = (longitudes[-1]-longitudes[0])/(newArrayShape[1]-1)
+        latitudes = latStep*np.arange(newArrayShape[0])+latitudes[0]
+        longitudes = lonStep * np.arange(newArrayShape[1]) + longitudes[0]
 
     state_vars['NH4'] = working_data['Ammonium'] + state_vars['cNH4']
     state_vars['NO3'] = working_data['Nitrate'] + state_vars['cNO3']
 
+    # Create output file
+    initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
+                      variableNames=['NH4', 'NO3', 'N_s', 'N_f', 'D'], mask=mask)
     # Write values to file
     ds = nc.Dataset(out_file_name, 'a')
     for name in model.names:
@@ -425,7 +490,7 @@ def bgc_model(state_vars: dict, working_data: dict, dt, model, parms_run, days, 
     data_in = {
         'SST': working_data['Temperature'],
         'PAR': working_data['par'],
-        'PO4_ext': 50, #TODO: from working data
+        'PO4_ext': working_data['Phosphate'], #TODO: from working data
         'K_d': parms_run["K_d490"],
         't_z': (1 + parms_run['Von_Karman']) * model._parameters["z"]
     }
@@ -627,8 +692,6 @@ if __name__ == "__main__":
     dateBeginning = '2020-09-01 00:00:00'
     dateEnd = '2020-04-30 00:00:00'
 
-    scenC = False
-
     # discr = 144
     discr = 72  # Baltic, NWS, IBI
     #discr = 48 #BS
@@ -794,6 +857,7 @@ if __name__ == "__main__":
     """
 
     '''
-    result = run_simulation(out_file_name=f"D:/data_scenario_B/{zone}/test_2.nc", input_data=algaeData, model_json=json_data)
+    result = run_simulation(out_file_name=f"D:/data_scenario_B/{zone}/test_2.nc", input_data=algaeData,
+                            model_json=json_data)
 
     print(f"Computation time (seconds): {result}")
