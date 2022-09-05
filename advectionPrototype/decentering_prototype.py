@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import colors
 #from scipy.sparse import dia_matrix, block_diag
 import scipy.sparse as sp
 
@@ -188,205 +189,122 @@ Vc = np.array(
   -2592.000102996826, -4233.600211143494, -5356.8002343177795,
   -5616.000437736511, -5356.8002343177795]]
 )
-def test_1(Uc, Vc):
-  Uc = Uc[:3, :4]
-  Vc = Vc[:3, :4]
 
-  print(Uc.shape)
+class Decenterer:
 
-  n, m = Uc.shape
+    def __init__(self, mask):
 
+        m, n = mask.shape
 
-  # Matrices that transform decentered U/V to centered
-  # Uc = U * Cx
-  # Vc = Cy * V
-  half_diags = np.ones((2, max(n+1, m+1))) * 1/2
-  Cx = sp.dia_matrix((half_diags, [0, -1]), shape=(m+1, m))
-  Cy = sp.dia_matrix((half_diags, [0, 1]), shape=(n, n+1))
+        self._shape = (m, n)
 
-  #print(Cx.todense())
-  #print(Cy.todense())
+        # gradl(L(U, V, l)) = A * X + B
 
-  # grad_L = A * X + B
-  # X = conc( U.flatten(), V.flatten, Lambda.flatten )
+        # Blocks of A
+        A_uu = sp.eye(m*(n-1)) * 2
+        A_vv = sp.eye((m-1)*n) * 2
+        A_uv = None
+        A_vu = None
 
-  # Definition of B
-  B_u = np.zeros((n, m+1))
-  B_u[:, 1:-1] = - Uc[:, 1:] - Uc[:, :-1]
-  B_u[:, 0] = - Uc[:, 0]
-  B_u[:, -1] = - Uc[:, -1]
-  B_u = B_u.flatten()
+        diags_uvl = np.ones((2, m*n))
+        diags_uvl[0, :] = -1
+        uvl_block = sp.dia_matrix((diags_uvl, [0, 1]), shape=(n-1, n))
+        A_ul = sp.block_diag([uvl_block]*m)
 
-  B_v = np.zeros((n+1, m))
-  B_v[1:-1, :] = - Vc[1:, :] - Vc[:-1, :]
-  B_v[0, :] = - Vc[0, :]
-  B_v[-1, :] = - Vc[-1, :]
-  B_v = B_v.flatten()
+        A_vl = sp.lil_matrix(((m-1)*n, m*n))
+        for k in range((m-1)*n):
+            A_vl[k, k] = - 1
+            A_vl[k, k + n] = 1
 
-  B_l = np.zeros((n, m)).flatten()
-  B = np.concatenate((B_u, B_v, B_l))[np.newaxis].T
-  print(B)
+        A_lu = A_ul.T
+        A_lv = A_vl.T
+        A_ll = None
 
-  ### Definition of A
+        #print(A_vl.todense())
 
-  # Useful sub-blocks
-  diags_uu = np.ones((3, m+1)) * 1/2
-  diags_uu[1, 1:-1] = 1
-  u_u_block = sp.dia_matrix((diags_uu, [-1, 0, 1]), shape=(m+1, m+1))
+        A = sp.bmat([[A_uu, A_uv, A_ul],
+                    [A_vu, A_vv, A_vl],
+                    [A_lu, A_lv, A_ll]])
 
-  diags_ul = np.ones((2, m+1))
-  diags_ul[0, :] = -1
-  u_l_block = sp.dia_matrix((diags_ul, [0, -1]), shape=(m+1, m))
+        # Remove one of the constraints that is redundant with all others.
+        A2 = sp.lil_matrix(A)[:-1, :-1]
 
-  diags_vv = np.ones((3, n+1)) * 1/2
-  diags_vv[1, 1:-1] = 1
-  v_v_block = sp.dia_matrix((diags_vv, [-1, 0, 1]), shape=(n+1, n+1))
-
-  diags_vl = np.ones((2, n+1))
-  diags_vl[0, :] = -1
-  v_l_block = sp.dia_matrix((diags_vl, [0, -1]), shape=(n+1, n))
-
-  l_u_block = sp.dia_matrix((diags_ul, [0, 1]), shape=(m, m+1))
-  l_v_block = sp.dia_matrix((diags_vl, [0, 1]), shape=(n, n+1))
+        # sp.linalg() unavailable in my version
+        self._Ainv = np.linalg.inv(A2.todense())
 
 
-  # blocks of A
-  A_u_u = sp.block_diag([u_u_block]*n)
-  A_u_v = None # empty block
-  A_u_l = sp.block_diag([u_l_block]*n)
+    def apply(self, Uc, Vc):
 
-  A_v_u = None
-  A_v_v = sp.csr_matrix(((n+1)*m, (n+1)*m))
-  A_v_l = sp.csr_matrix(((n+1)*m, n*m))
-  for k in range(m):
-    A_v_v[k::m, k::m] = v_v_block
-    A_v_l[k::m, k::m] = v_l_block
+        m,n = self._shape
 
-  A_l_u = sp.block_diag([l_u_block]*n)
-  A_l_v = sp.csr_matrix((n*m, (n+1)*m))
-  for k in range(m):
-    A_l_v[k::m, k::m] = l_v_block
-  A_l_l = None
+        # definition of B
+        #B_u = - (Uc[:, :-1] + Uc[:, 1:]).flatten()
+        B_u = - np.diff(Uc, axis=1).flatten()
+        #B_v = - (Vc[:-1, :] + Vc[1:, :]).flatten()
+        B_v = -  np.diff(Vc, axis=0).flatten()
+        B_l = np.zeros((m, n)).flatten()
 
-  A = sp.bmat([[A_u_u, A_u_v, A_u_l],
-              [A_v_u, A_v_v, A_v_l],
-              [A_l_u, A_l_v, A_l_l]])
+        B = np.concatenate((B_u, B_v, B_l))[np.newaxis].T
 
-  print(A_l_u.todense())
-  print(A_l_v.todense())
+        # to fit A2
+        B2 = B[:-1]
 
-  print(np.linalg.det(A.todense()))
-  print(np.linalg.det(A.todense()[:-1, :-1]))
+        X = - self._Ainv.dot(B2)
 
-  '''
-  print(A.todense())
-  print(np.linalg.det(A.todense()))
-  # sp.linalg() unavailable in my version
-  A_inv = np.linalg.inv(A.todense())
-  print(A_inv)
+        U = X[0:(m*(n-1))].reshape((m, n-1))
+        V = X[(m*(n-1)):(m*(n-1) + (m-1)*n)].reshape((m-1, n))
 
-  X = -1 * A_inv.dot(B)
-  print(X)
+        return np.array(U), np.array(V)
 
-  U = X[0:(n*(m+1))].reshape((n, m+1))
-  V = X[(n*(m+1)):(n*(m+1) + (n+1)*m)].reshape((n+1, m))
-  print(U)
-  print(V)
-
-  #plt.quiver(Uc, Vc)
-  #plt.show()
-  '''
-
-def test_2(Uc, Vc):
-
-  m, n = Uc.shape
-
-  # gral(L(U, V, l)) = A * X + B
-
-  # Blocks of A
-  A_uu = sp.eye(m*(n-1)) * 2
-  A_vv = sp.eye((m-1)*n) * 2
-  A_uv = None
-  A_vu = None
-
-  diags_uvl = np.ones((2, m*n))
-  diags_uvl[0, :] = -1
-  uvl_block = sp.dia_matrix((diags_uvl, [0, 1]), shape=(n-1, n))
-  A_ul = sp.block_diag([uvl_block]*m)
-
-  A_vl = sp.lil_matrix(((m-1)*n, m*n))
-  for k in range((m-1)*n):
-    A_vl[k, k] = - 1
-    A_vl[k, k + n] = 1
-
-  A_lu = A_ul.T
-  A_lv = A_vl.T
-  A_ll = None
-
-  print(A_vl.todense())
-
-  A = sp.bmat([[A_uu, A_uv, A_ul],
-               [A_vu, A_vv, A_vl],
-               [A_lu, A_lv, A_ll]])
-
-  # Remove one of the constraints that is redundant with all others.
-  A2 = sp.lil_matrix(A)[:-1, :-1]
-
-  # definition of B
-  B_u = - (Uc[:, :-1] + Uc[:, 1:]).flatten()
-  B_v = - (Vc[:-1, :] + Vc[1:, :]).flatten()
-  B_l = np.zeros((m, n)).flatten()
-
-  B = np.concatenate((B_u, B_v, B_l))[np.newaxis].T
-
-  # to fit A2
-  B2 = B[:-1]
-
-  # sp.linalg() unavailable in my version
-  A2_inv = np.linalg.inv(A2.todense())
-  #print(A2_inv[:(m*(n-1) + (m-1)*n), :(m*(n-1) + (m-1)*n)])
-  X = - A2_inv.dot(B2)
-
-  U = X[0:(m*(n-1))].reshape((m, n-1))
-  V = X[(m*(n-1)):(m*(n-1) + (m-1)*n)].reshape((m-1, n))
-
-  return np.array(U), np.array(V)
+#def decentering_matrix()
 
 
 if __name__=="__main__":
 
-  #Uc = Uc[:3, :4]
-  #Vc = Vc[:3, :4]
+    #Uc = Uc[:3, :4]
+    #Vc = Vc[:3, :4]
 
-  U, V = test_2(Uc, Vc)
+    # custom mask for tests
+    mask = (np.abs(Uc) < 1500)
+    mask[:8, :] = True
+    mask[:13, -2:] = True #comment for hole
 
-  m, n = Uc.shape
+    Uc = np.ma.masked_array(Uc, mask)
+    Vc = np.ma.masked_array(Vc, mask)
 
-  print(Uc.shape)
-  print(U.shape)
-  print(V.shape)
+    decenterer = Decenterer(Uc.mask)
 
-  print(Uc)
-  print(Vc)
-  #print(V)
-  print(U)
-  print(V)
+    U, V = decenterer.apply(Uc, Vc)
 
 
-  y_axis = np.array([a for a in range(m)])
-  x_axis = np.array([a for a in range(n)])
-  x_axis_U = x_axis[:-1] + 0.5
-  y_axis_V = y_axis[:-1] + 0.5
+
+    m, n = Uc.shape
 
 
-  fig, ax = plt.subplots()
 
-  ax.quiver(x_axis, y_axis, Uc, Vc)
-  ax.quiver(x_axis_U, y_axis, U, U*0, color="red")
-  ax.quiver(x_axis, y_axis_V, V*0, V, color="red")
+    cmap = colors.ListedColormap(['white', 'gray'])
+    bounds = [0, 0.5, 1]
+    norm = colors.BoundaryNorm(bounds, cmap.N)
 
-  ax.set_xticks(x_axis_U.tolist(), minor=False)
-  ax.set_yticks(y_axis_V.tolist(), minor=False)
-  ax.xaxis.grid(True, which='major')
-  ax.yaxis.grid(True, which='major')
-  plt.show()
+    y_axis = np.array([a for a in range(m)])
+    x_axis = np.array([a for a in range(n)])
+    x_axis_U = x_axis[:-1] + 0.5
+    y_axis_V = y_axis[:-1] + 0.5
+
+
+    fig, ax = plt.subplots()
+
+    ax.imshow(mask, cmap=cmap)
+
+    ax.quiver(x_axis, y_axis, Uc, Vc)
+    ax.quiver(x_axis_U, y_axis, U, U*0, color="red")
+    ax.quiver(x_axis, y_axis_V, V*0, V, color="red")
+
+    ax.set_xticks(x_axis_U.tolist(), minor=False)
+    ax.set_yticks(y_axis_V.tolist(), minor=False)
+    ax.xaxis.grid(True, which='major')
+    ax.yaxis.grid(True, which='major')
+
+    ax.invert_yaxis()
+    
+    plt.show()
