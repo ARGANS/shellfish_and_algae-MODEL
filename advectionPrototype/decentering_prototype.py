@@ -194,9 +194,9 @@ class Decenterer:
 
     def __init__(self, mask):
 
-        m, n = mask.shape
+        self._mask = mask
 
-        self._shape = (m, n)
+        m, n = self._mask.shape
 
         # gradl(L(U, V, l)) = A * X + B
 
@@ -226,37 +226,53 @@ class Decenterer:
                     [A_vu, A_vv, A_vl],
                     [A_lu, A_lv, A_ll]])
 
+        A = sp.lil_matrix(A) # for direct access to rows/cols
+
+        # masks for where currents should be 0, obtained from diff.
+        fake_UVc = np.ma.masked_array(np.zeros((m,n)), mask)
+        Uc_mask = np.diff(fake_UVc, axis=1).flatten().mask
+        Vc_mask = np.diff(fake_UVc, axis=0).flatten().mask
+        l_mask = fake_UVc.flatten().mask
+
+        self._where_not_zero = np.where(np.logical_not(np.concatenate((Uc_mask, Vc_mask, l_mask))))[0]
+
         # Remove one of the constraints that is redundant with all others.
-        A2 = sp.lil_matrix(A)[:-1, :-1]
+        self._where_not_zero = self._where_not_zero[:-1]
+
+        # Remove rows and columns where the values are set to 0
+        A = A[:, self._where_not_zero]
+        A = A[self._where_not_zero, :]
 
         # sp.linalg() unavailable in my version
-        self._Ainv = np.linalg.inv(A2.todense())
+        self._Ainv = np.linalg.inv(A.todense())
 
 
     def apply(self, Uc, Vc):
 
-        m,n = self._shape
+        m, n = self._mask.shape
 
         # definition of B
-        #B_u = - (Uc[:, :-1] + Uc[:, 1:]).flatten()
         B_u = - np.diff(Uc, axis=1).flatten()
-        #B_v = - (Vc[:-1, :] + Vc[1:, :]).flatten()
         B_v = -  np.diff(Vc, axis=0).flatten()
         B_l = np.zeros((m, n)).flatten()
 
         B = np.concatenate((B_u, B_v, B_l))[np.newaxis].T
 
-        # to fit A2
-        B2 = B[:-1]
+        # Initialize result array with zeros and mask
+        X_full = np.ma.masked_array(np.zeros(B.shape), np.ones(B.shape))
+        X_full.mask[self._where_not_zero] = True
 
-        X = - self._Ainv.dot(B2)
+        B = B[self._where_not_zero]
 
-        U = X[0:(m*(n-1))].reshape((m, n-1))
-        V = X[(m*(n-1)):(m*(n-1) + (m-1)*n)].reshape((m-1, n))
+        X = - self._Ainv.dot(B)
 
-        return np.array(U), np.array(V)
+        # Apply the result where relevant in X_full
+        X_full[self._where_not_zero] = X
 
-#def decentering_matrix()
+        U = X_full[0:(m*(n-1))].reshape((m, n-1))
+        V = X_full[(m*(n-1)):(m*(n-1) + (m-1)*n)].reshape((m-1, n))
+
+        return U, V
 
 
 if __name__=="__main__":
