@@ -256,7 +256,7 @@ def giveDateslist(dateBeginning, dateEnd, frequency, timestep = None):
     elif frequency == 'monthly':
         begList = [datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')]
         endList = [datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')]
-    elif frequency == 'hourly':
+    elif frequency == 'hourly' or frequency=='daily':
         datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
         datetimeEnd = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
 
