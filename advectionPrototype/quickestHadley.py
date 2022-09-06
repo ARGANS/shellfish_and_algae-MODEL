@@ -16,11 +16,16 @@ import sys
 # extract the data value at depth in the merged files (all the daily data merged in one file)
 sys.path.append('p:/Aquaculture/shellfish_and_algae-MODEL/dataread/src/')
 #from saveAsTiff import saveAsTiff, giveMetadata
-from launch_model import MA_model_scipy
-from make_runs import open_data_input, initialize_result
-from read_netcdf import AllData, iNearest
-from utils import import_json
-
+try:
+    from launch_model import MA_model_scipy
+    from make_runs import open_data_input, initialize_result
+    from read_netcdf import AllData, iNearest
+    from utils import import_json
+except ImportError:
+    from dataread.launch_model import MA_model_scipy
+    from dataread.make_runs import open_data_input, initialize_result
+    from dataread.read_netcdf import AllData, iNearest
+    from dataread.utils import import_json
 
 
 class resample:
@@ -280,7 +285,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
     year = int(model_json['dataset_parameters']['year'])
 
-    model = MA_model_scipy(json_data['parameters'])
+    model = MA_model_scipy(model_json['parameters'])
 
     # Define beginning and end times of the simulation
     startDate = datetime.datetime(year, int(parms_harvest['deployment_month']), 1)
