@@ -8,6 +8,7 @@ def main():
     # Create argument parser
     ap = argparse.ArgumentParser()
     ap.add_argument("-i", "--input", required=True, help="The path to the input file")
+    ap.add_argument("-g", "--inputGrid", required=True, help="The path to the input grid file")
     ap.add_argument("-d", "--dir", required=True, help="The path to the working directory")
     ap.add_argument("-o", "--output", required=True, help="The path to the output file")
     ap.add_argument("-v", "--variable", required=True, help="The variable")
@@ -18,13 +19,14 @@ def main():
     # Parse arguments
     print("Parsing arguments...")
     inputFile = args["input"]
+    inputGrid = args["inputGrid"]
     outputFile = args["output"]
     directory = args["dir"]
     variable = args["variable"]
     lonName = args["lonName"]
     latName = args["latName"]
 
-    inputData = nc.Dataset(inputFile)
+    inputData = nc.Dataset(inputGrid)
 
     fillval = str(inputData.variables[variable]._FillValue)
     longitudes = inputData.variables[lonName]
