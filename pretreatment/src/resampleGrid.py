@@ -3,6 +3,12 @@ import os
 
 import netCDF4 as nc
 
+'''
+This script aligns the vqriqble "vqriqble" in the file at "dir/input" to a
+regular lat/lon grid based on the "latName"/"lonName" axes of the file at
+"inputGrid".
+The result is stored in "dir/output".
+'''
 
 def main():
     # Create argument parser
@@ -17,7 +23,6 @@ def main():
     args = vars(ap.parse_args())
 
     # Parse arguments
-    print("Parsing arguments...")
     inputFile = args["input"]
     inputGrid = args["inputGrid"]
     outputFile = args["output"]
@@ -29,10 +34,23 @@ def main():
     inputData = nc.Dataset(inputGrid)
 
     fillval = str(inputData.variables[variable]._FillValue)
-    longitudes = inputData.variables[lonName]
-    latitudes = inputData.variables[latName]
+
+    lon_try_names = [lonName, 'longitude', 'lon', 'long']
+    for try_name in lon_try_names:
+        if try_name in inputData.dimensions.keys():
+            longitudes = inputData.variables[try_name]
+            break
+
+    lat_try_names = [latName, 'latitude', 'lat']
+    for try_name in lat_try_names:
+        if try_name in inputData.dimensions.keys():
+            latitudes = inputData.variables[try_name]
+            break
+
     xres = longitudes[1] - longitudes[0]
     yres = latitudes[1] - latitudes[0]
+
+    inputData.close()
 
     os.system(f"./resampleGrid.sh {directory} {inputFile} {outputFile} {variable} {xres} {yres} {fillval} {longitudes[0]} {latitudes[0]} {longitudes[-1]} {latitudes[-1]}")
 
