@@ -5,6 +5,7 @@ from owslib.wcs import WebCoverageService
 from owslib.wfs import WebFeatureService
 import cdsapi
 import os
+import subprocess
 import numpy as np
 import pandas as pd
 import datetime
@@ -35,6 +36,7 @@ def getdataFromMarineCopernicus(dataInfo, dateBeginning, dateEnd, outputDirector
     Newest version (?):
         python -m motuclient (part of the code prosposed by CMEMS)
     """
+    
     options = (
         f'python -m motuclient'
         f' --motu {dataInfo["motu"]}'
@@ -52,17 +54,27 @@ def getdataFromMarineCopernicus(dataInfo, dateBeginning, dateEnd, outputDirector
         f' --user {os.getenv("MOTU_LOGIN")} --pwd {os.getenv("MOTU_PASSWORD")}'
     )
     # if (np.isnan(dataInfo["depth-min"])):
-    if not 'depth-min' in dataInfo:
-        os.system(options)
-    else:
+    if 'depth-min' in dataInfo:
         deepthmin = str(deepthmin)
         deepthmax = str(deepthmax)
-        os.system(
-            options + (
-                f' --depth-min {deepthmin}'
-                f' --depth-max {deepthmax}'
-            )
+        options = options + (
+            f' --depth-min {deepthmin}'
+            f' --depth-max {deepthmax}'
         )
+    
+    # Motucient cannot throw exceptions on errors. 
+    # Thus, in order to detect errors, an application must parse errors from log messages as follows:
+    # 2022-08-30 13:30:57.983 [ERROR] 010-20 : The limit of file size is exceeded. Please narrow your request. 
+    print(f'Command: {options}')
+    process =  subprocess.Popen(options, shell=True, stdout=subprocess.PIPE)
+    while True:
+        line = process.stdout.readline()
+        if not line:
+            break
+        output = line.decode().rstrip()
+        print(output)
+        if '[ERROR]' in output:
+            raise RuntimeError(options + ', ' + output)
 
 
 # give the file complete name depending of the filetype
@@ -244,7 +256,7 @@ def giveDateslist(dateBeginning, dateEnd, frequency, timestep = None):
     elif frequency == 'monthly':
         begList = [datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')]
         endList = [datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')]
-    elif frequency == 'hourly':
+    elif frequency == 'hourly' or frequency=='daily':
         datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
         datetimeEnd = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
 

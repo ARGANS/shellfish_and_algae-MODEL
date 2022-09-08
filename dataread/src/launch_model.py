@@ -126,7 +126,6 @@ class MA_model_scipy:
 
         V_MA = p.y_farm * p.x_farm * p.density_MA * p.h_MA
         V_INT = p.y_farm * p.x_farm * data['t_z']
-        V_EFF = p.y_farm * (p.x_farm + data['F_in']) * data['t_z']
 
         turnover = data['F_in'] / p.x_farm #lambda is taken in python
 
@@ -158,7 +157,7 @@ class MA_model_scipy:
         #NH4_removed = f_NH4 * B - p.r_L * y['D'] + p.r_N * y['NH4'] - p.d_m * y['N_s']
         #NO3_removed = f_NO3 * B - p.r_N * y['NH4']
 
-        PO4_tot = data['PO4_ext'] * V_EFF / V_MA
+        PO4_tot = data['PO4_ext'] * V_INT / V_MA
         N_to_P_mg = p.N_to_P * 14
 
         # derivatives
@@ -188,7 +187,7 @@ class MA_model_scipy:
 
         return out
 
-    def hadley_advection(self, t: float, y, data, cNO3, cNH4, advNO3, advNH4, nbrx, nbry, dt, latitude: float):
+    def hadley_advection(self, t: float, y, data, dt, latitude: float):
         """Python implementation of the Hadley model adapted by M. Johnson
 
             y and data must be subscriptable by names (dict, pd.Series,...)
@@ -198,9 +197,8 @@ class MA_model_scipy:
 
         V_MA = p.y_farm * p.x_farm * p.density_MA * p.h_MA
         V_INT = p.y_farm * p.x_farm * data['t_z']
-        V_EFF = p.y_farm * (p.x_farm + data['F_in']) * data['t_z']
 
-        turnover = data['F_in'] / p.x_farm  # lambda is taken in python
+        #turnover = data['F_in'] / p.x_farm  # lambda is taken in python
         Q = (p.Q_min * (1 + y['N_s'] / np.maximum(y['N_f'],1e-6))) * (y['N_f'] > 0)
         B = y['N_f'] / p.Q_min
         g_Q = np.minimum(1, (Q - p.Q_min) / (Q - p.K_c))
@@ -220,26 +218,24 @@ class MA_model_scipy:
 
         mu_g_EQT = p.mu * g_E * g_Q * g_T
 
-        oldNO3Cline = y['NO3'].reshape(nbrx * nbry)
-        oldNH4Cline = y['NH4'].reshape(nbrx * nbry)
-
         f_NH4 = (p.V_NH4 * y['NH4'] / (p.K_NH4 + y['NH4'])) * ((p.Q_max - Q) / (p.Q_max - p.Q_min))
         f_NO3 = (p.V_NO3 * y['NO3'] / (p.K_NO3 + y['NO3'])) * ((p.Q_max - Q) / (p.Q_max - p.Q_min))
 
-        f_NH4 = np.minimum(((cNH4+y['NH4']-1e-2+advNH4.reshape(nbrx,nbry)) * V_INT / (V_MA*dt) + p.r_L * y['D'] - p.r_N * y['NH4'] + p.d_m * y['N_s']) / B,
+        f_NH4 = np.minimum(((y['NH4'] - 1e-2) * V_INT / (V_MA*dt) + p.r_L * y['D'] - p.r_N * y['NH4'] + p.d_m * y['N_s']) / B,
                            f_NH4)
-        f_NO3 = np.minimum(((cNO3+y['NO3']-1e-2+advNO3.reshape(nbrx,nbry)) * V_INT / (V_MA*dt) + p.r_N * y['NH4']) / B, f_NO3)
+        f_NO3 = np.minimum(((y['NO3'] - 1e-2) * V_INT / (V_MA*dt) + p.r_N * y['NH4']) / B, 
+                           f_NO3)
 
-        NH4_removed = f_NH4 * B - p.r_L * y['D'] + p.r_N * y['NH4'] - p.d_m * y['N_s']
-        NO3_removed = f_NO3 * B - p.r_N * y['NH4']
+        #NH4_removed = f_NH4 * B - p.r_L * y['D'] + p.r_N * y['NH4'] - p.d_m * y['N_s']
+        #NO3_removed = f_NO3 * B - p.r_N * y['NH4']
 
-        PO4_tot = data['PO4_ext'] * V_EFF / V_MA
+        PO4_tot = data['PO4_ext'] * V_INT / V_MA
         N_to_P_mg = p.N_to_P * 14
 
         # derivatives
-        dNH4 = - (f_NH4 * B - p.r_L * y['D'] + p.r_N * y['NH4'] - p.d_m * y['N_s']) * V_MA / V_INT
+        dNH4 = ( - f_NH4 * B + p.r_L * y['D'] - p.r_N * y['NH4'] + p.d_m * y['N_s']) * V_MA / V_INT
 
-        dNO3 = - (f_NO3 * B - p.r_N * y['NH4']) * V_MA / V_INT
+        dNO3 = (- f_NO3 * B + p.r_N * y['NH4']) * V_MA / V_INT
 
         dN_s = (f_NH4 + f_NO3) * B - np.minimum(mu_g_EQT * y['N_f'], PO4_tot * N_to_P_mg) - p.d_m * y['N_s']
 

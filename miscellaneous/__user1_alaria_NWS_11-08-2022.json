@@ -42,12 +42,12 @@
 			}
 		},
 		"harvest": {
-			"Winter_growth": {
+			"Summer_growth": {
 				"options": {},
 				"parameters": {
 					"deployment_Nf": 1000,
-					"deployment_month": 9,
-					"harvesting_month": 4
+					"deployment_month": 3,
+					"harvesting_month": 9
 				}
 			}
 		},
@@ -68,20 +68,20 @@
 		}
 	},
 	"metadata": {
-		"name": "user1_Winter_growth_NWS_23-08-2022",
+		"name": "user1_alaria_NWS_11-08-2022",
 		"zone": "NWS",
 		"_suggested": {
 			"login": "user1",
-			"species": "Winter_growth",
+			"species": "alaria",
 			"zone": "NWS",
-			"date": "23-08-2022"
+			"date": "11-08-2022"
 		},
 		"scenario": "B"
 	},
 	"dataset_parameters": {
 		"depth-min": 0,
-		"depth-max": 20,
-		"year": "2020",
+		"depth-max": "4",
+		"year": 2021,
 		"datasets": {
 			"Temperature": {
 				"Name": "Copernicus Analysis & Forecast",
@@ -294,13 +294,13 @@
 				"pretreatment": "Copernicus"
 			},
 			"par": {
-				"Name": "NASA Ocean Colour 2020, filled",
+				"Name": "NASA Ocean Colour 2021, filled",
 				"type": "sat",
 				"Parameter": "par",
 				"Place": "NWS",
 				"motu": "",
 				"service-id": "",
-				"product-id": "/media/global/PAR_ref_OC_2020.nc",
+				"product-id": "",
 				"longitude-min": "",
 				"longitude-max": "",
 				"latitude-min": "",
@@ -310,7 +310,7 @@
 				"first obs": "",
 				"last obs": "",
 				"source": "",
-				"variable": "par",
+				"variable": "",
 				"link": "",
 				"mask": "",
 				"depth-min": "",
@@ -323,10 +323,10 @@
 				"timeName": "time",
 				"frequency": "monthly",
 				"unitFactor": 11.574,
-				"timeOrigin": "2020-01-01T00:00:00Z",
+				"timeOrigin": "2021-01-01T00:00:00Z",
 				"timeUnit": "days",
 				"dataimport": "",
-				"pretreatment": "Reference"
+				"pretreatment": ""
 			}
 		}
 	},

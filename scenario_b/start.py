@@ -1,13 +1,14 @@
 import datetime
 import os
+from pprint import pprint
 
 import numpy as np
 import pandas as pd
 from numpy import ma
 
 from advectionPrototype.climatology_ellipses import degrees_to_meters
-from advectionPrototype.quickestHadley import quickest, sortData, giveResol, givecoor, v2d_cgrid_cur, u2d_cgrid_cur, \
-    giveCFL
+from advectionPrototype.quickestHadley import quickest, sortData, giveResol, v2d_cgrid_cur, u2d_cgrid_cur, \
+    giveCFL, run_simulation
 from dataread.launch_model import MA_model_scipy
 from dataread.make_runs import open_data_input
 from dataread.models.ModelProperties import ModelProperties
@@ -18,6 +19,8 @@ DATA_CMD_PATH = '/media/global/dataCmd.csv'
 dataRef: pd.DataFrame = pd.read_csv(DATA_CMD_PATH, delimiter=';')
 
 model_properties = ModelProperties(os.getenv('INPUT_SOURCE'), os.getenv('INPUT_DESTINATION'))
+
+# model_properties.attrs['metadata']['scenario'] == 'B'
 
 try:
     model_properties.parse(os.getenv('INPUT_MODEL_PROPERTIES_JSON'))
@@ -52,11 +55,17 @@ dict_to_AllData['PAR'] = {
     'time_step': datetime.timedelta(days=1)
 }
 
+if False:
+    parms_run['min_lon'] = -4
+    parms_run['max_lon'] = -3
+    parms_run['min_lat'] = 48.5
+    parms_run['max_lat'] = 49
+
+print(f"Lon {parms_run['min_lon']}..{parms_run['max_lon']} Lat {parms_run['min_lat']}..{parms_run['max_lat']}")
+
 sim_area = {
-    'longitude': (-4, -3),
-    'latitude': (48.5, 49),
-    # 'longitude': (parms_run['min_lon'], parms_run['max_lon']),
-    # 'latitude': (parms_run['min_lat'], parms_run['max_lat']),
+    'longitude': (parms_run['min_lon'], parms_run['max_lon']),
+    'latitude': (parms_run['min_lat'], parms_run['max_lat']),
     'depth': (0, parms_farm['z']*1.4),
     'averagingDims': ('depth',),
     'weighted': False
@@ -65,66 +74,71 @@ sim_area = {
 ### Initialize the netcdf reading interface
 algaeData = AllData(dict_to_AllData)
 
-dataNO3 = algaeData.parameterData['Nitrate'].getVariable(**sim_area)[0]
-dataNH4 = algaeData.parameterData['Ammonium'].getVariable(**sim_area)[0]
-dataTemp = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0]
-dataNwc = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0]
-dataEwc = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0]
-dataPAR = algaeData.parameterData['PAR'].getVariable(**sim_area)[0]
+print('algaeData')
+print(algaeData)
+total_time = run_simulation('out.nc', model_properties.attrs, algaeData)
 
-print('parms_run')
-print(parms_run)
+print(f'TotalTime {total_time}')
 
-dateBeginning = f'{model_properties.year}-01-01 00:00:00'
-dateEnd = f'{model_properties.year + 1}-01-01 00:00:00'
-sortedList = sortData(dateBeginning, dateEnd, len(dataNO3))
+# raise RecursionError('STOP')
 
-dataNH4 = ma.masked_outside(dataNH4, -1e4, 1e4)
-dataNO3 = ma.masked_outside(dataNO3, -1e4, 1e4)
-dataTemp = ma.masked_outside(dataTemp, -1e4, 1e4)
-dataPAR = ma.masked_outside(dataPAR, -1e-2, 1e4)
-dataPAR = dataPAR.filled(fill_value=8)
+# dataEwc = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0]
+# dataNO3 = algaeData.parameterData['Nitrate'].getVariable(**sim_area)[0]
+# dataNwc = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0]
+# dataNH4 = algaeData.parameterData['Ammonium'].getVariable(**sim_area)[0]
+# dataTemp = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0]
+# dataPAR = algaeData.parameterData['PAR'].getVariable(**sim_area)[0]
 
-# TODO use dataRef
-# TODO check if the results change
-dataFin = pd.read_csv(DATA_CMD_PATH, ';')
+# print('parms_run')
+# print(parms_run)
 
-nwcDataLine = dataFin.loc[(dataFin["Parameter"] == 'Nitrate') & (dataFin["Place"] == model_properties.attrs['metadata']['zone'])]
-nwcdataName = nwcDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
-resx, resy, km = giveResol(nwcDataLine)
+# dateBeginning = f'{model_properties.year}-01-01 00:00:00'
+# dateEnd = f'{model_properties.year + 1}-01-01 00:00:00'
+# sortedList = sortData(dateBeginning, dateEnd, len(dataNO3))
 
-longitudes, _ = algaeData.parameterData['Temperature'].getVariable('longitude', **sim_area)
-latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **sim_area)
+# dataNH4 = ma.masked_outside(dataNH4, -1e4, 1e4)
+# dataNO3 = ma.masked_outside(dataNO3, -1e4, 1e4)
+# dataTemp = ma.masked_outside(dataTemp, -1e4, 1e4)
+# dataPAR = ma.masked_outside(dataPAR, -1e-2, 1e4)
+# dataPAR = dataPAR.filled(fill_value=8)
 
-longitudeMin, latitudeMin = givecoor(longitudes,latitudes, parms_run['min_lon'], parms_run['min_lat'])  # we get the indices of the wanted position
-longitudeMax, latitudeMax = givecoor(longitudes,latitudes, parms_run['max_lon'], parms_run['max_lat'])  # we get the indices of the wanted position
+# # TODO use dataRef
+# # TODO check if the results change
+# dataFin = pd.read_csv(DATA_CMD_PATH, ';')
 
-firstday = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
+# nwcDataLine = dataFin.loc[(dataFin["Parameter"] == 'Nitrate') & (dataFin["Place"] == model_properties.attrs['metadata']['zone'])]
+# nwcdataName = nwcDataLine.iloc[-1]["variable"]  # we find the data name in the dataset
+# resx, resy, km = giveResol(nwcDataLine)
 
-latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * latitudes[latitudeMin:latitudeMax]
-decenturedEwc = u2d_cgrid_cur(dataEwc)
-decenturedNwc = v2d_cgrid_cur(dataNwc)
+# longitudes, _ = algaeData.parameterData['Temperature'].getVariable('longitude', **sim_area)
+# latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **sim_area)
 
-if km:
-    dxlist, dyMeter = resx * np.ones(np.shape(dataNwc[0])), resy  # baltic
-else:
-    dxlist, dyMeter = degrees_to_meters(resx, resy, latRef)
-    dxlist = dxlist.T
+# firstday = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
 
-dylist = dyMeter * np.ones(np.shape(dxlist))
+# latRef = np.ones((np.shape(dataEwc[0])[1], np.shape(dataEwc[0])[0])) * latitudes
+# decenturedEwc = u2d_cgrid_cur(dataEwc)
+# decenturedNwc = v2d_cgrid_cur(dataNwc)
+
+# if km:
+#     dxlist, dyMeter = resx * np.ones(np.shape(dataNwc[0])), resy  # baltic
+# else:
+#     dxlist, dyMeter = degrees_to_meters(resx, resy, latRef)
+#     dxlist = dxlist.T
+
+# dylist = dyMeter * np.ones(np.shape(dxlist))
 
 
-maxCFL = 0
-(nbrx, nbry) = np.shape(dataNO3[0])
-for i in range(len(dataEwc)):
-    CFL, cx, cy = giveCFL(dxlist, dyMeter, parms_run['dt'], decenturedEwc[i], decenturedNwc[i], nbrx, nbry)
-    if np.max(CFL) > maxCFL:
-        maxCFL = np.max(CFL)
-if maxCFL>1:
-    raise RuntimeError('CFL > 1')
-model = MA_model_scipy(model_properties.parameters)
-NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlist, parms_run['dt'],
-                                                                             decenturedEwc, decenturedNwc, dataEwc,
-                                                                             dataNwc, latRef.T, dataNO3, dataNH4,
-                                                                             dataTemp, dataPAR, parms_run['Ks'], firstday, model,
-                                                                             parms_farm['z']*1.4, parms_run['scenC'],sortedList)
+# maxCFL = 0
+# (nbrx, nbry) = np.shape(dataNO3[0])
+# for i in range(len(dataEwc)):
+#     CFL, cx, cy = giveCFL(dxlist, dyMeter, parms_run['dt'], decenturedEwc[i], decenturedNwc[i], nbrx, nbry)
+#     if np.max(CFL) > maxCFL:
+#         maxCFL = np.max(CFL)
+# if maxCFL>1:
+#     raise RuntimeError('CFL > 1')
+# model = MA_model_scipy(model_properties.parameters)
+# NO3field, NH4field, D, N_f, N_s, totalNH4deficit, totalNO3deficit = quickest(dyMeter, dxlist, parms_run['dt'],
+#                                                                              decenturedEwc, decenturedNwc, dataEwc,
+#                                                                              dataNwc, latRef.T, dataNO3, dataNH4,
+#                                                                              dataTemp, dataPAR, parms_run['Ks'], firstday, model,
+#                                                                              parms_farm['z']*1.4, parms_run['scenC'],sortedList)

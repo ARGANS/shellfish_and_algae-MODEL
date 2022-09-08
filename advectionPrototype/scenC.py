@@ -1,6 +1,5 @@
 import copy
 import os
-import stat
 import time
 import netCDF4 as nc
 import numpy as np
@@ -16,24 +15,19 @@ import sys
 # extract the data value at depth in the merged files (all the daily data merged in one file)
 sys.path.append('p:/Aquaculture/shellfish_and_algae-MODEL/dataread/src/')
 #from saveAsTiff import saveAsTiff, giveMetadata
-try:
-    from launch_model import MA_model_scipy
-    from make_runs import open_data_input, initialize_result
-    from read_netcdf import AllData, iNearest
-    from utils import import_json
-except ImportError:
-    from dataread.launch_model import MA_model_scipy
-    from dataread.make_runs import open_data_input, initialize_result
-    from dataread.read_netcdf import AllData, iNearest
-    from dataread.utils import import_json
+from launch_model import MA_model_scipy
+from make_runs import open_data_input, initialize_result
+from read_netcdf import AllData, iNearest
+from utils import import_json
 
 
-class Resampler:
-    def __init__(self, dxRatio, dyRatio, init_grid_shape):
+
+class resample:
+    def __init__(self, dxRatio, dyRatio, grid_shape):
         self.dxRatio = dxRatio
         self.dyRatio = dyRatio
-        nbry, nbrx = init_grid_shape
-        self.grid_shape = (int(nbry/dyRatio),int(nbrx/dxRatio))
+        nbry, nbrx = grid_shape
+        self.newArrayShape = (int(nbry/dyRatio),int(nbrx/dxRatio))
 
     def findElmt(self, i, j):
         newi = np.floor(i * self.dyRatio).astype(int)
@@ -41,23 +35,23 @@ class Resampler:
         return newi, newj
 
     def giveNewMatCoor(self):
-        rowCoor = np.zeros(self.grid_shape[0] * self.grid_shape[1])
-        columnCoor = np.zeros(self.grid_shape[0] * self.grid_shape[1])
-        ival, jval = self.findElmt(np.arange(self.grid_shape[0]),
-                                   np.arange(self.grid_shape[1]))
+        rowCoor = np.zeros(self.newArrayShape[0] * self.newArrayShape[1])
+        columnCoor = np.zeros(self.newArrayShape[0] * self.newArrayShape[1])
+        ival, jval = self.findElmt(np.arange(self.newArrayShape[0]),
+                                   np.arange(self.newArrayShape[1]))
         #for each row value
-        for k in range(self.grid_shape[0]):
-            rowCoor[k * self.grid_shape[1]:(k + 1) * self.grid_shape[1]] = ival[k]
-            columnCoor[k * self.grid_shape[1]:(k + 1) * self.grid_shape[1]] = jval
+        for k in range(self.newArrayShape[0]):
+            rowCoor[k * self.newArrayShape[1]:(k + 1) * self.newArrayShape[1]] = ival[k]
+            columnCoor[k * self.newArrayShape[1]:(k + 1) * self.newArrayShape[1]] = jval
         return rowCoor.astype(int), columnCoor.astype(int)
 
     def resampleLonLat(self,lon,lat):
-        lat_id, lon_id = self.findElmt(np.arange(self.grid_shape[0]), np.arange(self.grid_shape[1]))
+        lat_id, lon_id = self.findElmt(np.arange(self.newArrayShape[0]), np.arange(self.newArrayShape[1]))
         return lon[lon_id], lat[lat_id]
 
     def resampleData(self, dataArray):
         rowCoor, columnCoor = self.giveNewMatCoor()
-        resampledArray = dataArray[rowCoor, columnCoor].reshape(self.grid_shape)
+        resampledArray = dataArray[rowCoor, columnCoor].reshape(self.newArrayShape)
         return resampledArray
 
 #this function decentralize the u speeds
@@ -244,7 +238,7 @@ def prepareScenC(nitrogenArray,nanLists, grid_shape):
         for jRel in [-1, 0, 1]:  # along longitude
             nanL = nanLists[iRel,jRel]
             nitArrayLine = nitrogenArray.flatten()
-            nitArrayLine[nanL] = 0
+            nitArrayLine[nanL] = 1e-10
             nitrogenArray = nitArrayLine.reshape(grid_shape)
     return nitrogenArray
 
@@ -281,11 +275,9 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     parms_harvest = list(model_json['parameters']['harvest'].values())[0]['parameters']
     harvest_type = list(model_json['parameters']['harvest'].keys())[0]
 
-    scenC = (model_json['metadata']['scenario']=="C")
-
     year = int(model_json['dataset_parameters']['year'])
 
-    model = MA_model_scipy(model_json['parameters'])
+    model = MA_model_scipy(json_data['parameters'])
 
     # Define beginning and end times of the simulation
     startDate = datetime.datetime(year, int(parms_harvest['deployment_month']), 1)
@@ -296,8 +288,9 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
     # Data import information, except for the time
     data_kwargs = {
-                'longitude': (parms_run["min_lon"], parms_run["max_lon"]),
-                'latitude': (parms_run["min_lat"], parms_run["max_lat"]),
+                'longitude': (-4, -1),
+                #'longitude': (-14, -13),
+                'latitude': (48, 50), #TODO: get from json
                 "depth": (0, (1 + parms_run['Von_Karman']) * parms_farm["z"]),
                 "averagingDims": ("depth",)
                 }
@@ -316,19 +309,19 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         print(par_name)
         print(working_data[par_name].shape)
 
-    init_grid_shape = working_data['Nitrate'].shape #the shape should be the same for all parameters
+    grid_shape = working_data['Nitrate'].shape #the shape should be the same for all parameters
     longitudes, _ = algaeData.parameterData['Nitrate'].getVariable('longitude', **data_kwargs)
     latitudes, _ = algaeData.parameterData['Nitrate'].getVariable('latitude', **data_kwargs)
     dxMeter, dyMeter = giveDxDy(latitudes, longitudes)
     latRef = np.zeros((len(latitudes), len(longitudes)))
     latRef[:, :] = latitudes[np.newaxis].T
 
-    grid_shape = init_grid_shape
+    newArrayShape = grid_shape
     if scenC:
-        dxRatio = 1852 / np.mean(dxMeter) #1852 meters = 1 nautical mile
+        dxRatio = 1852 / np.mean(dxMeter)
         dyRatio = 1852 / np.mean(dyMeter)
-        resa = Resampler(dxRatio,dyRatio,init_grid_shape)
-        grid_shape = resa.grid_shape
+        resa = resample(dxRatio,dyRatio,grid_shape)
+        newArrayShape = resa.newArrayShape
         for par_name, par_data in input_data.parameterData.items():
             working_data[par_name] = resa.resampleData(working_data[par_name])
         latRef = resa.resampleData(latRef)
@@ -344,26 +337,26 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
     # Initialize the model variables
     state_vars = {
-        'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask),
-        'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask),
-        'N_s': np.ma.masked_array(np.zeros(grid_shape), mask),
-        'N_f': np.ma.masked_array(np.ones(grid_shape) * parms_harvest['deployment_Nf'], mask),
-        'D': np.ma.masked_array(np.ones(grid_shape) * parms_run["Detritus"], mask)
+        'cNO3': np.ma.masked_array(np.zeros(newArrayShape), mask),
+        'cNH4': np.ma.masked_array(np.zeros(newArrayShape), mask),
+        'N_s': np.ma.masked_array(np.zeros(newArrayShape), mask),
+        'N_f': np.ma.masked_array(np.ones(newArrayShape) * parms_harvest['deployment_Nf'], mask),
+        'D': np.ma.masked_array(np.ones(newArrayShape) * parms_run["Detritus"], mask)
     }
     if scenC:
-        state_vars['N_s'] = prepareScenC(state_vars['N_s'], nanLists, grid_shape)
-        state_vars['N_f'] = prepareScenC(state_vars['N_f'], nanLists, grid_shape)
+        state_vars['N_s'] = prepareScenC(state_vars['N_s'], nanLists, newArrayShape)
+        state_vars['N_f'] = prepareScenC(state_vars['N_f'], nanLists, newArrayShape)
 
-    working_data["decentered_U"] = np.ma.masked_array(np.zeros((grid_shape[0], grid_shape[1] + 1)))
+    working_data["decentered_U"] = np.ma.masked_array(np.zeros((newArrayShape[0], newArrayShape[1] + 1)))
     working_data["decentered_U"][:, 1:-1] = (working_data['eastward_Water_current'][:, 1:] + working_data['eastward_Water_current'][:, :-1]) / 2
     working_data["decentered_U"][working_data["decentered_U"].mask] = 0
 
-    working_data["decentered_V"] = np.ma.masked_array(np.zeros((grid_shape[0] + 1, grid_shape[1])))
+    working_data["decentered_V"] = np.ma.masked_array(np.zeros((newArrayShape[0] + 1, newArrayShape[1])))
     working_data["decentered_V"][1:-1, :] = (working_data['northward_Water_current'][1:, :] + working_data['northward_Water_current'][:-1, :]) / 2
     working_data["decentered_V"][working_data["decentered_V"].mask] = 0
 
     dt = 1/72 # days # TODO: make into parameter in json
-
+    #dt = 0.2/72 # days # TODO: make into parameter in json
     Ks = 1e-3 * 60 * 60 * 24 # m2/s
 
     # Simulation loop
@@ -394,15 +387,10 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
                     working_data["decentered_V"][1:-1, :] = (working_data['northward_Water_current'][1:, :] + working_data['northward_Water_current'][:-1, :]) / 2
                     working_data["decentered_V"][working_data["decentered_V"].mask] = 0
 
-        if (model_json['metadata']['scenario'] == "A"):
-            advection_terms = advection_modelA(state_vars=state_vars, working_data=working_data,
-                                               dt=dt, dxMeter=dxMeter, dyMeter=dyMeter,
-                                               paramDetritus=parms_run["Detritus"])
-        else:
-            # Compute the advection terms
-            advection_terms = advection_model(state_vars=state_vars, working_data=working_data,
-                                              dt=dt, dxMeter=dxMeter, dyMeter=dyMeter, nanLists=nanLists,
-                                              Ks=Ks)
+        # Compute the advection terms
+        advection_terms = advection_model(state_vars=state_vars, working_data=working_data,
+                                          dt=dt, dxMeter=dxMeter, dyMeter=dyMeter, nanLists=nanLists,
+                                          Ks=Ks)
 
         # Apply the advection
         for var_name in state_vars.keys():
@@ -440,7 +428,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         # Apply the bgc terms
         if scenC:
             for var_name in state_vars.keys():
-                bgc_terms[var_name] = prepareScenC(bgc_terms[var_name], nanLists, grid_shape)
+                bgc_terms[var_name] = prepareScenC(bgc_terms[var_name], nanLists, newArrayShape)
         for var_name in state_vars.keys():
             state_vars[var_name] += bgc_terms[var_name] * dt
 
@@ -474,14 +462,16 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         sim_date += datetime.timedelta(days = dt)
 
     if scenC:
-        latStep = (latitudes[-1]-latitudes[0])/(grid_shape[0]-1)
-        lonStep = (longitudes[-1]-longitudes[0])/(grid_shape[1]-1)
-
-        latitudes = latStep*np.arange(grid_shape[0])+latitudes[0]
-        longitudes = lonStep * np.arange(grid_shape[1]) + longitudes[0]
+        latStep = (latitudes[-1]-latitudes[0])/(newArrayShape[0]-1)
+        lonStep = (longitudes[-1]-longitudes[0])/(newArrayShape[1]-1)
+        latitudes = latStep*np.arange(newArrayShape[0])+latitudes[0]
+        longitudes = lonStep * np.arange(newArrayShape[1]) + longitudes[0]
 
     state_vars['NH4'] = working_data['Ammonium'] + state_vars['cNH4']
     state_vars['NO3'] = working_data['Nitrate'] + state_vars['cNO3']
+
+    state_vars['N_f'][mask] = np.nan
+    state_vars['N_s'][mask] = np.nan
 
     # Create output file
     initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
@@ -501,7 +491,7 @@ def bgc_model(state_vars: dict, working_data: dict, dt, model, parms_run, days, 
     data_in = {
         'SST': working_data['Temperature'],
         'PAR': working_data['par'],
-        'PO4_ext': working_data['Phosphate'], #TODO: from working data
+        'PO4_ext': 50, #TODO: from working data
         'K_d': parms_run["K_d490"],
         't_z': (1 + parms_run['Von_Karman']) * model._parameters["z"]
     }
@@ -519,48 +509,6 @@ def bgc_model(state_vars: dict, working_data: dict, dt, model, parms_run, days, 
 
     return all_terms
 
-def advection_modelA(state_vars: dict, working_data: dict, dt, dxMeter: np.array, dyMeter: np.array, paramDetritus):
-
-    mask = working_data['Nitrate'].mask
-    grid_shape = working_data['Nitrate'].shape
-
-    uGreater0 = ((working_data["decentered_U"][:, 1:] > 0) * working_data["decentered_U"][:, 1:]).flatten()
-    uLower0 = ((working_data["decentered_U"][:, :-1] < 0) * working_data["decentered_U"][:, :-1]).flatten()
-
-    vGreater0 = ((working_data["decentered_V"][1:] > 0) * working_data["decentered_V"][1:]).flatten()
-    vLower0 = ((working_data["decentered_V"][:-1] < 0) * working_data["decentered_V"][:-1]).flatten()
-
-    cNO3_line = state_vars['cNO3'].flatten()
-    cNH4_line = state_vars['cNH4'].flatten()
-    D_line_eps = paramDetritus-state_vars['D'].flatten()
-    dx = dxMeter.flatten()
-    dy = dyMeter.flatten()
-
-    #we compute the advection terms
-    advNO3 = ((dt / dx) * (-uGreater0 + uLower0) + (dt / dy) * (-vGreater0 + vLower0))*cNO3_line
-    advNH4 = ((dt / dx) * (-uGreater0 + uLower0) + (dt / dy) * (-vGreater0 + vLower0))*cNH4_line
-    advD = -((dt / dx) * (-uGreater0 + uLower0) + (dt / dy) * (-vGreater0 + vLower0))*D_line_eps
-
-    print(np.mean(advNO3),np.mean(advNH4), np.mean(advD))
-    # reshape to the grid
-    advNO3 = advNO3.reshape(grid_shape)
-    advNH4 = advNH4.reshape(grid_shape)
-    advD = advD.reshape(grid_shape)
-
-    # reapply masks that were altered
-    advNO3.mask = mask
-    advNH4.mask = mask
-    advD.mask = mask
-
-    all_terms = {
-        'cNO3': advNO3 / dt,
-        'cNH4': advNH4 / dt,
-        'N_s': 0,
-        'N_f': 0,
-        'D': advD / dt
-    }
-
-    return all_terms
 
 def advection_model(state_vars: dict, working_data: dict, dt, dxMeter: np.array, dyMeter: np.array,
                     nanLists: np.array, Ks):
@@ -745,6 +693,8 @@ if __name__ == "__main__":
     dateBeginning = '2020-09-01 00:00:00'
     dateEnd = '2020-04-30 00:00:00'
 
+    scenC = False
+
     # discr = 144
     discr = 72  # Baltic, NWS, IBI
     #discr = 48 #BS
@@ -756,6 +706,7 @@ if __name__ == "__main__":
     CPlat, CPlon = 153, 56
 
     model_params = "p:/Aquaculture/shellfish_and_algae-MODEL/macroalgae/macroalgae_model_parameters_input.json"
+
     json_data = import_json(model_params)
 
     parms_run = list(json_data['parameters']['run'].values())[0]['parameters']
@@ -787,28 +738,28 @@ if __name__ == "__main__":
     #print(dict_to_AllData)
     dict_to_AllData = {
         "Temperature": {
-            'file_name': f'D:/data_scenario_B/{zone}/merged_Temperature_{zone}.nc',
+            'file_name': f'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_Temperature_{zone}.nc',
             'variable_name': 'thetao',
             'unit_conversion': 1,
             'time_zero': datetime.datetime(1970, 1, 1),
             'time_step': datetime.timedelta(seconds=1)
         },
         "Nitrate": {
-            'file_name': f'D:/data_scenario_B/{zone}/merged_Nitrate_{zone}.nc',
+            'file_name': f'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_Nitrate_{zone}.nc',
             'variable_name': 'no3',
             'unit_conversion': 14,
             'time_zero': datetime.datetime(1970, 1, 1),
             'time_step': datetime.timedelta(seconds=1)
         },
         "eastward_Water_current": {
-            'file_name': f'D:/data_scenario_B/{zone}/merged_eastward_Water_current_{zone}.nc',
+            'file_name': f'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_eastward_Water_current_{zone}.nc',
             'variable_name': 'uo',
             'unit_conversion': 86400,
             'time_zero': datetime.datetime(1970, 1, 1),
             'time_step': datetime.timedelta(seconds=1)
         },
         "northward_Water_current": {
-            'file_name': f'D:/data_scenario_B/{zone}/merged_northward_Water_current_{zone}.nc',
+            'file_name': f'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/merged_northward_Water_current_{zone}.nc',
             'variable_name': 'vo',
             'unit_conversion': 86400,
             'time_zero': datetime.datetime(1970, 1, 1),
@@ -820,7 +771,7 @@ if __name__ == "__main__":
     dict_to_AllData['Ammonium']['unit_conversion'] /= 10
 
     dict_to_AllData['par'] = {
-        'file_name': f'D:/data_scenario_B/{zone}/PAR_NewGrid.nc',
+        'file_name': f'D:/Profils/mjaouen/Documents/alternance/EASME/data/{zone}/PAR_{zone}NewGrid.nc',
         'variable_name': 'par',
         'latitude_name': 'lat',
         'longitude_name': 'lon',
