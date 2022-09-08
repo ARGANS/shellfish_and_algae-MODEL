@@ -394,10 +394,15 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
                     working_data["decentered_V"][1:-1, :] = (working_data['northward_Water_current'][1:, :] + working_data['northward_Water_current'][:-1, :]) / 2
                     working_data["decentered_V"][working_data["decentered_V"].mask] = 0
 
-        # Compute the advection terms
-        advection_terms = advection_model(state_vars=state_vars, working_data=working_data,
-                                          dt=dt, dxMeter=dxMeter, dyMeter=dyMeter, nanLists=nanLists,
-                                          Ks=Ks)
+        if (model_json['metadata']['scenario'] == "A"):
+            advection_terms = advection_modelA(state_vars=state_vars, working_data=working_data,
+                                               dt=dt, dxMeter=dxMeter, dyMeter=dyMeter,
+                                               paramDetritus=parms_run["Detritus"])
+        else:
+            # Compute the advection terms
+            advection_terms = advection_model(state_vars=state_vars, working_data=working_data,
+                                              dt=dt, dxMeter=dxMeter, dyMeter=dyMeter, nanLists=nanLists,
+                                              Ks=Ks)
 
         # Apply the advection
         for var_name in state_vars.keys():
@@ -514,6 +519,48 @@ def bgc_model(state_vars: dict, working_data: dict, dt, model, parms_run, days, 
 
     return all_terms
 
+def advection_modelA(state_vars: dict, working_data: dict, dt, dxMeter: np.array, dyMeter: np.array, paramDetritus):
+
+    mask = working_data['Nitrate'].mask
+    grid_shape = working_data['Nitrate'].shape
+
+    uGreater0 = ((working_data["decentered_U"][:, 1:] > 0) * working_data["decentered_U"][:, 1:]).flatten()
+    uLower0 = ((working_data["decentered_U"][:, :-1] < 0) * working_data["decentered_U"][:, :-1]).flatten()
+
+    vGreater0 = ((working_data["decentered_V"][1:] > 0) * working_data["decentered_V"][1:]).flatten()
+    vLower0 = ((working_data["decentered_V"][:-1] < 0) * working_data["decentered_V"][:-1]).flatten()
+
+    cNO3_line = state_vars['cNO3'].flatten()
+    cNH4_line = state_vars['cNH4'].flatten()
+    D_line_eps = paramDetritus-state_vars['D'].flatten()
+    dx = dxMeter.flatten()
+    dy = dyMeter.flatten()
+
+    #we compute the advection terms
+    advNO3 = ((dt / dx) * (-uGreater0 + uLower0) + (dt / dy) * (-vGreater0 + vLower0))*cNO3_line
+    advNH4 = ((dt / dx) * (-uGreater0 + uLower0) + (dt / dy) * (-vGreater0 + vLower0))*cNH4_line
+    advD = -((dt / dx) * (-uGreater0 + uLower0) + (dt / dy) * (-vGreater0 + vLower0))*D_line_eps
+
+    print(np.mean(advNO3),np.mean(advNH4), np.mean(advD))
+    # reshape to the grid
+    advNO3 = advNO3.reshape(grid_shape)
+    advNH4 = advNH4.reshape(grid_shape)
+    advD = advD.reshape(grid_shape)
+
+    # reapply masks that were altered
+    advNO3.mask = mask
+    advNH4.mask = mask
+    advD.mask = mask
+
+    all_terms = {
+        'cNO3': advNO3 / dt,
+        'cNH4': advNH4 / dt,
+        'N_s': 0,
+        'N_f': 0,
+        'D': advD / dt
+    }
+
+    return all_terms
 
 def advection_model(state_vars: dict, working_data: dict, dt, dxMeter: np.array, dyMeter: np.array,
                     nanLists: np.array, Ks):
