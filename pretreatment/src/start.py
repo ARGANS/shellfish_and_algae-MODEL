@@ -18,7 +18,7 @@ dict_dataCmd = input_parameters.get('datasets', None)
 if dict_dataCmd is None:
     raise RuntimeError('The datasets key does not exist in the source manifest file')
 
-year = input_parameters.get('year')
+year = int(input_parameters.get('year'))
 
 
 ################################################################################
@@ -36,7 +36,6 @@ for param, dataset_properties in dict_dataCmd.items():
     dir_data = source_path + '/' + param
     dir_data_pretreated = destination_path + '/' + param
     zone = dataset_properties.get('Place')
-
     file_name = f'{param}{zone}modelNetCDF{year}-01to{int(year) + 1}-01.nc'
     method = dataset_properties["pretreatment"]
     frequency = dataset_properties["frequency"]
@@ -97,7 +96,7 @@ for param, dataset_properties in dict_dataCmd.items():
                                     f' --lonName {reference_lonName}'
                                     f' --latName {reference_latName}')
 
-# Now do the reference. TODO: therer probably is a better way to do these in the correct order
+# Now do the reference. TODO: there probably is a better way to do these in the correct order
 os.system(f'python resampleGrid.py --dir {destination_path + "/" + reference_param}'
                                 f' --input {file_reference}'
                                 f' --output {file_reference}'
