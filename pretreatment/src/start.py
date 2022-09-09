@@ -76,6 +76,7 @@ for param, dataset_properties in dict_dataCmd.items():
 reference_param = 'Nitrate' #TODO: make into a parameter
 reference_lonName = dict_dataCmd[reference_param]['longName']
 reference_latName = dict_dataCmd[reference_param]['latName']
+reference_varName = dict_dataCmd[reference_param]['variable']
 reference_zone = dict_dataCmd[reference_param]['Place'] #should be the same for all params anyway
 file_reference_full = f'{destination_path}/{reference_param}/{reference_param}{reference_zone}modelNetCDF{year}-01to{int(year) + 1}-01.nc'
 
@@ -88,7 +89,8 @@ for param, dataset_properties in dict_dataCmd.items():
     os.system(f'python resampleGrid.py --dir {dir_data_pretreated}'
                                     f' --input {file_name}'
                                     f' --output {file_name}'
-                                    f' --variable {dataset_properties.get("variable")}'
+                                    f' --variableInput {dataset_properties.get("variable")}'
                                     f' --inputGrid {file_reference_full}'
+                                    f' --variableGrid {reference_varName}'
                                     f' --lonName {reference_lonName}'
                                     f' --latName {reference_latName}')

@@ -10,7 +10,9 @@ function build_images_for_pretreatment {
 
     docker build \
         --network host \
+        --build-arg REQUIREMENTS_PATH="./requirements.txt" \
         --build-arg WITH_NETCDF="true" \
+        --build-arg WITH_GDAL="true" \
         -t $base_image_tag:v1 -t $base_image_tag:latest \
         -f $base_image_dockerfile \
         $dir && \
