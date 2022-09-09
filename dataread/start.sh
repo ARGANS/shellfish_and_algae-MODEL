@@ -22,10 +22,10 @@ echo '-------------------- Last 100 lines printed to stdout --------------------
 tail -n 100 $print_log >> $error_log
 
 
-echo "Start concatenation"
-. concatenate_longitude.sh $workdir $workdir/concat.nc 2>>$error_log
-if [ ! $? -eq 0 ]; then
-    cat $error_log
-fi
+#echo "Start concatenation"
+#. concatenate_longitude.sh $workdir $workdir/concat.nc 2>>$error_log
+#if [ ! $? -eq 0 ]; then
+#    cat $error_log
+#fi
 
 echo -n $(date +%s) > $workdir/end.mark

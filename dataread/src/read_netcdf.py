@@ -216,8 +216,6 @@ def dateToNum(date, zero: datetime.datetime, step:datetime.timedelta):
 def numToDate(num, zero: datetime.datetime, step:datetime.timedelta):
     # Returns the date associated to num that is found in netCDF files
 
-    print(f'Zero {zero}, num: {num}, step: {step}')
-
     date = zero + (num * step)
 
     return date
