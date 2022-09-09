@@ -58,12 +58,9 @@ for param, dataset_properties in dict_dataCmd.items():
         os.system(f"rm {dir_data_pretreated}/conc.nc")
 
     elif method == "Reference":
-        # Link to a reference file that is already stored
-        os.system(f"ln -s {dataset_properties['product-id']} {dir_data_pretreated}/{file_name}")
-
-    # For when we add this step for Hermes or NASA data
-    #elif line["pretreatment"] == "Hermes":
-    #    ...
+        # Copy a reference file that is already stored.
+        # Should not use symlink because it we change the file later.
+        os.system(f"cp {dataset_properties['product-id']} {dir_data_pretreated}/{file_name}")
 
     else: # for the data that requires no pretreatment
         os.system(f"ln -s {dir_data}/* {dir_data_pretreated}/{file_name}")
@@ -78,9 +75,14 @@ reference_lonName = dict_dataCmd[reference_param]['longName']
 reference_latName = dict_dataCmd[reference_param]['latName']
 reference_varName = dict_dataCmd[reference_param]['variable']
 reference_zone = dict_dataCmd[reference_param]['Place'] #should be the same for all params anyway
-file_reference_full = f'{destination_path}/{reference_param}/{reference_param}{reference_zone}modelNetCDF{year}-01to{int(year) + 1}-01.nc'
+file_reference = f'{reference_param}{reference_zone}modelNetCDF{year}-01to{int(year) + 1}-01.nc'
+file_reference_full = f'{destination_path}/{reference_param}/{file_reference}'
 
 for param, dataset_properties in dict_dataCmd.items():
+
+    # wait to do the reference param last
+    if param == reference_param:
+        continue
 
     dir_data_pretreated = destination_path + '/' + param
     zone = dataset_properties.get('Place')
@@ -94,3 +96,13 @@ for param, dataset_properties in dict_dataCmd.items():
                                     f' --variableGrid {reference_varName}'
                                     f' --lonName {reference_lonName}'
                                     f' --latName {reference_latName}')
+
+# Now do the reference. TODO: therer probably is a better way to do these in the correct order
+os.system(f'python resampleGrid.py --dir {destination_path + "/" + reference_param}'
+                                f' --input {file_reference}'
+                                f' --output {file_reference}'
+                                f' --variableInput {reference_varName}'
+                                f' --inputGrid {file_reference_full}'
+                                f' --variableGrid {reference_varName}'
+                                f' --lonName {reference_lonName}'
+                                f' --latName {reference_latName}')

@@ -8,7 +8,7 @@ echo -n $(date +%s) > $destination/start.mark
 mkdir -p $destination/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature,pCO2,disolved_inorganic_carbon,primary_producer_POC,ocean_mixed_layer_thickness,par}
 
 error_log=$destination/error.txt
-print_log=$workdir/print.txt
+print_log=$destination/print.txt
 
 python start.py 1>$print_log 2>$error_log
 
