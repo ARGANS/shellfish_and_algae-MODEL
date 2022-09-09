@@ -15,24 +15,26 @@ cp $input_path/parameters.json $destination/parameters.json
 cp $input_path/concat.nc $tmp_path/concat.nc
 
 # ??? catch error log
-    # error_log=$workdir/error.txt
+error_log=$destination/error.txt
+print_log=$destination/print.txt
 
-    # python start.py 2>$error_log
-    # if [ $? -eq 0 ]
-    # then
-    #   echo "Success"
-    # else
-    #   echo "Failure:"
-    #   echo 'Finished '$(date "+%d/%m/%Y %H:%M:%S") >> $error_log
-    #   cat $error_log
-    # fi
+./make_interest_vars.R $tmp_path/concat.nc $input_path/parameters.json 1>$print_log 2>$error_log
+if [ $? -eq 0 ]
+then
+  echo "Success"
+else
+  echo "Failure:"
+  echo 'Finished '$(date "+%d/%m/%Y %H:%M:%S") >> $error_log
+  cat $error_log
+fi
 
-
-    # echo "Start concatenation"
-    # . concatenate_longitude.sh $workdir $workdir/concat.nc 2>>$error_log
-    # if [ ! $? -eq 0 ]; then
-    #     cat $error_log    
-    # fi
+echo "Start concatenation"
+. concatenate_longitude.sh $workdir $workdir/concat.nc 2>>$error_log
+if [ ! $? -eq 0 ]; then
+    cat $error_log
+fi
+echo '-------------------- Last 100 lines printed to stdout --------------------' >> $error_log
+tail -n 100 $print_log >> $error_log
 
 
 ./make_interest_vars.R $tmp_path/concat.nc $input_path/parameters.json
