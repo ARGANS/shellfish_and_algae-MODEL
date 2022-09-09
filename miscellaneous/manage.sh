@@ -43,10 +43,25 @@ dataread_destination="$dataimport_destination/_dataread/$modelProperties_hash"
 posttreatment_source="$dataread_destination"
 
 
-scenario_b_json=`cat $DIR/__user1_alaria_NWS_11-08-2022.json`
+# scenario_b_json=`cat $DIR/__user1_alaria_NWS_11-08-2022.json`
+# dataset_id='3a881fd5c4aff18e57c35523c289fe88'
+
+scenario_b_json=`cat $DIR/__user1_alaria_MED_06-09-2022.json`
+dataset_id='d066c005901af8a84dd90448ccef90c0'
+
 scenario_b_hash=`echo -n "$scenario_b_json" | md5sum | head -c 32`
-scenario_b_source="/media/share/data/090990ce067fe9eae9aff0e040fd921a/_pretreated"
-scenario_b_destination="/media/share/data/090990ce067fe9eae9aff0e040fd921a/_dataread-b/${scenario_b_hash}_b"
+scenario_b_source="/media/share/data/$dataset_id/_pretreated"
+scenario_b_destination="/media/share/data/$dataset_id/_dataread-b/${scenario_b_hash}_b"
+
+
+function action_update {
+    local container_name=${2:-'ac-datareadb_run'}
+    local container_id=$( docker ps -q -f name=$container_name)
+    echo "Update $container_id"
+    docker cp global/dataCmd.csv ${container_id}:/opt/dataCmd.csv
+}
+
+
 
 function handle_arguments {
     local command="$1"
@@ -115,6 +130,10 @@ function handle_arguments {
 
         'create_volumes')
             create_volumes
+            ;;
+
+        'update')
+            action_update $@
             ;;
         
 

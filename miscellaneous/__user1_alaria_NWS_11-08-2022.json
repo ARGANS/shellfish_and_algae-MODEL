@@ -76,7 +76,7 @@
 			"zone": "NWS",
 			"date": "11-08-2022"
 		},
-		"scenario": "B"
+		"scenario": "A"
 	},
 	"dataset_parameters": {
 		"depth-min": 0,
@@ -113,8 +113,8 @@
 				"timeName": "time",
 				"frequency": "daily",
 				"unitFactor": "",
-				"timeOrigin": "1950-01-01T00:00:00Z",
-				"timeUnit": "hours",
+				"timeOrigin": "1970-01-01T00:00:00Z",
+				"timeUnit": "seconds",
 				"dataimport": "Copernicus",
 				"pretreatment": "Copernicus"
 			},
@@ -148,8 +148,8 @@
 				"timeName": "time",
 				"frequency": "daily",
 				"unitFactor": 14,
-				"timeOrigin": "1950-01-01T00:00:00Z",
-				"timeUnit": "hours",
+				"timeOrigin": "1970-01-01T00:00:00Z",
+				"timeUnit": "seconds",
 				"dataimport": "Copernicus",
 				"pretreatment": "Copernicus"
 			},
@@ -183,8 +183,8 @@
 				"timeName": "time",
 				"frequency": "daily",
 				"unitFactor": 1.4,
-				"timeOrigin": "1950-01-01T00:00:00Z",
-				"timeUnit": "hours",
+				"timeOrigin": "1970-01-01T00:00:00Z",
+				"timeUnit": "seconds",
 				"dataimport": "Copernicus",
 				"pretreatment": "Copernicus"
 			},
@@ -218,8 +218,8 @@
 				"timeName": "time",
 				"frequency": "daily",
 				"unitFactor": "",
-				"timeOrigin": "1950-01-01T00:00:00Z",
-				"timeUnit": "hours",
+				"timeOrigin": "1970-01-01T00:00:00Z",
+				"timeUnit": "seconds",
 				"dataimport": "Copernicus",
 				"pretreatment": "Copernicus"
 			},
@@ -253,8 +253,8 @@
 				"timeName": "time",
 				"frequency": "daily",
 				"unitFactor": 86400,
-				"timeOrigin": "1950-01-01T00:00:00Z",
-				"timeUnit": "hours",
+				"timeOrigin": "1970-01-01T00:00:00Z",
+				"timeUnit": "seconds",
 				"dataimport": "Copernicus",
 				"pretreatment": "Copernicus"
 			},
@@ -288,8 +288,8 @@
 				"timeName": "time",
 				"frequency": "daily",
 				"unitFactor": 86400,
-				"timeOrigin": "1950-01-01T00:00:00Z",
-				"timeUnit": "hours",
+				"timeOrigin": "1970-01-01T00:00:00Z",
+				"timeUnit": "seconds",
 				"dataimport": "Copernicus",
 				"pretreatment": "Copernicus"
 			},
