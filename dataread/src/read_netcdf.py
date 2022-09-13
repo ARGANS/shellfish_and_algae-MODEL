@@ -1,4 +1,5 @@
 import datetime
+import re
 import numpy as np
 import netCDF4 as nc
 import pandas as pd
@@ -239,6 +240,7 @@ class ParamData:
             'depth': depth_name
         }
 
+        ### Manage latitude_name
         if latitude_name in self.ds.dimensions.keys(): #refering to dimensions rather than variables
             self._dimNames['latitude'] = latitude_name
         else: # Test a few common values
@@ -249,6 +251,7 @@ class ParamData:
                     self._dimNames['latitude'] = alt_name
             print(f'Warning: Dimension "{latitude_name}" not found in "{file_name}"; "{self._dimNames["latitude"]}" was used instead.')
 
+        # manage longitude_name
         if longitude_name in self.ds.dimensions.keys(): #refering to dimensions rather than variables
             self._dimNames['longitude'] = longitude_name
         else: # Test a few common values
@@ -261,8 +264,28 @@ class ParamData:
 
         self._unitConversion = unit_conversion
 
+        # Set time zero and step to the passed values
         self._time_zero = time_zero # datetime.datetime object
         self._time_step = time_step # datetime.timedelta object
+
+        # Attemps to process time units if the format is regular. If so, overrule provided values
+        if 'units' in self.ds[self._dimNames['time']].ncattrs():
+
+            unit_str = self.ds[self._dimNames['time']].units
+            match = re.fullmatch('((seconds)|(minutes)|(hours)|(days)) since \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}', unit_str)
+
+            if match:
+                unit_str, start_str = unit_str.split(' since ')
+
+                # time_step is 1 in either seconds/minutes/hours/days
+                self._time_step = datetime.timedelta(**{unit_str: 1})
+
+                self._time_zero = datetime.datetime.strptime(start_str, "%Y-%m-%d %H:%M:%S")
+
+                if self._time_step != time_step:
+                    print(f'Time step parameter was overruled because a different one was found in {self._dimNames["time"]}.units')
+                if self._time_zero != time_zero:
+                    print(f'Time zero parameter was overruled because a different one was found in {self._dimNames["time"]}.units')
 
 
     def getVariable(self, variable=None, averagingDims=None, weighted=True,
