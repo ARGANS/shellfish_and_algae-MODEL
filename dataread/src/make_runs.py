@@ -108,6 +108,54 @@ def findNan(mask):
 
     return nanPositions
 
+#creates the matrix to compute the flux in u direction
+def createMatE_available(decenteredEwc, nanLists):
+    nbrx, nbry = decenteredEwc[:, 1:].shape
+
+    offset = np.array([-1, 1])
+
+    uGreater0 = ((decenteredEwc[:, :-1] > 0) * decenteredEwc[:, :-1]).flatten()
+    uLower0 = ((decenteredEwc[:, 1:] < 0) * decenteredEwc[:, 1:]).flatten()
+
+    termA = -uGreater0
+    termB = uLower0
+
+
+    termA[::nbry] = 0
+    termB[nbry - 1::nbry] = 0
+
+    termA[nanLists[0, -1]] = 0
+    termB[nanLists[0, 1]] = 0
+
+    data = np.zeros((2, nbrx * nbry))
+    data[0, :-1] = termA[1:]
+    data[1, 1:] = termB[:-1]
+    Mat = dia_matrix((data, offset), shape=(nbrx * nbry, nbrx * nbry))
+
+    return Mat
+
+#creates the matrix to compute the flux in v direction
+def createMatN_available(decenteredNwc, nanLists):
+    nbrx, nbry = decenteredNwc[1:, :].shape
+
+    offset = np.array([-nbry, nbry])
+
+    vGreater0 = ((decenteredNwc[:-1] > 0) * decenteredNwc[:-1]).flatten()
+    vLower0 = ((decenteredNwc[1:] < 0) * decenteredNwc[1:]).flatten()
+
+    termA = -vGreater0
+    termB = vLower0
+
+    termA[nanLists[-1, 0]] = 0
+
+    termB[nanLists[1, 0]] = 0
+
+    data = np.zeros((2, nbrx * nbry))
+    data[0, :-nbry] = termA[nbry:]
+    data[1, nbry:] = termB[:-nbry]
+    Mat = dia_matrix((data, offset), shape=(nbrx * nbry, nbrx * nbry))
+
+    return Mat
 
 #creates the matrix to compute the flux in u direction
 def createMatE(decenteredEwc, nanLists, alpha1, alpha2):
@@ -317,6 +365,12 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         'N_f': np.ma.masked_array(np.ones(grid_shape) * parms_harvest['deployment_Nf'], mask),
         'D': np.ma.masked_array(np.ones(grid_shape) * parms_run["Detritus"], mask)
     }
+
+    availableNut = {
+        'avNO3': np.ma.masked_array(np.zeros(grid_shape), mask),
+        'avNH4': np.ma.masked_array(np.zeros(grid_shape), mask),
+    }
+
     if scenC:
         state_vars['N_s'] = prepareScenC(state_vars['N_s'], nanLists, grid_shape)
         state_vars['N_f'] = prepareScenC(state_vars['N_f'], nanLists, grid_shape)
@@ -362,6 +416,11 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
                     working_data[par_name].filled(fill_value=0)
                 else:
                     working_data[par_name].filled(fill_value=8)
+
+        availableNut_term = give_availableNut(working_data=working_data,
+                                              dt=dt, dxMeter=dxMeter, dyMeter=dyMeter, nanLists=nanLists)
+        for var_name in ['avNO3', 'avNH4']:
+            availableNut[var_name] += availableNut_term[var_name]
 
         if (model_json['metadata']['scenario'] == "A"):
             advection_terms = advection_modelA(state_vars=state_vars, working_data=working_data,
@@ -460,6 +519,10 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     ds = nc.Dataset(out_file_name, 'a')
     for name in model.names:
         ds[name][1,:,:] = np.ma.masked_array(state_vars[name], mask)
+    for name in ['avNH4', 'avNO3']:
+        ds[name][0, :, :] = np.ma.masked_array(availableNut[name], mask)
+        availableNut[name] = np.ma.masked_array(availableNut[name], mask)
+        availableNut[name][availableNut[name].mask] = np.nan
     ds.close()
 
     return time.time() - t_init
@@ -486,6 +549,37 @@ def bgc_model(state_vars: dict, working_data: dict, dt, model, parms_run, days, 
 
     terms_list = model.hadley_advection(days, y, data_in, dt, latRef)
     all_terms = dict(zip(["cNH4", "cNO3", "N_s", "N_f", "D"], terms_list))
+
+    return all_terms
+
+def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.array,nanLists: np.array):
+    mask = working_data['Nitrate'].mask
+    grid_shape = working_data['Nitrate'].shape
+
+    NO3_line = working_data['Nitrate'].flatten()
+    NH4_line = working_data['Ammonium'].flatten()
+    dx = dxMeter.flatten()
+    dy = dyMeter.flatten()
+
+    matE = createMatE_available(working_data["decentered_U"], nanLists)
+    matN = createMatN_available(working_data["decentered_V"], nanLists)
+
+    # we compute the advection terms
+    advNO3 = -(dt / dx) * matE.dot(NO3_line)-(dt / dy) * matN.dot(NO3_line)
+    advNH4 = -(dt / dx) * matE.dot(NH4_line)-(dt / dy) * matN.dot(NH4_line)
+
+    # reshape to the grid
+    advNO3 = advNO3.reshape(grid_shape)
+    advNH4 = advNH4.reshape(grid_shape)
+
+    # reapply masks that were altered
+    advNO3 = np.ma.masked_array(advNO3, mask)
+    advNH4 = np.ma.masked_array(advNH4, mask)
+
+    all_terms = {
+        'avNO3': advNO3,
+        'avNH4': advNH4,
+    }
 
     return all_terms
 
