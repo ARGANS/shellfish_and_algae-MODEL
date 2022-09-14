@@ -377,16 +377,15 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     latRef = np.zeros((len(latitudes), len(longitudes)))
     latRef[:, :] = latitudes[np.newaxis].T
 
-    mask = working_data['Nitrate'].mask
+    mask = working_data['northward_Water_current'].mask
     for par_name, par_data in input_data.parameterData.items():
         working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],
                                                       dataBounds[par_name][1])
         if par_name != 'par':
-            mask = np.ma.mask_or(mask, working_data[par_name].mask)
-            working_data[par_name][mask] = 0
+            working_data[par_name].filled(fill_value=0)
         else:
             working_data[par_name].filled(fill_value=8)
-    print(mask.shape)
+        # mask = np.ma.mask_or(mask, working_data[par_name].mask)
 
     grid_shape = init_grid_shape
     if scenC:
@@ -474,10 +473,10 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
                 if par_name == "northward_Water_current":
                     working_data["decentered_V"][1:-1, :] = (working_data['northward_Water_current'][1:, :] + working_data['northward_Water_current'][:-1, :]) / 2
                 if par_name != 'par':
-                    mask = np.ma.mask_or(mask, working_data[par_name].mask)
-                    working_data[par_name][mask] = 0
+                    working_data[par_name].filled(fill_value=0)
                 else:
                     working_data[par_name].filled(fill_value=8)
+
         if (model_json['metadata']['scenario']=="avNut"):
             availableNut_term = give_availableNut(working_data=working_data,
                                                    dt=dt, dxMeter=dxMeter, dyMeter=dyMeter, nanLists=nanLists)
