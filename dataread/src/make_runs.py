@@ -347,17 +347,15 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
             if new_i != nearest_time_i[par_name]:
                 nearest_time_i[par_name] = new_i
                 working_data[par_name], _ = par_data.getVariable(time_index=new_i, **data_kwargs)
-                working_data[par_name][mask] = 0
 
                 if scenC:
                     working_data[par_name] = resa.resampleData(working_data[par_name])
                 # Update the centered currents as well
                 if par_name == "eastward_Water_current":
                     working_data["decentered_U"][:, 1:-1] = (working_data['eastward_Water_current'][:, 1:] + working_data['eastward_Water_current'][:, :-1]) / 2
-                    working_data["decentered_U"][working_data["decentered_U"].mask] = 0
                 if par_name == "northward_Water_current":
                     working_data["decentered_V"][1:-1, :] = (working_data['northward_Water_current'][1:, :] + working_data['northward_Water_current'][:-1, :]) / 2
-                    working_data["decentered_V"][working_data["decentered_V"].mask] = 0
+                working_data[par_name][mask] = 0
 
         if (model_json['metadata']['scenario'] == "A"):
             advection_terms = advection_modelA(state_vars=state_vars, working_data=working_data,
