@@ -222,6 +222,16 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
     t_init = time.time()
 
+    dataBounds = {
+        'northward_Water_current': [-1e7,1e7],
+        'eastward_Water_current': [-1e7,1e7],
+        'Nitrate': [-1e-2,1e4],
+        'Ammonium': [-1e-2,1e4],
+        'Temperature': [-1e4, 1e4],
+        'Phosphate' : [-1e-2,1e4],
+        'par' : [-1e-2,1e4]
+    }
+
     # Parse the input json info
     parms_run = list(model_json['parameters']['run'].values())[0]['parameters']
     parms_farm = list(model_json['parameters']['farm'].values())[0]['parameters']
@@ -270,6 +280,13 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     latRef = np.zeros((len(latitudes), len(longitudes)))
     latRef[:, :] = latitudes[np.newaxis].T
 
+    mask = working_data['Nitrate'].mask
+    for par_name, par_data in input_data.parameterData.items():
+        working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],
+                                                      dataBounds[par_name][1])
+        mask = np.ma.mask_or(mask, working_data[par_name].mask)
+        working_data[par_name][mask] = 0
+
     grid_shape = init_grid_shape
     if scenC:
         dxRatio = 1852 / np.mean(dxMeter) #1852 meters = 1 nautical mile
@@ -281,13 +298,13 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         latRef = resa.resampleData(latRef)
         dyMeter = resa.resampleData(dyMeter)
         dxMeter = resa.resampleData(dxMeter)
+        mask = resa.resampleData(mask)
+    nanLists = findNan(mask)
 
     for par_name, par_data in input_data.parameterData.items():
         print(par_name)
         print(working_data[par_name].shape)
 
-    mask = working_data['Nitrate'].mask
-    nanLists = findNan(mask)
 
     # Initialize the model variables
     state_vars = {
@@ -330,6 +347,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
             if new_i != nearest_time_i[par_name]:
                 nearest_time_i[par_name] = new_i
                 working_data[par_name], _ = par_data.getVariable(time_index=new_i, **data_kwargs)
+                working_data[par_name][mask] = 0
 
                 if scenC:
                     working_data[par_name] = resa.resampleData(working_data[par_name])
