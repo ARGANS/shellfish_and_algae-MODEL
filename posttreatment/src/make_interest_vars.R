@@ -12,7 +12,7 @@ parms_file = args[2]
 
 nc = nc_open(input_file, write=T)
 
-state_vars = c('NH4', 'NO3', 'N_s', 'N_f', 'D')
+state_vars = c('NH4', 'NO3', 'N_s', 'N_f', 'D','avNO3','avNH4')
 
 data = list()
 py_default_fillval = 9969209968386869046778552952102584320
