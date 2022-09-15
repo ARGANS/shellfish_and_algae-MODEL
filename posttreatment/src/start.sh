@@ -35,12 +35,12 @@ if [ ! $? -eq 0 ]; then
 fi
 echo '-------------------- Last 100 lines printed to stdout --------------------' >> $error_log
 tail -n 100 $print_log >> $error_log
-
+echo $input_path/parameters.json >> $error_log
 
 ./make_interest_vars.R $tmp_path/concat.nc $input_path/parameters.json
 
 
-for variable in 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA'; do
+for variable in 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA' 'NO3field' 'NH4field' 'D' 'N_f' 'N_s' 'avNO3' 'avNH4'; do
     gdal_translate NETCDF:"$tmp_path/concat.nc":$variable $destination/$variable.tif
 done 
 
