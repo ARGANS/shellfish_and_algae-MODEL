@@ -19,7 +19,7 @@ py_default_fillval = 9969209968386869046778552952102584320
 for (varName in state_vars) {
     #data[[varName]] = ncvar_get(nc, varName, start=c(1, 1, 12), count=c(-1, -1, 1))
     data[[varName]] = ncvar_get(nc, varName)
-    data[[varName]][data[[varName]]==py_default_fillval] = NA
+    data[[varName]][data[[varName]]==py_default_fillval] = NaN
 }
 
 res = farmPostProcess_MA(data, parms_file, TRUE)

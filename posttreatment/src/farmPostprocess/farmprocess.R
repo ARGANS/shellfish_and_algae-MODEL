@@ -70,7 +70,14 @@ farmPostProcess_MA<-function(data,json_file,final_only=TRUE){
                     'kcal_PUA' = kcal_PUA,
                     'protein_PUA' = protein_PUA,
                     'Biomass_CO2' = Biomass_CO2,
-                    'CO2_uptake_PUA' = CO2_uptake_PUA)
+                    'CO2_uptake_PUA' = CO2_uptake_PUA,
+                    'NO3field' = NO3,
+                    'NH4field' = NH4,
+                    'D' = D,
+                    'N_f' = N_f,
+                    'N_s' = N_s,
+                    'avNO3' = avNO3,
+                    'avNH4' = avNH4)
     units_out = list('DW' = 'gDW m-3',
                      'DW_line' = 'kg/m',
                      'DW_PUA' = 'kg/m^2',
@@ -80,7 +87,14 @@ farmPostProcess_MA<-function(data,json_file,final_only=TRUE){
                      'kcal_PUA' = 'kcal/m^2',
                      'protein_PUA' = 'kg/m^2',
                      'Biomass_CO2' = 'g (CO2) /m^3',
-                     'CO2_uptake_PUA' = 'kg (CO2) / m^2')
+                     'CO2_uptake_PUA' = 'kg (CO2) / m^2',
+                     'NO3field' = 'mg N/m^3',
+                     'NH4field' = 'mg N/m^3',
+                     'D' = 'mg N/m^3',
+                     'N_f' = 'mg N/m^3',
+                     'N_s' = 'mg N/m^3',
+                     'avNO3' = 'mg N/m^3',
+                     'avNH4' = 'mg N/m^3')
     
     if(final_only){
       for (var in names(data_out)) {
