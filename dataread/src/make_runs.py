@@ -513,7 +513,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
     # Create output file
     initialize_result(out_file_name, times=[0, 1], latitudes=latitudes, longitudes=longitudes,
-                      variableNames=['NH4', 'NO3', 'N_s', 'N_f', 'D'], mask=mask)
+                      variableNames=['NH4', 'NO3', 'N_s', 'N_f', 'D', 'avNH4', 'avNO3'], mask=mask)
 
     # Write values to file
     ds = nc.Dataset(out_file_name, 'a')
