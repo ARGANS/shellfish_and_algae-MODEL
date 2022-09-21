@@ -126,6 +126,10 @@ function handle_arguments {
         'execute_posttreatment')
             run_posttreatment_action "$posttreatment_source"
             ;;
+        
+        'run_pretreatment')
+            run_posttreatment_in_interactive_mode "$posttreatment_source" "$posttreatment_destination"
+            ;;
 
 
         'create_volumes')

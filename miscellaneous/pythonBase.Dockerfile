@@ -31,5 +31,6 @@ RUN if [ ! -z "$WITH_NETCDF" ] ; then \
 ARG REQUIREMENTS_PATH
 RUN echo ":: $REQUIREMENTS_PATH"
 COPY "$REQUIREMENTS_PATH" .
+RUN if [ -f requirements.txt ] ; then python -m pip --no-cache-dir install --upgrade pip; fi
 RUN if [ -f requirements.txt ] ; then python -m pip --no-cache-dir install -r requirements.txt; fi
 
