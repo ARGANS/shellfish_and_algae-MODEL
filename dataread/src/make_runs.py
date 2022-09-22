@@ -410,8 +410,10 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
                 # Update the centered currents as well
                 if par_name == "eastward_Water_current":
                     working_data["decentered_U"][:, 1:-1] = (working_data['eastward_Water_current'][:, 1:] + working_data['eastward_Water_current'][:, :-1]) / 2
-                if par_name == "northward_Water_current":
+                elif par_name == "northward_Water_current":
                     working_data["decentered_V"][1:-1, :] = (working_data['northward_Water_current'][1:, :] + working_data['northward_Water_current'][:-1, :]) / 2
+                elif (par_name == "Nitrate") or (par_name == "Ammonium"):
+                    working_data[par_name] = np.maximum(working_data[par_name],0)
                 if par_name != 'par':
                     working_data[par_name].filled(fill_value=0)
                 else:
@@ -558,8 +560,8 @@ def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.arr
     mask = working_data['Nitrate'].mask
     grid_shape = working_data['Nitrate'].shape
 
-    NO3_line = np.maximum(working_data['Nitrate'].flatten(),0)
-    NH4_line = np.maximum(working_data['Ammonium'].flatten(),0)
+    NO3_line = working_data['Nitrate'].flatten()
+    NH4_line = working_data['Ammonium'].flatten()
     dx = dxMeter.flatten()
     dy = dyMeter.flatten()
 

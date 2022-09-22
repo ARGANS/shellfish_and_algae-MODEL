@@ -53,7 +53,7 @@ for param, dataset_properties in dict_dataCmd.items():
         else: # monthly
             os.system(f"ln -s {dir_data}/* {dir_data_pretreated}/conc.nc")
 
-        os.system(f"./resample_Arctic.sh {dir_data_pretreated} conc.nc {file_name} {dataset_properties['variable']}")
+        os.system(f"./resample_arctic.sh {dir_data_pretreated} conc.nc {file_name} {dataset_properties['variable']}")
         os.system(f"rm {dir_data_pretreated}/conc.nc")
 
     elif method == "Reference":
