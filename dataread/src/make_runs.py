@@ -558,8 +558,8 @@ def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.arr
     mask = working_data['Nitrate'].mask
     grid_shape = working_data['Nitrate'].shape
 
-    NO3_line = working_data['Nitrate'].flatten()
-    NH4_line = working_data['Ammonium'].flatten()
+    NO3_line = np.maximum(working_data['Nitrate'].flatten(),0)
+    NH4_line = np.maximum(working_data['Ammonium'].flatten(),0)
     dx = dxMeter.flatten()
     dy = dyMeter.flatten()
 
