@@ -710,7 +710,7 @@ def initialize_result(fileName:str, times, latitudes, longitudes,
 
     for name in variableNames:
         var = ds.createVariable(name, 'f4', ('time', 'latitude', 'longitude',))
-        var[:,:,:] = np.ma.masked_array(np.nan, full_mask)
+        var[:,:,:] = np.ma.masked_array(np.nan*np.ones(full_mask.shape), full_mask)
 
     ds.close()
 
