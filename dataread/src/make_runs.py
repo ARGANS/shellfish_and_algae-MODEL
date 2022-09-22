@@ -512,13 +512,15 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     state_vars['NO3'] = working_data['Nitrate'] + state_vars['cNO3']
 
     # Create output file
-    initialize_result(out_file_name, times=[0, 1], latitudes=latitudes, longitudes=longitudes,
-                      variableNames=['NH4', 'NO3', 'N_s', 'N_f', 'D', 'avNH4', 'avNO3'], mask=mask)
+    initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
+                      variableNames=['NH4', 'NO3', 'N_s', 'N_f', 'D', 'avNH4', 'avNO3', 'cNO3', 'cNH4'], mask=mask)
 
     # Write values to file
     ds = nc.Dataset(out_file_name, 'a')
     for name in model.names:
-        ds[name][1,:,:] = np.ma.masked_array(state_vars[name], mask)
+        ds[name][0,:,:] = np.ma.masked_array(state_vars[name], mask)
+    for name in ['cNO3', 'cNH4']:
+        ds[name][0,:,:] = np.ma.masked_array(state_vars[name], mask)
     for name in ['avNH4', 'avNO3']:
         ds[name][0, :, :] = np.ma.masked_array(availableNut[name], mask)
         availableNut[name] = np.ma.masked_array(availableNut[name], mask)
@@ -708,7 +710,7 @@ def initialize_result(fileName:str, times, latitudes, longitudes,
 
     for name in variableNames:
         var = ds.createVariable(name, 'f4', ('time', 'latitude', 'longitude',))
-        var[:,:,:] = np.ma.masked_array(-1*np.ones(full_mask.shape), full_mask)
+        var[:,:,:] = np.ma.masked_array(np.nan, full_mask)
 
     ds.close()
 
