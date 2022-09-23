@@ -110,8 +110,8 @@ class Decenterer:
         m, n = self._mask.shape
 
         # definition of B
-        B_u = - np.diff(Uc, axis=1).flatten()
-        B_v = - np.diff(Vc, axis=0).flatten()
+        B_u = - (Uc[:, 1:] + Uc[:, :-1]).flatten()
+        B_v = - (Vc[1:, :] + Vc[:-1, :]).flatten()
         B_l = np.zeros((m, n)).flatten()
 
         B = np.concatenate((B_u, B_v, B_l))[np.newaxis].T
@@ -123,7 +123,7 @@ class Decenterer:
         B = B[self._where_not_zero]
 
         #X = - self._Ainv.dot(B)
-        X = sp.linalg.spsolve(self._A, - B)
+        X = sp.linalg.spsolve(self._A, -B)
 
         # Apply the result where relevant in X_full
         X_full[self._where_not_zero] = X[np.newaxis].T
