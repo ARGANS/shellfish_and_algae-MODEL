@@ -2,11 +2,8 @@ import datetime
 import numpy as np
 import pandas as pd
 import time
-from scipy.integrate import solve_ivp
-from scipy.interpolate import interp1d
-from scipy import interpolate
-from scipy.sparse import dia_matrix, spdiags
-import multiprocessing as mp
+import scipy.sparse as sp
+from skimage.morphology import label
 import datetime
 from dateutil.relativedelta import *
 from .read_netcdf import *
@@ -44,6 +41,101 @@ class Resampler:
         rowCoor, columnCoor = self.giveNewMatCoor()
         resampledArray = dataArray[rowCoor, columnCoor].reshape(self.grid_shape)
         return resampledArray
+
+
+class Decenterer:
+    def __init__(self, mask, dx, dy):
+
+        self._mask = mask
+
+        m, n = self._mask.shape
+
+        # gradl(L(U, V, l)) = A * X + B
+
+        # Blocks of A
+        A_uu = sp.eye(m*(n-1)) * 2
+        A_vv = sp.eye((m-1)*n) * 2
+        A_uv = None
+        A_vu = None
+
+        diags_ul = np.ones((2, m*n))
+        diags_ul[1, :] = -1
+        ul_block = sp.dia_matrix((diags_ul, [0, 1]), shape=(n-1, n)) * dy
+        A_ul = sp.block_diag([ul_block]*m)
+
+        A_vl = sp.lil_matrix(((m-1)*n, m*n))
+        for k in range((m-1)*n):
+            A_vl[k, k] = dx
+            A_vl[k, k + n] = -dx
+
+        A_lu = A_ul.T
+        A_lv = A_vl.T
+        A_ll = None
+
+        A = sp.bmat([[A_uu, A_uv, A_ul],
+                     [A_vu, A_vv, A_vl],
+                     [A_lu, A_lv, A_ll]])
+
+
+        # masks for where currents should be 0, obtained from diff.
+        fake_UVc = np.ma.masked_array(np.zeros((m,n)), mask)
+        Uc_mask = np.ma.getmaskarray(np.diff(fake_UVc, axis=1).flatten())
+        Vc_mask = np.ma.getmaskarray(np.diff(fake_UVc, axis=0).flatten())
+
+        # Find all independent areas (SLOW)
+        labs, n_labs = label(fake_UVc.filled(1), background=1, return_num=True, connectivity=1)
+
+        # mask where the lambda constraints are unnecessary/redundant i.e.:
+        #   - where Uc/Vc is masked
+        #   - one cell per independent area
+        l_mask = mask.flatten()
+        for i in range(1, n_labs+1):
+            first_lab_index = np.where(labs.flatten() == i)[0][0]
+            l_mask[first_lab_index] = True
+
+        # Define the rows/columns of the matrix that will form a non singular matrix
+        self._where_not_zero = np.where(np.logical_not(np.concatenate((Uc_mask, Vc_mask, l_mask))))[0]
+
+        # Remove rows and columns where the values are set to 0
+        A = A.tocsc()[:, self._where_not_zero]
+        A = A[self._where_not_zero, :]
+
+        self._A = A
+
+        # invert the matrix
+        #self._Ainv = sp.linalg.inv(A)
+
+    def apply(self, Uc, Vc):
+
+        m, n = self._mask.shape
+
+        # definition of B
+        B_u = - np.diff(Uc, axis=1).flatten()
+        B_v = - np.diff(Vc, axis=0).flatten()
+        B_l = np.zeros((m, n)).flatten()
+
+        B = np.concatenate((B_u, B_v, B_l))[np.newaxis].T
+
+        # Initialize result array with zeros and mask
+        X_full = np.ma.masked_array(np.zeros(B.shape), np.ones(B.shape))
+        X_full.mask[self._where_not_zero] = True
+
+        B = B[self._where_not_zero]
+
+        #X = - self._Ainv.dot(B)
+        X = sp.linalg.spsolve(self._A, B)#, use_umfpack=True)
+
+        # Apply the result where relevant in X_full
+        X_full[self._where_not_zero] = X[np.newaxis].T
+
+
+        U = np.ma.masked_array(np.zeros((m, n+1)))
+        V = np.ma.masked_array(np.zeros((m+1, n)))
+        U[:, 1:-1] = X_full[0:(m*(n-1))].reshape((m, n-1))
+        V[1:-1, :] = X_full[(m*(n-1)):(m*(n-1) + (m-1)*n)].reshape((m-1, n))
+
+        return U.filled(0), V.filled(0)
+
 
 def degrees_to_meters(lonDist, latDist, refLat):
     """Converts degrees of latDist,lonDist to meters assuming that the latitude
@@ -100,9 +192,9 @@ def findNan(mask):
     for iRel in [-2, -1, 0, 1, 2]: # along latitude
         for jRel in [-2, -1, 0, 1, 2]: # along longitude
             # Matrix to shift mask along E-W by -jRel
-            shiftMatE = spdiags([1]*nbrx, -jRel, nbrx, nbrx).todense()
+            shiftMatE = sp.spdiags([1]*nbrx, -jRel, nbrx, nbrx).todense()
             # Matrix to shift mask along N-S by -iRel
-            shiftMatN = spdiags([1]*nbry, iRel, nbry, nbry).todense()
+            shiftMatN = sp.spdiags([1]*nbry, iRel, nbry, nbry).todense()
             nanPositions[iRel, jRel] = np.flatnonzero(shiftMatN.dot(mask).dot(shiftMatE))
 
     return nanPositions
@@ -129,7 +221,7 @@ def createMatE_available(decenteredEwc, nanLists):
     data = np.zeros((2, nbrx * nbry))
     data[0, :-1] = termA[1:]
     data[1, 1:] = termB[:-1]
-    Mat = dia_matrix((data, offset), shape=(nbrx * nbry, nbrx * nbry))
+    Mat = sp.dia_matrix((data, offset), shape=(nbrx * nbry, nbrx * nbry))
 
     return Mat
 
@@ -152,7 +244,7 @@ def createMatN_available(decenteredNwc, nanLists):
     data = np.zeros((2, nbrx * nbry))
     data[0, :-nbry] = termA[nbry:]
     data[1, nbry:] = termB[:-nbry]
-    Mat = dia_matrix((data, offset), shape=(nbrx * nbry, nbrx * nbry))
+    Mat = sp.dia_matrix((data, offset), shape=(nbrx * nbry, nbrx * nbry))
 
     return Mat
 
@@ -189,7 +281,7 @@ def createMatE(decenteredEwc, nanLists, alpha1, alpha2):
     data[2, 1:] = termC[:-1]
     data[3, :-2] = termD[2:]
     data[4, 2:] = termE[:-2]
-    Mat = dia_matrix((data, offset), shape=(nbrx * nbry, nbrx * nbry))
+    Mat = sp.dia_matrix((data, offset), shape=(nbrx * nbry, nbrx * nbry))
 
     return Mat
 
@@ -223,7 +315,7 @@ def createMatN(decenteredNwc, nanLists, alpha1, alpha2):
     data[2, nbry:] = termC[:-nbry]
     data[3, :-2 * nbry] = termD[2 * nbry:]
     data[4, 2 * nbry:] = termE[:-2 * nbry]
-    Mat = dia_matrix((data, offset), shape=(nbrx * nbry, nbrx * nbry))
+    Mat = sp.dia_matrix((data, offset), shape=(nbrx * nbry, nbrx * nbry))
 
     return Mat
 
@@ -248,14 +340,14 @@ def createMatEupwind(decenteredEwc):
     diags = np.zeros((2, nbrx * nbry))
     diags[0, :] = termAPlus
     diags[1, 1:] = termBPlus[:-1]
-    matEplus = dia_matrix((diags, offset), shape=(nbrx * nbry, nbrx * nbry))
+    matEplus = sp.dia_matrix((diags, offset), shape=(nbrx * nbry, nbrx * nbry))
 
     # Minus half matrix
     offset = np.array([0, -1])
     diags = np.zeros((2, nbrx * nbry))
     diags[0, :] = termAMinus
     diags[1, :-1] = termBMinus[1:]
-    matEminus = dia_matrix((diags, offset), shape=(nbrx * nbry, nbrx * nbry))
+    matEminus = sp.dia_matrix((diags, offset), shape=(nbrx * nbry, nbrx * nbry))
 
     return matEplus, matEminus
 
@@ -279,14 +371,14 @@ def createMatNupwind(decenteredNwc):
     diags = np.zeros((2, nbrx * nbry))
     diags[0, :] = termAPlus
     diags[1, nbry:] = termBPlus[:-nbry]
-    matNplus = dia_matrix((diags, offset), shape=(nbrx * nbry, nbrx * nbry))
+    matNplus = sp.dia_matrix((diags, offset), shape=(nbrx * nbry, nbrx * nbry))
 
     # Minus half matrix
     offset = np.array([0, -nbry])
     diags = np.zeros((2, nbrx * nbry))
     diags[0, :] = termAMinus
     diags[1, :-nbry] = termBMinus[nbry:]
-    matNminus = dia_matrix((diags, offset), shape=(nbrx * nbry, nbrx * nbry))
+    matNminus = sp.dia_matrix((diags, offset), shape=(nbrx * nbry, nbrx * nbry))
 
     return matNplus, matNminus
 
@@ -374,11 +466,10 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     working_data = {}
     for par_name, par_data in input_data.parameterData.items():
         nearest_time_i[par_name] = iNearest(startDate, time_axes[par_name])
-        working_data[par_name], _ = par_data.getVariable(time_index=nearest_time_i[par_name], **data_kwargs) #TODO: are dims really laways lat,lon ?
-
-    for par_name, par_data in input_data.parameterData.items():
+        working_data[par_name], data_dims = par_data.getVariable(time_index=nearest_time_i[par_name], **data_kwargs) #TODO: are dims really laways lat,lon ?
         print(par_name)
         print(working_data[par_name].shape)
+        print(data_dims)
 
     init_grid_shape = working_data['Nitrate'].shape #the shape should be the same for all parameters
     longitudes, _ = input_data.parameterData['Nitrate'].getVariable('longitude', **data_kwargs)
@@ -434,13 +525,18 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         state_vars['N_s'] = prepareScenC(state_vars['N_s'], nanLists, grid_shape)
         state_vars['N_f'] = prepareScenC(state_vars['N_f'], nanLists, grid_shape)
 
-    working_data["decentered_U"] = np.ma.masked_array(np.zeros((grid_shape[0], grid_shape[1] + 1)))
-    working_data["decentered_U"][:, 1:-1] = (working_data['eastward_Water_current'][:, 1:] + working_data['eastward_Water_current'][:, :-1]) / 2
-    working_data["decentered_U"][working_data["decentered_U"].mask] = 0
+    # Intitialize the decenterer and apply it to the first U/V data
+    t_init_decenterer = time.time()
+    print('Starting initialization of the decenterer')
+    decenterer = Decenterer(mask, dxMeter, dyMeter)
+    print(f'End of decenterer initialization, time taken: {(time.time() - t_init_decenterer)} seconds')
 
-    working_data["decentered_V"] = np.ma.masked_array(np.zeros((grid_shape[0] + 1, grid_shape[1])))
-    working_data["decentered_V"][1:-1, :] = (working_data['northward_Water_current'][1:, :] + working_data['northward_Water_current'][:-1, :]) / 2
-    working_data["decentered_V"][working_data["decentered_V"].mask] = 0
+    t_init_decenterer = time.time()
+    print('Starting applying the decenterer ofr the first time')
+    working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
+                                                                                  working_data['northward_Water_current'])
+    print(f'End of first decenterer application, time taken: {(time.time() - t_init_decenterer)} seconds')
+
 
     dt = 1/72 # days # TODO: make into parameter in json
 
@@ -458,6 +554,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
             data_date = sim_date
 
         # For each dataset, if the nearest i has changed, update the working data
+        reapply_decenterer = False
         for par_name, par_data in input_data.parameterData.items():
             new_i = iNearest(data_date, time_axes[par_name])
             if new_i != nearest_time_i[par_name]:
@@ -467,16 +564,18 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
                 if scenC:
                     working_data[par_name] = resa.resampleData(working_data[par_name])
                 # Update the centered currents as well
-                if par_name == "eastward_Water_current":
-                    working_data["decentered_U"][:, 1:-1] = (working_data['eastward_Water_current'][:, 1:] + working_data['eastward_Water_current'][:, :-1]) / 2
-                elif par_name == "northward_Water_current":
-                    working_data["decentered_V"][1:-1, :] = (working_data['northward_Water_current'][1:, :] + working_data['northward_Water_current'][:-1, :]) / 2
+                if par_name == "eastward_Water_current" or par_name == "northward_Water_current":
+                    reapply_decenterer = True
                 elif (par_name == "Nitrate") or (par_name == "Ammonium"):
-                    working_data[par_name] = np.maximum(working_data[par_name],0)
+                    working_data[par_name] = np.maximum(working_data[par_name], 0)
                 if par_name != 'par':
                     working_data[par_name].filled(fill_value=0)
                 else:
                     working_data[par_name].filled(fill_value=8)
+        if reapply_decenterer:
+            working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
+                                                                                          working_data['northward_Water_current'])
+
 
         availableNut_term = give_availableNut(working_data=working_data,
                                               dt=dt, dxMeter=dxMeter, dyMeter=dyMeter, nanLists=nanLists)
@@ -931,66 +1030,4 @@ def dataCmd_to_AllData(dataCmdDict: dict, adress_format:str):
 
 
 if __name__=="__main__":
-
-    input_args = {
-        'zone' : "IBI",
-        'file_adress' : '/media/share/data/{zone}/{param}/{param}{zone}modelNetCDF2021-01to2022-01.nc',
-        'dataRef' : pd.read_csv('/media/global/dataCmd.csv', delimiter=';'),
-        'paramNames' : ['Ammonium', 'Nitrate', 'Temperature', 'northward_Water_current', 'eastward_Water_current']
-    }
-    ### Initialize the netcdf reading interface
-    algaeData = open_data_input(**input_args)
-
-
-    ### get the copernicus grid and mask
-
-    sim_area = {
-        'longitude': (-4, -3),
-        'latitude': (48.5, 49),
-        #'longitude': (-180, 180),
-        #'latitude': (-90, 90),
-        'time_index': 0,
-        'depth': 3
-    }
-
-    longitudes, _ = algaeData.parameterData['Temperature'].getVariable('longitude', **sim_area)
-    latitudes, _ = algaeData.parameterData['Temperature'].getVariable('latitude', **sim_area)
-
-    mask1 = algaeData.parameterData['Temperature'].getVariable(**sim_area)[0].mask
-    mask2 = algaeData.parameterData['eastward_Water_current'].getVariable(**sim_area)[0].mask
-    mask3 = algaeData.parameterData['northward_Water_current'].getVariable(**sim_area)[0].mask
-
-    mask = np.logical_or(mask1, np.logical_or(mask2, mask3))
-
-    ###
-
-
-    model_params = "macroalgae_model_parameters_input.json"
-    json_data = import_json(model_params)
-    model = MA_model_scipy(json_data['parameters'])
-
-    n_slices = 10
-
-    lon_split = np.array_split(longitudes, n_slices)
-    mask_split = np.array_split(mask, n_slices, 1)
-
-
-    ### Create datasets for monthly sim
-    for i, (lon_arr, mask_arr) in enumerate(zip(lon_split, mask_split)):
-        initialize_result(f"/media/share/results/simulations/monthly/monthly_simulations_{i:03d}.nc",
-        np.array(range(1,13)), latitudes, lon_arr, model.names, mask_arr)
-
-    pool = mp.Pool(10)
-
-    y0 = np.array([0, 0, 0, 1000, 0], dtype=np.float64)
-
-
-    t0 = time.time()
-    n_cells = pool.starmap_async(run_scenario_a_monthly,
-        [(f"/media/share/results/simulations/monthly/monthly_simulations_{i:03d}.nc", 
-            json_data['parameters'], y0, input_args, 2021, True, True) for i in range(n_slices)]).get()
-    #n_cells = run_scenario_a_monthly("/media/share/results/complete_simulations_monthly_test_0.nc", model, y0, input_args, 2021)
-
-
-    print(n_cells)
-    print((time.time()-t0)/sum(n_cells))
+    pass
