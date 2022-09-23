@@ -630,11 +630,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         for var_name in state_vars.keys():
             state_vars[var_name] += bgc_terms[var_name] * dt
 
-        # Safety maximum for now
-        state_vars['N_s'] = np.maximum(state_vars['N_s'], 1e-6)
-        state_vars['N_f'] = np.maximum(state_vars['N_f'], 1e-6)
-        state_vars['D'] = np.maximum(state_vars['D'], 1e-4)
-
         # Time dissipation of the signal
         dissip_t = 10 #days
         state_vars['cNH4'] = state_vars['cNH4'] * (1 - dt/dissip_t)
