@@ -248,77 +248,6 @@ def createMatN_available(decenteredNwc, nanLists):
 
     return Mat
 
-#creates the matrix to compute the flux in u direction
-def createMatE(decenteredEwc, nanLists, alpha1, alpha2):
-    nbrx, nbry = decenteredEwc[:, 1:].shape
-
-    offset = np.array([0, -1, 1, -2, 2])
-    uGreater0 = ((decenteredEwc[:, 1:] > 0) * 1).flatten()
-    termA = (1 - 2 * alpha1 + alpha2) * uGreater0 - (1 - uGreater0) * (2 * alpha1 + alpha2 - 1)
-    termB = (alpha1 - 2 * alpha2 - 1) * uGreater0 - alpha1 * (1 - uGreater0)
-    termC = alpha1 * uGreater0 + (1 - alpha1 - 2 * alpha2) * (1 - uGreater0)
-    termD = uGreater0 * alpha2
-    termE = alpha2 * (1 - uGreater0)
-
-    termB[::nbry] = 0
-    termC[nbry - 1::nbry] = 0
-
-    termA[nanLists[0, -1]] = 0
-    termB[nanLists[0, -1]] = 0
-
-    termA[nanLists[0, 1]] = 0
-    termC[nanLists[0, 1]] = 0
-
-    termA[nanLists[0, -2]] = 0
-    termB[nanLists[0, -2]] = 0
-
-    termA[nanLists[0, 2]] = 0
-    termC[nanLists[0, 2]] = 0
-
-    data = np.zeros((5, nbrx * nbry))
-    data[0, :] = termA
-    data[1, :-1] = termB[1:]
-    data[2, 1:] = termC[:-1]
-    data[3, :-2] = termD[2:]
-    data[4, 2:] = termE[:-2]
-    Mat = sp.dia_matrix((data, offset), shape=(nbrx * nbry, nbrx * nbry))
-
-    return Mat
-
-#creates the matrix to compute the flux in v direction
-def createMatN(decenteredNwc, nanLists, alpha1, alpha2):
-    nbrx, nbry = decenteredNwc[1:, :].shape
-
-    offset = np.array([0, -nbry, nbry, -2 * nbry, 2 * nbry])
-    vGreater0 = ((decenteredNwc[1:, :] > 0) * 1).flatten()
-    termA = (1 - 2 * alpha1 + alpha2) * vGreater0 - (1 - vGreater0) * (2 * alpha1 + alpha2 - 1)
-    termB = (alpha1 - 2 * alpha2 - 1) * vGreater0 - alpha1 * (1 - vGreater0)
-    termC = alpha1 * vGreater0 + (1 - alpha1 - 2 * alpha2) * (1 - vGreater0)
-    termD = vGreater0 * alpha2
-    termE = alpha2 * (1 - vGreater0)
-
-    termA[nanLists[-1, 0]] = 0
-    termB[nanLists[-1, 0]] = 0
-
-    termA[nanLists[1, 0]] = 0
-    termC[nanLists[1, 0]] = 0
-
-    termA[nanLists[-2, 0]] = 0
-    termB[nanLists[-2, 0]] = 0
-
-    termA[nanLists[2, 0]] = 0
-    termC[nanLists[2, 0]] = 0
-
-    data = np.zeros((5, nbrx * nbry))
-    data[0] = termA
-    data[1, :-nbry] = termB[nbry:]
-    data[2, nbry:] = termC[:-nbry]
-    data[3, :-2 * nbry] = termD[2 * nbry:]
-    data[4, 2 * nbry:] = termE[:-2 * nbry]
-    Mat = sp.dia_matrix((data, offset), shape=(nbrx * nbry, nbrx * nbry))
-
-    return Mat
-
 
 def createMatEupwind(decenteredEwc):
 
@@ -333,7 +262,6 @@ def createMatEupwind(decenteredEwc):
     termBPlus = 1 - uPlusGreater0
     termAMinus = 1 - uMinusGreater0
     termBMinus = uMinusGreater0
-
 
     # Plus half matrix
     offset = np.array([0, 1])
@@ -422,13 +350,13 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     t_init = time.time()
 
     dataBounds = {
-        'northward_Water_current': [-1e7,1e7],
-        'eastward_Water_current': [-1e7,1e7],
-        'Nitrate': [-1e-2,1e4],
-        'Ammonium': [-1e-2,1e4],
+        'northward_Water_current': [-1e7, 1e7],
+        'eastward_Water_current': [-1e7, 1e7],
+        'Nitrate': [-1e-2, 1e4],
+        'Ammonium': [-1e-2, 1e4],
         'Temperature': [-1e4, 1e4],
-        'Phosphate' : [-1e-2,1e4],
-        'par' : [-1e-2,1e4]
+        'Phosphate' : [-1e-2, 1e4],
+        'par' : [-1e-2, 1e4]
     }
 
     # Parse the input json info
@@ -576,25 +504,26 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
             working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
                                                                                           working_data['northward_Water_current'])
 
-
+        # Compute the maximum available nutrients
         availableNut_term = give_availableNut(working_data=working_data,
                                               dt=dt, dxMeter=dxMeter, dyMeter=dyMeter, nanLists=nanLists)
         for var_name in ['avNO3', 'avNH4']:
             availableNut[var_name] += availableNut_term[var_name]
 
+        # Compute the advection terms
         if (model_json['metadata']['scenario'] == "A"):
             advection_terms = advection_modelA(state_vars=state_vars, working_data=working_data,
-                                               dt=dt, dxMeter=dxMeter, dyMeter=dyMeter)
+                                               dxMeter=dxMeter, dyMeter=dyMeter)
         else:
-            # Compute the advection terms
             advection_terms = advection_model(state_vars=state_vars, working_data=working_data,
-                                              dt=dt, dxMeter=dxMeter, dyMeter=dyMeter, Ks=Ks)
+                                              dxMeter=dxMeter, dyMeter=dyMeter, Ks=Ks)
 
         # Apply the advection
         for var_name in state_vars.keys():
             state_vars[var_name] += advection_terms[var_name] * dt
 
 
+        # Compute the BGC terms
         days = (data_date - datetime.datetime(year, 1, 1)).days # Note: returns an integer only, that is sufficient precision for this
 
         bgc_terms = bgc_model(state_vars=state_vars, working_data=working_data, dt=dt,
@@ -639,10 +568,10 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         sim_date += datetime.timedelta(days = dt)
 
     if scenC:
-        latStep = (latitudes[-1]-latitudes[0])/(grid_shape[0]-1)
-        lonStep = (longitudes[-1]-longitudes[0])/(grid_shape[1]-1)
+        latStep = (latitudes[-1] - latitudes[0]) / (grid_shape[0] - 1)
+        lonStep = (longitudes[-1] - longitudes[0]) / (grid_shape[1] - 1)
 
-        latitudes = latStep*np.arange(grid_shape[0])+latitudes[0]
+        latitudes = latStep * np.arange(grid_shape[0]) + latitudes[0]
         longitudes = lonStep * np.arange(grid_shape[1]) + longitudes[0]
 
     state_vars['NH4'] = working_data['Ammonium'] + state_vars['cNH4']
@@ -723,7 +652,7 @@ def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.arr
 
     return all_terms
 
-def advection_modelA(state_vars: dict, working_data: dict, dt, dxMeter: np.array, dyMeter: np.array):
+def advection_modelA(state_vars: dict, working_data: dict, dxMeter: np.array, dyMeter: np.array):
 
     mask = working_data['Nitrate'].mask
     grid_shape = working_data['Nitrate'].shape
@@ -741,33 +670,31 @@ def advection_modelA(state_vars: dict, working_data: dict, dt, dxMeter: np.array
     dy = dyMeter.flatten()
 
     #we compute the advection terms
-    advNO3 = ((dt / dx) * (-uGreater0 + uLower0) + (dt / dy) * (-vGreater0 + vLower0))*cNO3_line
-    advNH4 = ((dt / dx) * (-uGreater0 + uLower0) + (dt / dy) * (-vGreater0 + vLower0))*cNH4_line
-    advD = ((dt / dx) * (-uGreater0 + uLower0) + (dt / dy) * (-vGreater0 + vLower0))*D_line_eps
+    advNO3 = ((1 / dx) * (-uGreater0 + uLower0) + (1 / dy) * (-vGreater0 + vLower0))*cNO3_line
+    advNH4 = ((1 / dx) * (-uGreater0 + uLower0) + (1 / dy) * (-vGreater0 + vLower0))*cNH4_line
+    advD = ((1 / dx) * (-uGreater0 + uLower0) + (1 / dy) * (-vGreater0 + vLower0))*D_line_eps
 
     # reshape to the grid
     advNO3 = advNO3.reshape(grid_shape)
     advNH4 = advNH4.reshape(grid_shape)
     advD = advD.reshape(grid_shape)
 
-    # reapply masks that were altered
+    # reapply masks that were altered # TODO: check if still necessary
     advNO3.mask = mask
     advNH4.mask = mask
     advD.mask = mask
 
     all_terms = {
-        'cNO3': advNO3 / dt,
-        'cNH4': advNH4 / dt,
+        'cNO3': advNO3,
+        'cNH4': advNH4,
         'N_s': 0,
         'N_f': 0,
-        'D': advD / dt
+        'D': advD
     }
 
     return all_terms
 
-def advection_model(state_vars: dict, working_data: dict, dt, dxMeter: float, dyMeter: float, Ks: float):
-
-    #TODO: simplify
+def advection_model(state_vars: dict, working_data: dict, dxMeter: float, dyMeter: float, Ks: float):
 
     grid_shape = working_data['Nitrate'].shape
 
@@ -776,124 +703,41 @@ def advection_model(state_vars: dict, working_data: dict, dt, dxMeter: float, dy
 
     #mat_diffu_E = creatdiffusionTermE(grid_shape)
     #mat_diffu_N = creatdiffusionTermN(grid_shape)
-    cNO3_line = state_vars['cNO3'].flatten()
-    cNH4_line = state_vars['cNH4'].flatten()
-    D_line = state_vars['D'].flatten()
+
     dx = dxMeter.flatten()
     dy = dyMeter.flatten()
 
-    NO3_hat_plus_half_u = matE_plus_half.dot(cNO3_line)
-    NO3_hat_plus_half_v = matN_plus_half.dot(cNO3_line)
-
-    NO3_hat_less_half_u = matE_less_half.dot(cNO3_line)
-    NO3_hat_less_half_v = matN_less_half.dot(cNO3_line)
-
-    NH4_hat_plus_half_u = matE_plus_half.dot(cNH4_line)
-    NH4_hat_plus_half_v = matN_plus_half.dot(cNH4_line)
-
-    NH4_hat_less_half_u = matE_less_half.dot(cNH4_line)
-    NH4_hat_less_half_v = matN_less_half.dot(cNH4_line)
-
-    D_hat_plus_half_u = matE_plus_half.dot(D_line)
-    D_hat_plus_half_v = matN_plus_half.dot(D_line)
-
-    D_hat_less_half_u = matE_less_half.dot(D_line)
-    D_hat_less_half_v = matN_less_half.dot(D_line)
-    ###################################################################################################################################
-
-    Fmat_plus_half_NO3 = NO3_hat_plus_half_u*working_data["decentered_U"][:, 1:].flatten() #-Ks*(mat_diffu_E.dot(NO3_hat_plus_half_u))/dx
-    Gmat_plus_half_NO3 = NO3_hat_plus_half_v*working_data["decentered_V"][1:, :].flatten() #-Ks*(mat_diffu_N.dot(NO3_hat_plus_half_v))/dy
-
-    Fmat_less_half_NO3 = NO3_hat_less_half_u*working_data["decentered_U"][:, :-1].flatten() #-Ks*(mat_diffu_E.dot(NO3_hat_less_half_u))/dx
-    Gmat_less_half_NO3 = NO3_hat_less_half_v*working_data["decentered_V"][:-1, :].flatten() #-Ks*(mat_diffu_N.dot(NO3_hat_less_half_v))/dy
-
-    Fmat_plus_half_NH4 = NH4_hat_plus_half_u * working_data["decentered_U"][:, 1:].flatten() #-Ks*(mat_diffu_E.dot(NH4_hat_plus_half_u))/dx
-    Gmat_plus_half_NH4 = NH4_hat_plus_half_v * working_data["decentered_V"][1:, :].flatten() #-Ks*(mat_diffu_N.dot(NH4_hat_plus_half_v))/dy
-
-    Fmat_less_half_NH4 = NH4_hat_less_half_u * working_data["decentered_U"][:, :-1].flatten() #-Ks*(mat_diffu_E.dot(NH4_hat_less_half_u))/dx
-    Gmat_less_half_NH4 = NH4_hat_less_half_v * working_data["decentered_V"][:-1, :].flatten() #-Ks*(mat_diffu_N.dot(NH4_hat_less_half_v))/dy
-
-    Fmat_plus_half_D = D_hat_plus_half_u * working_data["decentered_U"][:, 1:].flatten() #-Ks*(mat_diffu_E.dot(D_hat_plus_half_u))/dx
-    Gmat_plus_half_D = D_hat_plus_half_v * working_data["decentered_V"][1:, :].flatten() #-Ks*(mat_diffu_N.dot(D_hat_plus_half_v))/dy
-
-    Fmat_less_half_D = D_hat_less_half_u * working_data["decentered_U"][:, :-1].flatten() #-Ks*(mat_diffu_E.dot(D_hat_less_half_u))/dx
-    Gmat_less_half_D = D_hat_less_half_v * working_data["decentered_V"][:-1, :].flatten() #-Ks*(mat_diffu_N.dot(D_hat_less_half_v))/dy
-
-    #we compute the advection terms
-    advNO3 = -(dt / dy)*(Gmat_plus_half_NO3-Gmat_less_half_NO3) - (dt / dx)*(Fmat_plus_half_NO3-Fmat_less_half_NO3)
-    advNH4 = -(dt / dy)*(Gmat_plus_half_NH4-Gmat_less_half_NH4) - (dt / dx)*(Fmat_plus_half_NH4-Fmat_less_half_NH4)
-    advD = -(dt / dy)*(Gmat_plus_half_D-Gmat_less_half_D) - (dt / dx)*(Fmat_plus_half_D-Fmat_less_half_D)
-
-    # reshape to the grid
-    advNO3 = advNO3.reshape(grid_shape)
-    advNH4 = advNH4.reshape(grid_shape)
-    advD = advD.reshape(grid_shape)
-
     all_terms = {
-        'cNO3': advNO3 / dt,
-        'cNH4': advNH4 / dt,
         'N_s': 0,
-        'N_f': 0,
-        'D': advD / dt
+        'N_f': 0
     }
+
+    for var_name in ['cNO3', 'cNH4', 'D']:
+
+        var_line = state_vars[var_name].flatten()
+
+        # Obtain the left or right (up or down) value of var depending on the sign of currents
+        var_hat_plus_half_u = matE_plus_half.dot(var_line)
+        var_hat_plus_half_v = matN_plus_half.dot(var_line)
+
+        var_hat_less_half_u = matE_less_half.dot(var_line)
+        var_hat_less_half_v = matN_less_half.dot(var_line)
+
+        # Compute the left and right (up and down) flow rates for each cell
+        Fmat_plus_half = var_hat_plus_half_u * working_data["decentered_U"][:, 1:].flatten() #-Ks*(mat_diffu_E.dot(var_hat_plus_half_u))/dx
+        Gmat_plus_half = var_hat_plus_half_v * working_data["decentered_V"][1:, :].flatten() #-Ks*(mat_diffu_N.dot(var_hat_plus_half_v))/dy
+
+        Fmat_less_half = var_hat_less_half_u * working_data["decentered_U"][:, :-1].flatten() #-Ks*(mat_diffu_E.dot(var_hat_less_half_u))/dx
+        Gmat_less_half = var_hat_less_half_v * working_data["decentered_V"][:-1, :].flatten() #-Ks*(mat_diffu_N.dot(var_hat_less_half_v))/dy
+
+        # compute the advection terms
+        advected = - (1 / dy) * (Gmat_plus_half - Gmat_less_half) - (1 / dx) * (Fmat_plus_half - Fmat_less_half)
+
+        # reshape to the grid and add to output
+        all_terms[var_name] = advected.reshape(grid_shape)
 
     return all_terms
 
-
-def advection_model_old(state_vars: dict, working_data: dict, dt, dxMeter: np.array, dyMeter: np.array,
-                    nanLists: np.array, Ks):
-
-    mask = working_data['Nitrate'].mask
-    grid_shape = working_data['Nitrate'].shape
-
-    CFL, cx, cy = giveCFL(dxMeter, dyMeter, dt,
-                          working_data["decentered_U"], working_data["decentered_V"])
-
-    alpha1 = (1 / 6) * (1 - CFL) * (2 - CFL)
-    alpha2 = (1 / 6) * (1 - CFL) * (1 + CFL)
-
-    matE = createMatE(working_data["decentered_U"], nanLists, alpha1, alpha2)
-    matN = createMatN(working_data["decentered_V"], nanLists, alpha1, alpha2)
-
-    cNO3_line = state_vars['cNO3'].flatten()
-    cNH4_line = state_vars['cNH4'].flatten()
-    D_line = state_vars['D'].flatten()
-    dx = dxMeter.flatten()
-    dy = dyMeter.flatten()
-
-    no3Hatu = matE.dot(cNO3_line)
-    no3Hatv = matN.dot(cNO3_line)
-    nh4Hatu = matE.dot(cNH4_line)
-    nh4Hatv = matN.dot(cNH4_line)
-    dHatu = matE.dot(D_line)
-    dHatv = matN.dot(D_line)
-    #we compute the advection terms
-    advNO3 = - cy*no3Hatv - cx*no3Hatu + (dt / dy) * Ks * matN.dot(no3Hatv) + \
-                                         (dt / dx) * Ks * matE.dot(no3Hatu)
-    advNH4 = - cy*nh4Hatv - cx*nh4Hatu + (dt / dy) * Ks * matN.dot(nh4Hatv) + \
-                                         (dt / dx) * Ks * matE.dot(nh4Hatu)
-    advD = - cy*dHatv - cx*dHatu + (dt / dy) * Ks * matN.dot(dHatv) + \
-                                   (dt / dx) * Ks * matE.dot(dHatu)
-
-    # reshape to the grid
-    advNO3 = advNO3.reshape(grid_shape)
-    advNH4 = advNH4.reshape(grid_shape)
-    advD = advD.reshape(grid_shape)
-
-    # reapply masks that were altered
-    advNO3.mask = mask
-    advNH4.mask = mask
-    advD.mask = mask
-
-    all_terms = {
-        'cNO3': advNO3 / dt,
-        'cNH4': advNH4 / dt,
-        'N_s': 0,
-        'N_f': 0,
-        'D': advD / dt
-    }
-
-    return all_terms
 
 def initialize_result(fileName:str, times, latitudes, longitudes, 
                       variableNames:list, mask:np.array):
