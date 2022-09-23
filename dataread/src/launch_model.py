@@ -187,7 +187,7 @@ class MA_model_scipy:
 
         return out
 
-    def hadley_advection(self, t: float, y, data, dt, latitude: float):
+    def hadley_advection(self, t: float, y, data, dt, latitude: float, nitrification_NH4=None):
         """Python implementation of the Hadley model adapted by M. Johnson
 
             y and data must be subscriptable by names (dict, pd.Series,...)
@@ -220,11 +220,8 @@ class MA_model_scipy:
 
         f_NH4 = (p.V_NH4 * y['NH4'] / (p.K_NH4 + y['NH4'])) * ((p.Q_max - Q) / (p.Q_max - p.Q_min))
         f_NO3 = (p.V_NO3 * y['NO3'] / (p.K_NO3 + y['NO3'])) * ((p.Q_max - Q) / (p.Q_max - p.Q_min))
-
-        f_NH4 = np.minimum(((y['NH4'] - 1e-2) * V_INT / (V_MA*dt) + p.r_L * y['D'] - p.r_N * y['NH4'] + p.d_m * y['N_s']) / B,
-                           f_NH4)
-        f_NO3 = np.minimum(((y['NO3'] - 1e-2) * V_INT / (V_MA*dt) + p.r_N * y['NH4']) / B, 
-                           f_NO3)
+        f_NH4[y['NH4'] < 0] = 0
+        f_NO3[y['NO3'] < 0] = 0
 
         #NH4_removed = f_NH4 * B - p.r_L * y['D'] + p.r_N * y['NH4'] - p.d_m * y['N_s']
         #NO3_removed = f_NO3 * B - p.r_N * y['NH4']
@@ -232,10 +229,15 @@ class MA_model_scipy:
         PO4_tot = data['PO4_ext'] * V_INT / V_MA
         N_to_P_mg = p.N_to_P * 14
 
-        # derivatives
-        dNH4 = ( - f_NH4 * B + p.r_L * y['D'] - p.r_N * y['NH4'] + p.d_m * y['N_s']) * V_MA / V_INT
+        if nitrification_NH4 is None:
+            nitrification_term = p.r_N * y['NH4']
+        else:
+            nitrification_term = p.r_N * nitrification_NH4
 
-        dNO3 = (- f_NO3 * B + p.r_N * y['NH4']) * V_MA / V_INT
+        # derivatives
+        dNH4 = ( - f_NH4 * B + p.r_L * y['D'] - nitrification_term + p.d_m * y['N_s']) * V_MA / V_INT
+
+        dNO3 = (- f_NO3 * B + nitrification_term) * V_MA / V_INT
 
         dN_s = (f_NH4 + f_NO3) * B - np.minimum(mu_g_EQT * y['N_f'], PO4_tot * N_to_P_mg) - p.d_m * y['N_s']
 

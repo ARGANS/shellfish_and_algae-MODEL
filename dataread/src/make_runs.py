@@ -363,7 +363,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask),
         'N_s': np.ma.masked_array(np.zeros(grid_shape), mask),
         'N_f': np.ma.masked_array(np.ones(grid_shape) * parms_harvest['deployment_Nf'], mask),
-        'D': np.ma.masked_array(np.ones(grid_shape) * parms_run["Detritus"], mask)
+        'D': np.ma.masked_array(np.zeros(grid_shape), mask)
     }
 
     availableNut = {
@@ -426,8 +426,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
         if (model_json['metadata']['scenario'] == "A"):
             advection_terms = advection_modelA(state_vars=state_vars, working_data=working_data,
-                                               dt=dt, dxMeter=dxMeter, dyMeter=dyMeter,
-                                               paramDetritus=parms_run["Detritus"])
+                                               dt=dt, dxMeter=dxMeter, dyMeter=dyMeter)
         else:
             # Compute the advection terms
             advection_terms = advection_model(state_vars=state_vars, working_data=working_data,
@@ -496,10 +495,10 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         '''
 
         # Time dissipation of the signal
-        #dissip_t = 3 #days
-        #state_vars['cNH4'] = state_vars['cNH4'] * (1 - dt/dissip_t)
-        #state_vars['cNO3'] = state_vars['cNO3'] * (1 - dt/dissip_t)
-        #state_vars['D'] = state_vars['cNO3'] * (1 - dt/dissip_t) + parms_run["Detritus"] * dt/dissip_t
+        dissip_t = 10 #days
+        state_vars['cNH4'] = state_vars['cNH4'] * (1 - dt/dissip_t)
+        state_vars['cNO3'] = state_vars['cNO3'] * (1 - dt/dissip_t)
+        state_vars['D'] = state_vars['D'] * (1 - dt/dissip_t)
 
         sim_date += datetime.timedelta(days = dt)
 
@@ -538,7 +537,7 @@ def bgc_model(state_vars: dict, working_data: dict, dt, model, parms_run, days, 
     data_in = {
         'SST': working_data['Temperature'],
         'PAR': working_data['par'],
-        'PO4_ext': working_data['Phosphate'], #TODO: from working data
+        'PO4_ext': working_data['Phosphate'],
         'K_d': parms_run["K_d490"],
         't_z': (1 + parms_run['Von_Karman']) * model._parameters["z"]
     }
@@ -551,12 +550,12 @@ def bgc_model(state_vars: dict, working_data: dict, dt, model, parms_run, days, 
         'D': state_vars['D'],
     }
 
-    terms_list = model.hadley_advection(days, y, data_in, dt, latRef)
+    terms_list = model.hadley_advection(days, y, data_in, dt, latRef, state_vars['cNH4'])
     all_terms = dict(zip(["cNH4", "cNO3", "N_s", "N_f", "D"], terms_list))
 
     return all_terms
 
-def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.array,nanLists: np.array):
+def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.array, nanLists: np.array):
     mask = working_data['Nitrate'].mask
     grid_shape = working_data['Nitrate'].shape
 
@@ -587,7 +586,7 @@ def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.arr
 
     return all_terms
 
-def advection_modelA(state_vars: dict, working_data: dict, dt, dxMeter: np.array, dyMeter: np.array, paramDetritus):
+def advection_modelA(state_vars: dict, working_data: dict, dt, dxMeter: np.array, dyMeter: np.array):
 
     mask = working_data['Nitrate'].mask
     grid_shape = working_data['Nitrate'].shape
@@ -600,14 +599,14 @@ def advection_modelA(state_vars: dict, working_data: dict, dt, dxMeter: np.array
 
     cNO3_line = state_vars['cNO3'].flatten()
     cNH4_line = state_vars['cNH4'].flatten()
-    D_line_eps = paramDetritus-state_vars['D'].flatten()
+    D_line_eps = state_vars['D'].flatten()
     dx = dxMeter.flatten()
     dy = dyMeter.flatten()
 
     #we compute the advection terms
     advNO3 = ((dt / dx) * (-uGreater0 + uLower0) + (dt / dy) * (-vGreater0 + vLower0))*cNO3_line
     advNH4 = ((dt / dx) * (-uGreater0 + uLower0) + (dt / dy) * (-vGreater0 + vLower0))*cNH4_line
-    advD = -((dt / dx) * (-uGreater0 + uLower0) + (dt / dy) * (-vGreater0 + vLower0))*D_line_eps
+    advD = ((dt / dx) * (-uGreater0 + uLower0) + (dt / dy) * (-vGreater0 + vLower0))*D_line_eps
 
     # reshape to the grid
     advNO3 = advNO3.reshape(grid_shape)
