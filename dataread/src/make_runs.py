@@ -123,7 +123,7 @@ class Decenterer:
         B = B[self._where_not_zero]
 
         #X = - self._Ainv.dot(B)
-        X = sp.linalg.spsolve(self._A, B)#, use_umfpack=True)
+        X = sp.linalg.spsolve(self._A, - B)
 
         # Apply the result where relevant in X_full
         X_full[self._where_not_zero] = X[np.newaxis].T
