@@ -5,8 +5,7 @@ import time
 from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
 from scipy import interpolate
-from scipy.sparse import dia_matrix
-from scipy.sparse import spdiags
+from scipy.sparse import dia_matrix, spdiags
 import multiprocessing as mp
 import datetime
 from dateutil.relativedelta import *
@@ -228,22 +227,82 @@ def createMatN(decenteredNwc, nanLists, alpha1, alpha2):
 
     return Mat
 
+
+def createMatEupwind(decenteredEwc):
+
+    decenteredEwcPlus = decenteredEwc[:, 1:]
+    decenteredEwcMinus = decenteredEwc[:, :-1]
+
+    nbrx, nbry = decenteredEwcPlus.shape
+
+    uPlusGreater0 = ((decenteredEwcPlus > 0) * 1).flatten()
+    uMinusGreater0 = ((decenteredEwcMinus > 0) * 1).flatten()
+    termAPlus = uPlusGreater0
+    termBPlus = 1 - uPlusGreater0
+    termAMinus = 1 - uMinusGreater0
+    termBMinus = uMinusGreater0
+
+
+    # Plus half matrix
+    offset = np.array([0, 1])
+    diags = np.zeros((2, nbrx * nbry))
+    diags[0, :] = termAPlus
+    diags[1, 1:] = termBPlus[:-1]
+    matEplus = dia_matrix((diags, offset), shape=(nbrx * nbry, nbrx * nbry))
+
+    # Minus half matrix
+    offset = np.array([0, -1])
+    diags = np.zeros((2, nbrx * nbry))
+    diags[0, :] = termAMinus
+    diags[1, :-1] = termBMinus[1:]
+    matEminus = dia_matrix((diags, offset), shape=(nbrx * nbry, nbrx * nbry))
+
+    return matEplus, matEminus
+
+
+def createMatNupwind(decenteredNwc):
+
+    decenteredNwcPlus = decenteredNwc[1:, :]
+    decenteredNwcMinus = decenteredNwc[:-1, :]
+
+    nbrx, nbry = decenteredNwcPlus.shape
+
+    uPlusGreater0 = ((decenteredNwcPlus > 0) * 1).flatten()
+    uMinusGreater0 = ((decenteredNwcMinus > 0) * 1).flatten()
+    termAPlus = uPlusGreater0
+    termBPlus = 1 - uPlusGreater0
+    termAMinus = 1 - uMinusGreater0
+    termBMinus = uMinusGreater0
+
+    # Plus half matrix
+    offset = np.array([0, nbry])
+    diags = np.zeros((2, nbrx * nbry))
+    diags[0, :] = termAPlus
+    diags[1, nbry:] = termBPlus[:-nbry]
+    matNplus = dia_matrix((diags, offset), shape=(nbrx * nbry, nbrx * nbry))
+
+    # Minus half matrix
+    offset = np.array([0, -nbry])
+    diags = np.zeros((2, nbrx * nbry))
+    diags[0, :] = termAMinus
+    diags[1, :-nbry] = termBMinus[nbry:]
+    matNminus = dia_matrix((diags, offset), shape=(nbrx * nbry, nbrx * nbry))
+
+    return matNplus, matNminus
+
+
 #returns the space step
 def giveDxDy(latitudes, longitudes):
-    Dx = np.zeros((len(latitudes), len(longitudes)))
-    Dy = np.zeros((len(latitudes), len(longitudes)))
-    latRef = np.zeros((len(latitudes), len(longitudes)))
 
-    Dx[:, :-1] = np.diff(longitudes)
-    Dx[:, -1] = Dx[:, -2]
+    lon_step_average = (longitudes[-1] - longitudes[0]) / (len(longitudes) - 1)
+    lat_step_average = (latitudes[-1] - latitudes[0]) / (len(latitudes) - 1)
 
-    Dy[:-1, :] = np.diff(latitudes)[np.newaxis].T
-    Dy[-1, :] = Dy[-2, :]
+    latRef_average = (latitudes[-1] + latitudes[0]) / 2
 
-    latRef[:,:] = latitudes[np.newaxis].T
+    dxMeter, dyMeter = degrees_to_meters(lon_step_average, lat_step_average, latRef_average)
 
-    DxMeter, DyMeter = degrees_to_meters(Dx, Dy, latRef)
-    return DxMeter, DyMeter
+    return dxMeter, dyMeter
+
 
 #return the variation of each quantities in the algae model
 def giveEpsilon(day, temp, NH4, NO3, N_s, N_f, D, PAR, latRef, model, dt, Zmix):
@@ -385,7 +444,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
     dt = 1/72 # days # TODO: make into parameter in json
 
-    Ks = 1e-3 * 60 * 60 * 24 # m2/s
+    Ks = 0# 1e-3 * 60 * 60 * 24 # m2/s
 
     # Simulation loop
     sim_date = startDate
@@ -430,8 +489,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         else:
             # Compute the advection terms
             advection_terms = advection_model(state_vars=state_vars, working_data=working_data,
-                                              dt=dt, dxMeter=dxMeter, dyMeter=dyMeter, nanLists=nanLists,
-                                              Ks=Ks)
+                                              dt=dt, dxMeter=dxMeter, dyMeter=dyMeter, Ks=Ks)
 
         # Apply the advection
         for var_name in state_vars.keys():
@@ -473,26 +531,10 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         for var_name in state_vars.keys():
             state_vars[var_name] += bgc_terms[var_name] * dt
 
-
         # Safety maximum for now
         state_vars['N_s'] = np.maximum(state_vars['N_s'], 1e-6)
         state_vars['N_f'] = np.maximum(state_vars['N_f'], 1e-6)
         state_vars['D'] = np.maximum(state_vars['D'], 1e-4)
-
-        # Debugging
-        '''
-        do_break = False
-        for var_name in ['N_s', 'N_f', 'D']:
-            if np.any(state_vars[var_name] < 0):
-                print(f"Boke the simulation because {var_name} is negative")
-                do_break = True
-        if do_break:
-            break
-
-        if np.any(state_vars['cNO3'] + working_data['Nitrate'] < 0) or np.any(state_vars['cNH4'] + working_data['Ammonium'] < 0) :
-            print("Boke the simulation because the total NO3 or NH4 is negative")
-            break
-        '''
 
         # Time dissipation of the signal
         dissip_t = 10 #days
@@ -554,6 +596,7 @@ def bgc_model(state_vars: dict, working_data: dict, dt, model, parms_run, days, 
     all_terms = dict(zip(["cNH4", "cNO3", "N_s", "N_f", "D"], terms_list))
 
     return all_terms
+
 
 def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.array, nanLists: np.array):
     mask = working_data['Nitrate'].mask
@@ -628,7 +671,82 @@ def advection_modelA(state_vars: dict, working_data: dict, dt, dxMeter: np.array
 
     return all_terms
 
-def advection_model(state_vars: dict, working_data: dict, dt, dxMeter: np.array, dyMeter: np.array,
+def advection_model(state_vars: dict, working_data: dict, dt, dxMeter: float, dyMeter: float, Ks: float):
+
+    #TODO: simplify
+
+    grid_shape = working_data['Nitrate'].shape
+
+    matE_plus_half, matE_less_half = createMatEupwind(working_data["decentered_U"])
+    matN_plus_half, matN_less_half = createMatNupwind(working_data["decentered_V"])
+
+    #mat_diffu_E = creatdiffusionTermE(grid_shape)
+    #mat_diffu_N = creatdiffusionTermN(grid_shape)
+    cNO3_line = state_vars['cNO3'].flatten()
+    cNH4_line = state_vars['cNH4'].flatten()
+    D_line = state_vars['D'].flatten()
+    dx = dxMeter.flatten()
+    dy = dyMeter.flatten()
+
+    NO3_hat_plus_half_u = matE_plus_half.dot(cNO3_line)
+    NO3_hat_plus_half_v = matN_plus_half.dot(cNO3_line)
+
+    NO3_hat_less_half_u = matE_less_half.dot(cNO3_line)
+    NO3_hat_less_half_v = matN_less_half.dot(cNO3_line)
+
+    NH4_hat_plus_half_u = matE_plus_half.dot(cNH4_line)
+    NH4_hat_plus_half_v = matN_plus_half.dot(cNH4_line)
+
+    NH4_hat_less_half_u = matE_less_half.dot(cNH4_line)
+    NH4_hat_less_half_v = matN_less_half.dot(cNH4_line)
+
+    D_hat_plus_half_u = matE_plus_half.dot(D_line)
+    D_hat_plus_half_v = matN_plus_half.dot(D_line)
+
+    D_hat_less_half_u = matE_less_half.dot(D_line)
+    D_hat_less_half_v = matN_less_half.dot(D_line)
+    ###################################################################################################################################
+
+    Fmat_plus_half_NO3 = NO3_hat_plus_half_u*working_data["decentered_U"][:, 1:].flatten() #-Ks*(mat_diffu_E.dot(NO3_hat_plus_half_u))/dx
+    Gmat_plus_half_NO3 = NO3_hat_plus_half_v*working_data["decentered_V"][1:, :].flatten() #-Ks*(mat_diffu_N.dot(NO3_hat_plus_half_v))/dy
+
+    Fmat_less_half_NO3 = NO3_hat_less_half_u*working_data["decentered_U"][:, :-1].flatten() #-Ks*(mat_diffu_E.dot(NO3_hat_less_half_u))/dx
+    Gmat_less_half_NO3 = NO3_hat_less_half_v*working_data["decentered_V"][:-1, :].flatten() #-Ks*(mat_diffu_N.dot(NO3_hat_less_half_v))/dy
+
+    Fmat_plus_half_NH4 = NH4_hat_plus_half_u * working_data["decentered_U"][:, 1:].flatten() #-Ks*(mat_diffu_E.dot(NH4_hat_plus_half_u))/dx
+    Gmat_plus_half_NH4 = NH4_hat_plus_half_v * working_data["decentered_V"][1:, :].flatten() #-Ks*(mat_diffu_N.dot(NH4_hat_plus_half_v))/dy
+
+    Fmat_less_half_NH4 = NH4_hat_less_half_u * working_data["decentered_U"][:, :-1].flatten() #-Ks*(mat_diffu_E.dot(NH4_hat_less_half_u))/dx
+    Gmat_less_half_NH4 = NH4_hat_less_half_v * working_data["decentered_V"][:-1, :].flatten() #-Ks*(mat_diffu_N.dot(NH4_hat_less_half_v))/dy
+
+    Fmat_plus_half_D = D_hat_plus_half_u * working_data["decentered_U"][:, 1:].flatten() #-Ks*(mat_diffu_E.dot(D_hat_plus_half_u))/dx
+    Gmat_plus_half_D = D_hat_plus_half_v * working_data["decentered_V"][1:, :].flatten() #-Ks*(mat_diffu_N.dot(D_hat_plus_half_v))/dy
+
+    Fmat_less_half_D = D_hat_less_half_u * working_data["decentered_U"][:, :-1].flatten() #-Ks*(mat_diffu_E.dot(D_hat_less_half_u))/dx
+    Gmat_less_half_D = D_hat_less_half_v * working_data["decentered_V"][:-1, :].flatten() #-Ks*(mat_diffu_N.dot(D_hat_less_half_v))/dy
+
+    #we compute the advection terms
+    advNO3 = -(dt / dy)*(Gmat_plus_half_NO3-Gmat_less_half_NO3) - (dt / dx)*(Fmat_plus_half_NO3-Fmat_less_half_NO3)
+    advNH4 = -(dt / dy)*(Gmat_plus_half_NH4-Gmat_less_half_NH4) - (dt / dx)*(Fmat_plus_half_NH4-Fmat_less_half_NH4)
+    advD = -(dt / dy)*(Gmat_plus_half_D-Gmat_less_half_D) - (dt / dx)*(Fmat_plus_half_D-Fmat_less_half_D)
+
+    # reshape to the grid
+    advNO3 = advNO3.reshape(grid_shape)
+    advNH4 = advNH4.reshape(grid_shape)
+    advD = advD.reshape(grid_shape)
+
+    all_terms = {
+        'cNO3': advNO3 / dt,
+        'cNH4': advNH4 / dt,
+        'N_s': 0,
+        'N_f': 0,
+        'D': advD / dt
+    }
+
+    return all_terms
+
+
+def advection_model_old(state_vars: dict, working_data: dict, dt, dxMeter: np.array, dyMeter: np.array,
                     nanLists: np.array, Ks):
 
     mask = working_data['Nitrate'].mask
