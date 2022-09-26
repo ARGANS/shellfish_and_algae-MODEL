@@ -164,7 +164,7 @@ def meters_to_degrees(Dx, Dy, refLat):
 def giveCFL(dx, dy, dt, Ewc, Nwc):
     Cx = np.abs(Ewc[:, 1:] * dt / dx).flatten()
     Cy = np.abs(Nwc[1:, :] * dt / dy).flatten()
-    return np.maximum(Cx, Cy), Cx, Cy
+    return np.max(Cx, Cy)
 
 #take as input a mask (tuple), and return the position of the masked values in a vector (dim x * dim y)
 def createListNan(maskPosition, nbry):
@@ -359,6 +359,8 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         'par' : [-1e-2, 1e4]
     }
 
+    dt = 1 / 72  # days # TODO: make into parameter in json
+
     # Parse the input json info
     parms_run = list(model_json['parameters']['run'].values())[0]['parameters']
     parms_farm = list(model_json['parameters']['farm'].values())[0]['parameters']
@@ -410,6 +412,12 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     for par_name, par_data in input_data.parameterData.items():
         working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],
                                                       dataBounds[par_name][1])
+        if par_name == "eastward_Water_current" or par_name == "northward_Water_current":
+            CFL = giveCFL(dxMeter,dyMeter,dt,working_data["eastward_Water_current"],working_data["northward_Water_current"])
+            if CFL > 1:
+                raise Exception('CFL>1')
+        elif (par_name == "Nitrate") or (par_name == "Ammonium"):
+            working_data[par_name] = np.maximum(working_data[par_name], 0)
         if par_name != 'par':
             working_data[par_name].filled(fill_value=0)
         else:
@@ -465,9 +473,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
                                                                                   working_data['northward_Water_current'])
     print(f'End of first decenterer application, time taken: {(time.time() - t_init_decenterer)} seconds')
 
-
-    dt = 1/72 # days # TODO: make into parameter in json
-
     Ks = 0# 1e-3 * 60 * 60 * 24 # m2/s
 
     # Simulation loop
@@ -488,12 +493,17 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
             if new_i != nearest_time_i[par_name]:
                 nearest_time_i[par_name] = new_i
                 working_data[par_name], _ = par_data.getVariable(time_index=new_i, **data_kwargs)
-
+                working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],
+                                                              dataBounds[par_name][1])
                 if scenC:
                     working_data[par_name] = resa.resampleData(working_data[par_name])
                 # Update the centered currents as well
                 if par_name == "eastward_Water_current" or par_name == "northward_Water_current":
                     reapply_decenterer = True
+                    CFL = giveCFL(dxMeter, dyMeter, dt, working_data["eastward_Water_current"],
+                                  working_data["northward_Water_current"])
+                    if CFL > 1:
+                        raise Exception('CFL>1')
                 elif (par_name == "Nitrate") or (par_name == "Ammonium"):
                     working_data[par_name] = np.maximum(working_data[par_name], 0)
                 if par_name != 'par':
