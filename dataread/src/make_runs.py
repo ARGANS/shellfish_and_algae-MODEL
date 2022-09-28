@@ -164,7 +164,7 @@ def meters_to_degrees(Dx, Dy, refLat):
 def giveCFL(dx, dy, dt, Ewc, Nwc):
     Cx = np.abs(Ewc[:, 1:] * dt / dx).flatten()
     Cy = np.abs(Nwc[1:, :] * dt / dy).flatten()
-    return np.max(Cx, Cy)
+    return np.max([Cx, Cy])
 
 #take as input a mask (tuple), and return the position of the masked values in a vector (dim x * dim y)
 def createListNan(maskPosition, nbry):
@@ -412,11 +412,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     for par_name, par_data in input_data.parameterData.items():
         working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],
                                                       dataBounds[par_name][1])
-        if par_name == "eastward_Water_current" or par_name == "northward_Water_current":
-            CFL = giveCFL(dxMeter,dyMeter,dt,working_data["eastward_Water_current"],working_data["northward_Water_current"])
-            if CFL > 1:
-                raise Exception('CFL>1')
-        elif (par_name == "Nitrate") or (par_name == "Ammonium"):
+        if (par_name == "Nitrate") or (par_name == "Ammonium"):
             working_data[par_name] = np.maximum(working_data[par_name], 0)
         if par_name != 'par':
             working_data[par_name].filled(fill_value=0)
@@ -471,6 +467,9 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     print('Starting applying the decenterer ofr the first time')
     working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
                                                                                   working_data['northward_Water_current'])
+    CFL = giveCFL(dxMeter, dyMeter, dt, working_data["decentered_U"],working_data["decentered_V"])
+    if CFL > 1:
+        raise Exception('CFL>1')
     print(f'End of first decenterer application, time taken: {(time.time() - t_init_decenterer)} seconds')
 
     Ks = 0# 1e-3 * 60 * 60 * 24 # m2/s
@@ -500,10 +499,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
                 # Update the centered currents as well
                 if par_name == "eastward_Water_current" or par_name == "northward_Water_current":
                     reapply_decenterer = True
-                    CFL = giveCFL(dxMeter, dyMeter, dt, working_data["eastward_Water_current"],
-                                  working_data["northward_Water_current"])
-                    if CFL > 1:
-                        raise Exception('CFL>1')
                 elif (par_name == "Nitrate") or (par_name == "Ammonium"):
                     working_data[par_name] = np.maximum(working_data[par_name], 0)
                 if par_name != 'par':
@@ -513,6 +508,10 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         if reapply_decenterer:
             working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
                                                                                           working_data['northward_Water_current'])
+            CFL = giveCFL(dxMeter, dyMeter, dt, working_data["decentered_U"],
+                                  working_data["decentered_V"])
+            if CFL > 1:
+                raise Exception('CFL>1')
 
         # Compute the maximum available nutrients
         availableNut_term = give_availableNut(working_data=working_data,
@@ -602,7 +601,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         availableNut[name] = np.ma.masked_array(availableNut[name], mask)
         availableNut[name][availableNut[name].mask] = np.nan
     ds.close()
-
+    print(time.time() - t_init)
     return time.time() - t_init
 
 
