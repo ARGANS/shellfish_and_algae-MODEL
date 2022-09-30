@@ -20,6 +20,7 @@ gdalwarp $DIRECTORY/file.tiff -tr $xres $yres -r near -srcnodata $fillval -te $l
 
 # Translate back to NetCDF
 gdal_translate -of NetCDF $DIRECTORY/resampled_file.tiff $DIRECTORY/$FILE_OUT
+ncatted -O -a valid_max,time,d,, $DIRECTORY/$FILE_OUT
 
 # Remove unnecessary files
 rm $DIRECTORY/file.tiff

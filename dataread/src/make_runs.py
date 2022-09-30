@@ -429,8 +429,8 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         for par_name, par_data in input_data.parameterData.items():
             working_data[par_name] = resa.resampleData(working_data[par_name])
         latRef = resa.resampleData(latRef)
-        dyMeter = resa.resampleData(dyMeter)
-        dxMeter = resa.resampleData(dxMeter)
+        '''dyMeter = resa.resampleData(dyMeter)
+        dxMeter = resa.resampleData(dxMeter)'''
         mask = resa.resampleData(mask)
     nanLists = findNan(mask)
 
@@ -467,9 +467,9 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     print('Starting applying the decenterer ofr the first time')
     working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
                                                                                   working_data['northward_Water_current'])
-    CFL = giveCFL(dxMeter, dyMeter, dt, working_data["decentered_U"],working_data["decentered_V"])
+    '''CFL = giveCFL(dxMeter, dyMeter, dt, working_data["decentered_U"],working_data["decentered_V"])
     if CFL > 1:
-        raise Exception('CFL>1')
+        raise Exception('CFL>1')'''
     print(f'End of first decenterer application, time taken: {(time.time() - t_init_decenterer)} seconds')
 
     Ks = 0# 1e-3 * 60 * 60 * 24 # m2/s
@@ -508,10 +508,10 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         if reapply_decenterer:
             working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
                                                                                           working_data['northward_Water_current'])
-            CFL = giveCFL(dxMeter, dyMeter, dt, working_data["decentered_U"],
+            '''CFL = giveCFL(dxMeter, dyMeter, dt, working_data["decentered_U"],
                                   working_data["decentered_V"])
             if CFL > 1:
-                raise Exception('CFL>1')
+                raise Exception('CFL>1')'''
 
         # Compute the maximum available nutrients
         availableNut_term = give_availableNut(working_data=working_data,
