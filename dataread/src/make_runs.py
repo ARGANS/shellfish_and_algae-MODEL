@@ -161,9 +161,9 @@ def meters_to_degrees(Dx, Dy, refLat):
     return lonDist, latDist
 
 #return the CFL number, cx and cy
-def giveCFL(dx, dy, dt, Ewc, Nwc):
-    Cx = np.abs(Ewc[:, 1:] * dt / dx).flatten()
-    Cy = np.abs(Nwc[1:, :] * dt / dy).flatten()
+def giveCFL(dx, dy, Ewc, Nwc):
+    Cx = np.abs(Ewc[:, 1:] / dx).flatten()
+    Cy = np.abs(Nwc[1:, :] / dy).flatten()
     return np.max([Cx, Cy])
 
 #take as input a mask (tuple), and return the position of the masked values in a vector (dim x * dim y)
@@ -467,9 +467,8 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     print('Starting applying the decenterer ofr the first time')
     working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
                                                                                   working_data['northward_Water_current'])
-    '''CFL = giveCFL(dxMeter, dyMeter, dt, working_data["decentered_U"],working_data["decentered_V"])
-    if CFL > 1:
-        raise Exception('CFL>1')'''
+    CFL = giveCFL(dxMeter, dyMeter, working_data["decentered_U"],working_data["decentered_V"])
+    dt = 0.9/CFL
     print(f'End of first decenterer application, time taken: {(time.time() - t_init_decenterer)} seconds')
 
     Ks = 0# 1e-3 * 60 * 60 * 24 # m2/s
@@ -508,10 +507,9 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         if reapply_decenterer:
             working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
                                                                                           working_data['northward_Water_current'])
-            '''CFL = giveCFL(dxMeter, dyMeter, dt, working_data["decentered_U"],
+            CFL = giveCFL(dxMeter, dyMeter, working_data["decentered_U"],
                                   working_data["decentered_V"])
-            if CFL > 1:
-                raise Exception('CFL>1')'''
+            dt = 0.9/CFL
 
         # Compute the maximum available nutrients
         availableNut_term = give_availableNut(working_data=working_data,
