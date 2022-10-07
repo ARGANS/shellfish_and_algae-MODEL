@@ -467,7 +467,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     print('Starting applying the decenterer ofr the first time')
     working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
                                                                                   working_data['northward_Water_current'])
-    dt = give_dt(dxMeter, dyMeter, working_data["decentered_U"],working_data["decentered_V"])
+    dt_phys = give_dt(dxMeter, dyMeter, working_data["decentered_U"],working_data["decentered_V"])
 
     print(f'End of first decenterer application, time taken: {(time.time() - t_init_decenterer)} seconds')
 
@@ -507,8 +507,37 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         if reapply_decenterer:
             working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
                                                                                           working_data['northward_Water_current'])
-            dt = give_dt(dxMeter, dyMeter, working_data["decentered_U"],
+            dt_phys = give_dt(dxMeter, dyMeter, working_data["decentered_U"],
                                   working_data["decentered_V"])
+
+
+        # Compute the BGC terms
+        days = (data_date - datetime.datetime(year, 1, 1)).days # Note: returns an integer only, that is sufficient precision for this
+
+        bgc_terms = bgc_model(state_vars=state_vars, working_data=working_data,
+                              model=model, parms_run=parms_run, days=days, latRef=latRef)
+
+        # Value of dt for Ns and Nf > 0
+        dt_list = []
+        for var_name in ['N_s', 'N_f']:
+            dt_array = - state_vars[var_name]/bgc_terms[var_name]
+            dt_array[dt_array <= 0] = np.inf
+            dt_positive = np.amin(dt_array)
+
+            dt_list.append(dt_positive * 0.9)
+        dt_bgc = min(dt_list)
+
+        # Update dt to respect the CFL and the BGC terms staying positive
+        dt = min(dt_phys, dt_bgc)
+
+
+        # Apply the bgc terms
+        if scenC:
+            for var_name in state_vars.keys():
+                bgc_terms[var_name] = prepareScenC(bgc_terms[var_name], nanLists, grid_shape)
+        for var_name in state_vars.keys():
+            state_vars[var_name] += bgc_terms[var_name] * dt
+
 
         # Compute the maximum available nutrients
         availableNut_term = give_availableNut(working_data=working_data,
@@ -528,41 +557,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         for var_name in state_vars.keys():
             state_vars[var_name] += advection_terms[var_name] * dt
 
-        # Compute the BGC terms
-        days = (data_date - datetime.datetime(year, 1, 1)).days # Note: returns an integer only, that is sufficient precision for this
-
-        bgc_terms = bgc_model(state_vars=state_vars, working_data=working_data, dt=dt,
-                              model=model, parms_run=parms_run, days=days, latRef=latRef)
-
-
-        # Testing: value of dt for an adapting time step
-        '''
-        print(f'    Value of dt_max (minutes): {dt_max*(60*24)}')
-        dt_list = [dt_max]
-        for var_name in ['N_s', 'N_f']:#state_vars.keys():
-            value_array = state_vars[var_name].copy()
-            if var_name == 'cNO3':
-                value_array += working_data['Nitrate']
-            if var_name == 'cNH4':
-                value_array += working_data['Ammonium']
-
-            dt_array = - value_array/bgc_terms[var_name]
-            dt_array[dt_array <= 0] = np.inf
-            dt_pos = np.amin(dt_array)
-            print(f'    Value of dt for {var_name} > 0 (minutes): {dt_pos*(60*24)}')
-
-            dt_list.append(dt_pos * 0.8)
-
-        dt = min(dt_list)
-        print(f'Value of dt used: {dt*(60*24)} minutes')
-        '''
-
-        # Apply the bgc terms
-        if scenC:
-            for var_name in state_vars.keys():
-                bgc_terms[var_name] = prepareScenC(bgc_terms[var_name], nanLists, grid_shape)
-        for var_name in state_vars.keys():
-            state_vars[var_name] += bgc_terms[var_name] * dt
 
         # Time dissipation of the signal
         dissip_t = 10 #days
@@ -602,7 +596,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
 
 #return the variation of each quantities in the algae model
-def bgc_model(state_vars: dict, working_data: dict, dt, model, parms_run, days, latRef):
+def bgc_model(state_vars: dict, working_data: dict, model, parms_run, days, latRef):
 
     data_in = {
         'SST': working_data['Temperature'],
@@ -620,7 +614,7 @@ def bgc_model(state_vars: dict, working_data: dict, dt, model, parms_run, days, 
         'D': state_vars['D'],
     }
 
-    terms_list = model.hadley_advection(days, y, data_in, dt, latRef, state_vars['cNH4'])
+    terms_list = model.hadley_advection(days, y, data_in, latRef, state_vars['cNH4'])
     all_terms = dict(zip(["cNH4", "cNO3", "N_s", "N_f", "D"], terms_list))
 
     return all_terms

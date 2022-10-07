@@ -134,7 +134,7 @@ class MA_model_scipy:
 
         return out
 
-    def hadley_advection(self, t: float, y, data, dt, latitude: float, nitrification_NH4=None):
+    def hadley_advection(self, t: float, y, data, latitude: float, nitrification_NH4=None):
         """Python implementation of the Hadley model adapted by M. Johnson
 
             y and data must be subscriptable by names (dict, pd.Series,...)
