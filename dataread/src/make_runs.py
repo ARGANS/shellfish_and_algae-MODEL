@@ -531,7 +531,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         for var_name in state_vars.keys():
             state_vars[var_name] += advection_terms[var_name] * dt
 
-
         # Compute the BGC terms
         days = (data_date - datetime.datetime(year, 1, 1)).days # Note: returns an integer only, that is sufficient precision for this
 

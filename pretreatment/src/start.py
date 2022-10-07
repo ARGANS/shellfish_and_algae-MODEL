@@ -39,24 +39,10 @@ for param, dataset_properties in dict_dataCmd.items():
     file_name = f'{param}{zone}modelNetCDF{year}-01to{int(year) + 1}-01.nc'
     method = dataset_properties["pretreatment"]
     frequency = dataset_properties["frequency"]
+    print(param)
 
-    if method == "Copernicus":
-        if frequency == "daily":
-            os.system(f"./concatenate_copernicus.sh {dir_data} {dir_data_pretreated} {file_name}")
-        else: # monthly
-            os.system(f"ln -s {dir_data}/* {dir_data_pretreated}/{file_name}")
-
-
-    elif method == "Copernicus_Arctic":
-        if frequency == "daily":
-            os.system(f"./concatenate_copernicus.sh {dir_data} {dir_data_pretreated} conc.nc")
-        else: # monthly
-            os.system(f"ln -s {dir_data}/* {dir_data_pretreated}/conc.nc")
-
-        os.system(f"./resample_arctic.sh {dir_data_pretreated} conc.nc {file_name} {dataset_properties['variable']}")
-        os.system(f"rm {dir_data_pretreated}/conc.nc")
-
-    elif method == "Reference":
+    if method == "Reference":
+        print('ok')
         # Copy a reference file that is already stored.
         # Should not use symlink because it we change the file later.
         os.system(f"cp {dataset_properties['product-id']} {dir_data_pretreated}/{file_name}")
