@@ -345,18 +345,18 @@ def prepareScenC(nitrogenArray,nanLists, grid_shape):
             nitrogenArray = nitArrayLine.reshape(grid_shape)
     return nitrogenArray
 
-def latLon_to_xy(lat,lon, latMin, lonMin, lonStep, latStep):
-    return round((lon-lonMin)/lonStep), round((lat-latMin)/latStep)
+def latLon_to_xy(lat,lon, longitudes, latitudes):
+    return iNearest(lon, longitudes), iNearest(lat, latitudes)
 
-def giveFarmPos(farmList,latMin, lonMin, latMax, lonMax, lonStep, latStep):
+def giveFarmPos(farmList, longitudes, latitudes):
     xList = []
     yList = []
     for i in range(len(farmList)):
         print(farmList[i][0],farmList[i][1])
-        print((farmList[i][0]<latMax) , (farmList[i][0]>latMin) , (farmList[i][1]<lonMax) , (farmList[i][1]>lonMin))
-        if (farmList[i][0]<latMax) and (farmList[i][0]>latMin) and (farmList[i][1]<lonMax) and (farmList[i][1]>lonMin):
+        print((farmList[i][0]<latitudes[-1]) , (farmList[i][0]>latitudes[0]) , (farmList[i][1]<longitudes[-1]) , (farmList[i][1]>longitudes[0]))
+        if (farmList[i][0]<latitudes[-1]) and (farmList[i][0]>latitudes[0]) and (farmList[i][1]<longitudes[-1]) and (farmList[i][1]>longitudes[0]):
             lat,lon = farmList[i][0], farmList[i][1]
-            xi, yi= latLon_to_xy(lat, lon, latMin, lonMin, lonStep, latStep)
+            xi, yi= latLon_to_xy(lat,lon, longitudes, latitudes)
             xList.append(xi)
             yList.append(yi)
     return (np.array(xList),np.array(yList))
@@ -426,7 +426,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     if farm_pos_file:
         latMin, lonMin, latMax, lonMax = latitudes[0], longitudes[0], latitudes[-1], longitudes[-1]
         farmList = np.loadtxt(farm_pos_file, dtype=float, delimiter=';', skiprows=1, usecols=(1, 2))
-        mask_farm = giveFarmPos(farmList, latMin, lonMin, latMax, lonMax, dyMeter, dxMeter)
+        mask_farm = giveFarmPos(farmList, longitudes, latitudes)
     else:
         mask_farm =None
 
