@@ -553,6 +553,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         dt_bgc = min(dt_list)
 
         # Update dt to respect the CFL and the BGC terms staying positive
+        print(f'dt for phys: {dt_phys * 24 * 60} min ; dt for bgc: {dt_bgc * 24 * 60} min')
         dt = min(dt_phys, dt_bgc)
 
 
@@ -563,6 +564,10 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         for var_name in state_vars.keys():
             state_vars[var_name][mask_farm] += bgc_terms[var_name][mask_farm] * dt
 
+        # "Kill" functionally dead plants
+        dead_cells = (state_vars['N_f'] < 1e-2)
+        state_vars['N_f'][dead_cells] = 0
+        state_vars['N_s'][dead_cells] = 0
 
         # Compute the maximum available nutrients
         availableNut_term = give_availableNut(working_data=working_data,
