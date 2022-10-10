@@ -433,7 +433,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     latRef = np.zeros((len(latitudes), len(longitudes)))
     latRef[:, :] = latitudes[np.newaxis].T
 
-    mask = working_data['northward_Water_current'].mask
     for par_name, par_data in input_data.parameterData.items():
         working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],
                                                       dataBounds[par_name][1])
@@ -444,6 +443,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         else:
             working_data[par_name].filled(fill_value=8)
         #mask = np.ma.mask_or(mask, working_data[par_name].mask)
+    mask = working_data['northward_Water_current'].mask
 
     grid_shape = init_grid_shape
     if scenC:
@@ -555,7 +555,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         # Update dt to respect the CFL and the BGC terms staying positive
         print(f'dt for phys: {dt_phys * 24 * 60} min ; dt for bgc: {dt_bgc * 24 * 60} min')
         dt = min(dt_phys, dt_bgc)
-
 
         # Apply the bgc terms
         if scenC:
