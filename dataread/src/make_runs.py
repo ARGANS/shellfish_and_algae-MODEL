@@ -345,18 +345,34 @@ def prepareScenC(nitrogenArray,nanLists, grid_shape):
             nitrogenArray = nitArrayLine.reshape(grid_shape)
     return nitrogenArray
 
-def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
+def latLon_to_xy(lat,lon, latMin, lonMin, lonStep, latStep):
+    return round((lon-lonMin)/lonStep), round((lat-latMin)/latStep)
+
+def giveFarmPos(farmList,latMin, lonMin, latMax, lonMax, lonStep, latStep):
+    xList = []
+    yList = []
+    for i in range(len(farmList)):
+        print(farmList[i][0],farmList[i][1])
+        print((farmList[i][0]<latMax) , (farmList[i][0]>latMin) , (farmList[i][1]<lonMax) , (farmList[i][1]>lonMin))
+        if (farmList[i][0]<latMax) and (farmList[i][0]>latMin) and (farmList[i][1]<lonMax) and (farmList[i][1]>lonMin):
+            lat,lon = farmList[i][0], farmList[i][1]
+            xi, yi= latLon_to_xy(lat, lon, latMin, lonMin, lonStep, latStep)
+            xList.append(xi)
+            yList.append(yi)
+    return (np.array(xList),np.array(yList))
+
+def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, farm_pos_file=None):
 
     t_init = time.time()
 
     dataBounds = {
         'northward_Water_current': [-1e7, 1e7],
         'eastward_Water_current': [-1e7, 1e7],
-        'Nitrate': [-1e-2, 1e4],
-        'Ammonium': [-1e-2, 1e4],
+        'Nitrate': [0, 1e4],
+        'Ammonium': [0, 1e4],
         'Temperature': [-1e4, 1e4],
-        'Phosphate' : [-1e-2, 1e4],
-        'par' : [-1e-2, 1e4]
+        'Phosphate': [0, 1e4],
+        'par': [0, 1e4]
     }
 
     dt = 1 / 72  # days # TODO: make into parameter in json
@@ -405,6 +421,15 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     longitudes, _ = input_data.parameterData['Nitrate'].getVariable('longitude', **data_kwargs)
     latitudes, _ = input_data.parameterData['Nitrate'].getVariable('latitude', **data_kwargs)
     dxMeter, dyMeter = giveDxDy(latitudes, longitudes)
+
+    #if we only put farms in the location given in farm_pos_file
+    if farm_pos_file:
+        latMin, lonMin, latMax, lonMax = latitudes[0], longitudes[0], latitudes[-1], longitudes[-1]
+        farmList = np.loadtxt(farm_pos_file, dtype=float, delimiter=';', skiprows=1, usecols=(1, 2))
+        mask_farm = giveFarmPos(farmList, latMin, lonMin, latMax, lonMax, dyMeter, dxMeter)
+    else:
+        mask_farm =None
+
     latRef = np.zeros((len(latitudes), len(longitudes)))
     latRef[:, :] = latitudes[np.newaxis].T
 
@@ -536,7 +561,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
             for var_name in state_vars.keys():
                 bgc_terms[var_name] = prepareScenC(bgc_terms[var_name], nanLists, grid_shape)
         for var_name in state_vars.keys():
-            state_vars[var_name] += bgc_terms[var_name] * dt
+            state_vars[var_name][mask_farm] += bgc_terms[var_name][mask_farm] * dt
 
 
         # Compute the maximum available nutrients
