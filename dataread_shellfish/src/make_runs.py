@@ -314,6 +314,8 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         for var_name in state_vars.keys():
             state_vars[var_name] += bgc_terms[var_name] * dt
 
+        state_vars = spawn_evenfunc(state_vars=state_vars)
+
         sim_date += datetime.timedelta(days = dt)
 
     
@@ -375,6 +377,17 @@ def output_dict(state_vars: dict, working_data: dict):
     }
     output_data = model.get_output(y,data_in)
     return output_data
+
+def spawn(state_vars: dict):
+    y = {
+        'CHL': state_vars['CHL'],
+        'SHE': state_vars['SHE'],
+        'STE': state_vars['STE'],
+        'spawnday': state_vars['spawnday'],
+        'sd2': state_vars['sd2'],
+        'POP': state_vars['POP'],
+    }
+    spawn_data = model.spa
 
 def initialize_result(fileName:str, times, latitudes, longitudes, 
                       variableNames:list, mask:np.array):

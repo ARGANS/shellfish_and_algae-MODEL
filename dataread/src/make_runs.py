@@ -345,18 +345,34 @@ def prepareScenC(nitrogenArray,nanLists, grid_shape):
             nitrogenArray = nitArrayLine.reshape(grid_shape)
     return nitrogenArray
 
-def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
+def latLon_to_xy(lat,lon, longitudes, latitudes):
+    return iNearest(lon, longitudes), iNearest(lat, latitudes)
+
+def giveFarmPos(farmList, longitudes, latitudes):
+    xList = []
+    yList = []
+    for i in range(len(farmList)):
+        print(farmList[i][0],farmList[i][1])
+        print((farmList[i][0]<latitudes[-1]) , (farmList[i][0]>latitudes[0]) , (farmList[i][1]<longitudes[-1]) , (farmList[i][1]>longitudes[0]))
+        if (farmList[i][0]<latitudes[-1]) and (farmList[i][0]>latitudes[0]) and (farmList[i][1]<longitudes[-1]) and (farmList[i][1]>longitudes[0]):
+            lat,lon = farmList[i][0], farmList[i][1]
+            xi, yi= latLon_to_xy(lat,lon, longitudes, latitudes)
+            xList.append(xi)
+            yList.append(yi)
+    return (np.array(yList),np.array(xList))
+
+def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, farm_pos_file=None):
 
     t_init = time.time()
 
     dataBounds = {
         'northward_Water_current': [-1e7, 1e7],
         'eastward_Water_current': [-1e7, 1e7],
-        'Nitrate': [-1e-2, 1e4],
-        'Ammonium': [-1e-2, 1e4],
+        'Nitrate': [0, 1e4],
+        'Ammonium': [0, 1e4],
         'Temperature': [-1e4, 1e4],
-        'Phosphate' : [-1e-2, 1e4],
-        'par' : [-1e-2, 1e4]
+        'Phosphate': [0, 1e4],
+        'par': [0, 1e4]
     }
 
     dt = 1 / 72  # days # TODO: make into parameter in json
@@ -405,10 +421,17 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     longitudes, _ = input_data.parameterData['Nitrate'].getVariable('longitude', **data_kwargs)
     latitudes, _ = input_data.parameterData['Nitrate'].getVariable('latitude', **data_kwargs)
     dxMeter, dyMeter = giveDxDy(latitudes, longitudes)
+
+    #if we only put farms in the location given in farm_pos_file
+    if farm_pos_file:
+        farmList = np.loadtxt(farm_pos_file, dtype=float, delimiter=';', skiprows=1, usecols=(1, 2))
+        mask_farm = giveFarmPos(farmList, longitudes, latitudes)
+    else:
+        mask_farm =None
+
     latRef = np.zeros((len(latitudes), len(longitudes)))
     latRef[:, :] = latitudes[np.newaxis].T
 
-    mask = working_data['northward_Water_current'].mask
     for par_name, par_data in input_data.parameterData.items():
         working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],
                                                       dataBounds[par_name][1])
@@ -419,6 +442,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         else:
             working_data[par_name].filled(fill_value=8)
         #mask = np.ma.mask_or(mask, working_data[par_name].mask)
+    mask = working_data['northward_Water_current'].mask
 
     grid_shape = init_grid_shape
     if scenC:
@@ -444,9 +468,11 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask),
         'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask),
         'N_s': np.ma.masked_array(np.zeros(grid_shape), mask),
-        'N_f': np.ma.masked_array(np.ones(grid_shape) * parms_harvest['deployment_Nf'], mask),
+        'N_f': np.ma.masked_array(np.zeros(grid_shape), mask),
         'D': np.ma.masked_array(np.zeros(grid_shape), mask)
     }
+
+    state_vars['N_f'][mask_farm] = parms_harvest['deployment_Nf']
 
     availableNut = {
         'avNO3': np.ma.masked_array(np.zeros(grid_shape), mask),
@@ -528,16 +554,20 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         dt_bgc = min(dt_list)
 
         # Update dt to respect the CFL and the BGC terms staying positive
+        print(f'dt for phys: {dt_phys * 24 * 60} min ; dt for bgc: {dt_bgc * 24 * 60} min')
         dt = min(dt_phys, dt_bgc)
-
 
         # Apply the bgc terms
         if scenC:
             for var_name in state_vars.keys():
                 bgc_terms[var_name] = prepareScenC(bgc_terms[var_name], nanLists, grid_shape)
         for var_name in state_vars.keys():
-            state_vars[var_name] += bgc_terms[var_name] * dt
+            state_vars[var_name][mask_farm] += bgc_terms[var_name][mask_farm] * dt
 
+        # "Kill" functionally dead plants
+        dead_cells = (state_vars['N_f'] < 1e-2)
+        state_vars['N_f'][dead_cells] = 0
+        state_vars['N_s'][dead_cells] = 0
 
         # Compute the maximum available nutrients
         availableNut_term = give_availableNut(working_data=working_data,
