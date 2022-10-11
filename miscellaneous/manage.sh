@@ -5,6 +5,7 @@ echo $DIR
 source $DIR/_common.sh
 source $DIR/_dataread.sh
 source $DIR/_dataread_b.sh
+source $DIR/_dataread_shellfish.sh
 source $DIR/_dataimport.sh
 source $DIR/_pretreatment.sh
 source $DIR/_posttreatment.sh
@@ -39,6 +40,9 @@ pretreatment_destination="$dataimport_destination/_pretreated"
 
 dataread_source="$pretreatment_destination"
 dataread_destination="$dataimport_destination/_dataread/$modelProperties_hash"
+
+dataread_shellfish_source="$pretreatment_destination"
+dataread_shellfish_destination="$dataimport_destination/_dataread_shellfish/$modelProperties_hash"
 
 posttreatment_source="$dataread_destination"
 
@@ -108,6 +112,17 @@ function handle_arguments {
             run_datareadb "$scenario_b_source" "$scenario_b_destination" "$scenario_b_json"
             ;;
         'run_datareadb')
+            run_datareadb_in_interactive_mode "$scenario_b_source" "$scenario_b_destination" "$scenario_b_json"
+            ;;
+
+
+        'build_datareadshellfish')
+            build_datareadb_image
+            ;;
+        'execute_datareadshellfish')
+            run_datareadb "$scenario_b_source" "$scenario_b_destination" "$scenario_b_json"
+            ;;
+        'run_datareadshellfish')
             run_datareadb_in_interactive_mode "$scenario_b_source" "$scenario_b_destination" "$scenario_b_json"
             ;;
 

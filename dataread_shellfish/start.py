@@ -11,7 +11,9 @@ from src.read_netcdf import *
 
 workdir = os.getenv('INPUT_DESTINATION')
 
+
 model_properties = ModelProperties(os.getenv('INPUT_SOURCE'), os.getenv('INPUT_DESTINATION'))
+self, source_path, destination_path) 
 try:
     model_properties.parse(os.getenv('INPUT_MODEL_PROPERTIES_JSON'))
 except:
