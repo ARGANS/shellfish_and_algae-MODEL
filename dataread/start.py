@@ -27,4 +27,5 @@ dict_to_AllData = dataCmd_to_AllData(dict_dataCmd, model_properties.file_templat
 
 algaeData = AllData(dict_to_AllData)
 
+
 time_spent = run_simulation(f"{workdir}/concat.nc", full_json, algaeData)
