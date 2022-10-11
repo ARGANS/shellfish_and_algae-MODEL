@@ -359,7 +359,7 @@ def giveFarmPos(farmList, longitudes, latitudes):
             xi, yi= latLon_to_xy(lat,lon, longitudes, latitudes)
             xList.append(xi)
             yList.append(yi)
-    return (np.array(xList),np.array(yList))
+    return (np.array(yList),np.array(xList))
 
 def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, farm_pos_file=None):
 
@@ -424,7 +424,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
 
     #if we only put farms in the location given in farm_pos_file
     if farm_pos_file:
-        latMin, lonMin, latMax, lonMax = latitudes[0], longitudes[0], latitudes[-1], longitudes[-1]
         farmList = np.loadtxt(farm_pos_file, dtype=float, delimiter=';', skiprows=1, usecols=(1, 2))
         mask_farm = giveFarmPos(farmList, longitudes, latitudes)
     else:
@@ -469,9 +468,11 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask),
         'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask),
         'N_s': np.ma.masked_array(np.zeros(grid_shape), mask),
-        'N_f': np.ma.masked_array(np.ones(grid_shape) * parms_harvest['deployment_Nf'], mask),
+        'N_f': np.ma.masked_array(np.zeros(grid_shape), mask),
         'D': np.ma.masked_array(np.zeros(grid_shape), mask)
     }
+
+    state_vars['N_f'][mask_farm] = parms_harvest['deployment_Nf']
 
     availableNut = {
         'avNO3': np.ma.masked_array(np.zeros(grid_shape), mask),
