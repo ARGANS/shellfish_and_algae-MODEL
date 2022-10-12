@@ -2,7 +2,7 @@
 DATAREAD_IMAGE='ac-dataread_shellfish/runtime'
 DATAREAD_CONTAINER='ac-dataread_shellfish_run'
 
-function build_dataread_image {
+function build_dataread_shellfish_image {
     local dir="./dataread_shellfish"
     local base_image_tag="ac-dataread_shellfish/base"
     local base_image_dockerfile="./miscellaneous/pythonBase.Dockerfile"
@@ -25,7 +25,7 @@ function build_dataread_image {
         $dir
 }
 
-function run_dataread {
+function run_dataread_shellfish {
     stop_existed_container DATAREAD_CONTAINER
     create_volumes
 
@@ -43,7 +43,7 @@ function run_dataread {
         -it $DATAREAD_IMAGE:latest
 }
 
-function run_dataread_in_interactive_mode {
+function run_dataread_shellfish_in_interactive_mode {
     docker run \
         --rm \
         --name $DATAIMPORT_CONTAINER \
