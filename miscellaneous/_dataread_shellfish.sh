@@ -1,6 +1,6 @@
 #!/bin/bash
-DATAREAD_IMAGE='ac-dataread_shellfish/runtime'
-DATAREAD_CONTAINER='ac-dataread_shellfish_run'
+DATAREAD_SHELLFISH_IMAGE='ac-dataread_shellfish/runtime'
+DATAREAD_SHELLFISH_CONTAINER='ac-dataread_shellfish_run'
 
 function build_dataread_shellfish_image {
     local dir="./dataread_shellfish"
@@ -20,20 +20,20 @@ function build_dataread_shellfish_image {
     docker build \
         --network host \
         --build-arg BASE_IMAGE="$base_image_tag" \
-        -t $DATAREAD_IMAGE:v1 -t $DATAREAD_IMAGE:latest \
+        -t $DATAREAD_SHELLFISH_IMAGE:v1 -t $DATAREAD_SHELLFISH_IMAGE:latest \
         -f $runtime_image_dockerfile \
         $dir
 }
 
 function run_dataread_shellfish {
-    stop_existed_container DATAREAD_CONTAINER
+    stop_existed_container DATAREAD_SHELLFISH_CONTAINER
     create_volumes
 
     # use -d to start a container in detached mode
     # use --entrypoint=/bin/bash \ to override the command
     docker run \
         --rm \
-        --name $DATAREAD_CONTAINER \
+        --name $DATAREAD_SHELLFISH_CONTAINER \
         --volume "$SHARED_VOLUME_NAME:/media/share" \
         --volume "$GLOBAL_VOLUME_NAME":/media/global \
         -e INPUT_SOURCE="$1" \
