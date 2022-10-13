@@ -20,7 +20,7 @@ class SF_model_scipy:
             self._parameters.update(first_default["parameters"])
             self._parameters.update(first_default["options"])
 
-        self.names = ["DSTW", "STE","POP","CHL","FW","DWW","SHL","NH4_production","CO2_production"]
+        self.names = ["DSTW", "STE","FW","DWW","SHL","NH4_production","CO2_production"]
         self.time_reading = 0
         self.time_computing = 0
         self.n_calls = 0
@@ -29,9 +29,8 @@ class SF_model_scipy:
         self.n_calls_J = 0
 
     @staticmethod
-    def SF_derivative(y, data, self):
+    def derivative(y, data, self):
         p = SimpleNamespace(**self._parameters)
-        #y = spawn_tined_root(y, data)
         V_SF = p.y_farm*p.x_farm*p.density_SF_farm*p.h_SF
         V_INT = p.y_farm*p.x_farm*p.h_SF*1.4 #Zmix
         turnover = data['F_in'] / p.x_farm
@@ -47,7 +46,7 @@ class SF_model_scipy:
                 REMORG = max(0, (2.33*data['POC']/1000) - SELORG)
                 EREM = 20.48
         else : 
-            SELORG = data['CHL_ext']*50/(0.38*1000)  #what is the unit of these deux paramaters suppose to be in mg perl if chl is in micro/m3 but chl is in mg/m3
+            SELORG = data['CHL_ext']*50/(0.38*1000)  #what is the unit of these deux paramaters suppose to be in mg per l if chl is in micro/l but chl is in mg/m3
             REMORG = 0
             EREM = 0
         DSHW = y['SHE']/(p.ECS*1000)
@@ -98,34 +97,19 @@ class SF_model_scipy:
             dPHYC_farm = 0
 
         dPOP = starvation_mortality
-
-        NH4_production=EL*per_farm/1e6,#g NH4-N per day  per farm
-        CO2_production=ELC*per_farm/1e6, #g CO2-C per day per farm
-        DWW_total=DWW*per_farm/1e6, #tonnes per farm
-        DWW_PUA=DWW*per_unit_area/1e3, #kg per m2
-        FW_total=FW*per_farm/1e6,#tonnes per farm
-        FW_PUA=FW*per_unit_area/1e3, #kg per m2
-        DW_total=(DSTW+DSHW)*per_farm/1e6,#tonnes per farm
-        DW_PUA=(DSTW+DSHW)*per_unit_area/1e3, #kg per m2
-        DSTW_total=(DSTW)*per_farm/1e6,#tonnes per farm
-        DSTW_PUA=(DSTW)*per_unit_area/1e3, #kg per m2
-        POC_uptake_total=POC_uptake*per_farm/1e6,#g per day  per farm
-        POC_uptake_PUA=POC_uptake*per_unit_area/1e6, #g per m2 per day
-        STE_total=y["STE"]*per_farm/1e6, #MJ soft tissue energy per farm  ""
-        STE_PUA=y["STE"]*per_unit_area/1e6, #MJ soft tissue energy per unit area
-        kcal_PUA=y["STE"]*per_unit_area/4184, #kcal sfot tissue per unit area
-        protein_PUA=DSTW*per_unit_area*p.protein_DW_fraction/1e3 #kg/m2 '''      
         return  np.array([dCHL_farm, dSHE, dSTE, dspawnday, dsd2, dPOP]) 
+
     @staticmethod
     def get_output(y, data, self):
         p = SimpleNamespace(**self._parameters)
-        #y = spawn_tined_root(y, data)
         V_SF = p.y_farm*p.x_farm*p.density_SF_farm*p.h_SF
         V_INT = p.y_farm*p.x_farm*p.h_SF*1.4 #Zmix
         turnover = data['F_in'] / p.x_farm
         per_farm = y["POP"]*V_SF
         per_unit_area = per_farm/(p.x_farm*p.y_farm)
-
+        SELORG = data['CHL_ext']*12/(0.38*1000) #SELORG = data['CHL_ext']*12/(0.38*1000)
+        REMORG = 0
+        EREM = 0
         DSHW = y['SHE']/(p.ECS*1000)
         DSTW = y['STE']/(p.EST*1000)
         TEF = CR(data['SST'], p.CR_max,p.CR_grad, p.CR_inflec)/CR(15, p.CR_max,p.CR_grad, p.CR_inflec)
@@ -146,9 +130,7 @@ class SF_model_scipy:
         FW = p.SCW*(DSHW*(1+p.WCS)+DSTW*(1+p.WCT)) 
         DWW = DSHW*(1+p.WCS)+DSTW*(1+p.WCT)
         SHL = p.a_SHL*DSHW**p.b_SHL
-        SELORG = data['CHL_ext']*50/(0.38*1000)  #what is the unit of these deux paramaters suppose to be in mg perl if chl is in micro/m3 but chl is in mg/m3
-        REMORG = 0
-        EREM = 0
+        POP = starvation_mortality
         NH4_production=EL*per_farm/1e6,#g NH4-N per day  per farm
         CO2_production=ELC*per_farm/1e6, #g CO2-C per day per farm
         DWW_total=DWW*per_farm/1e6, #tonnes per farm
@@ -163,7 +145,15 @@ class SF_model_scipy:
         STE_PUA=y["STE"]*per_unit_area/1e6, #MJ soft tissue energy per unit area
         kcal_PUA=y["STE"]*per_unit_area/4184, #kcal sfot tissue per unit area
         protein_PUA=DSTW*per_unit_area*p.protein_DW_fraction/1e3 #kg/m2 '''     
-        return {"DSTW" : DSTW, "STE" : STE_total, "FW" : FW ,"DWW" : DWW, "SHL" : SHL, "NH4_production" : NH4_production, "CO2_production" : CO2_production}
+        return {"DSTW" : DSTW_PUA, "STE" : STE_PUA, "FW" : FW_PUA ,"DWW" : DWW_PUA, "SHL" : SHL, "NH4_production" : NH4_production, "CO2_production" : CO2_production}
+
+    @staticmethod
+    def spawn_evenfunc(y,self):
+        p = SimpleNamespace(**self._parameters)
+        print(y)
+        y = dict(zip(["CHL", "SHE", "STE", "spawnday", "sd2", "POP"], [y["CHL"],y["SHE"]*(1-p.PSTL)*(y["sd2"]> 365 )+ (y["SHE"]*(1-p.PSTL)*(y["sd2"] < 365 )),0,y["spawnday"],y["sd2"],y["POP"]])) #reduce dstw soft tissu weight
+        print(y)
+        return y
 
 
 def CR(sst, cr_max, cr_gard, cr_inflec):
@@ -172,13 +162,6 @@ def CR(sst, cr_max, cr_gard, cr_inflec):
     cr =  cr_max-cr_gard*(sst-cr_inflec**2)
     CR = cr*(cr>0) + 0*(cr<=0)
     return CR     
-
-def spawn_evenfunc(y,self):
-    p = SimpleNamespace(**self._parameters)
-    print(y)
-    y = dict(zip(["CHL", "SHE", "STE", "spawnday", "sd2", "POP"], [y["CHL"],y["SHE"]*(1-p.PSTL)*(y["sd2"]> 365 )+ (y["SHE"]*(1-p.PSTL)*(y["sd2"] < 365 )),0,y["spawnday"],y["sd2"],y["POP"]])) #reduce dstw soft tissu weight
-    print(y)
-    return y
 
 def spawn_tined_root(y, data, self):
     p = SimpleNamespace(**self._parameters)

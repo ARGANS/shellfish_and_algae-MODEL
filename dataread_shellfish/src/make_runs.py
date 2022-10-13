@@ -222,7 +222,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     parms_run = list(model_json['parameters']['run'].values())[0]['parameters']
     parms_farm = list(model_json['parameters']['farm'].values())[0]['parameters']
 
-    parms_harvest = list(model_json['parameters']['harvest'].values())[0]['parameters']
+    #parms_harvest = list(model_json['parameters']['harvest'].values())[0]['parameters']
     #harvest_type = list(model_json['parameters']['harvest'].keys())[0]
 
     year = int(model_json['dataset_parameters']['year'])
@@ -230,14 +230,16 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     model = SF_model_scipy(model_json['parameters'])
 
     # Define beginning and end times of the simulation #change the name of variable 
-    startDate = datetime.datetime(year, int(parms_harvest['deployment_month']), 1)
-    endDate = datetime.datetime(year + 2, int(parms_harvest['harvesting_month']), 1) + relativedelta(months=1) 
+    #startDate = datetime.datetime(year, int(parms_harvest['deployment_month']), 1)
+    #endDate = datetime.datetime(year + 2, int(parms_harvest['harvesting_month']), 1) + relativedelta(months=1) 
+    startDate = datetime.datetime(year, 1, 1)
+    endDate = datetime.datetime(year + 1, 12, 1) + relativedelta(months=1) 
 
     # Data import information, except for the time
     data_kwargs = {
-                'longitude': (parms_run["min_lon"], parms_run["max_lon"]),
-                'latitude': (parms_run["min_lat"], parms_run["max_lat"]),
-                "depth": (0, (1 + parms_run['Von_Karman']) * parms_farm["z"]),
+                'longitude': (-5.5417, 36.2917), #(-19,5),#(parms_run["min_lon"], parms_run["max_lon"]),
+                'latitude': (30.1875, 45.9792), #(26,56),#(parms_run["min_lat"], parms_run["max_lat"]),
+                "depth": (0,3),#(0, (1 + parms_run['Von_Karman']) * parms_farm["z"]),
                 "averagingDims": ("depth",)
                 }
 
@@ -254,11 +256,10 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     for par_name, par_data in input_data.parameterData.items():
         print(par_name)
         print(working_data[par_name].shape)
-
     init_grid_shape = working_data['Chlorophyll-a'].shape #the shape should be the same for all parameters
     longitudes, _ = input_data.parameterData['Chlorophyll-a'].getVariable('longitude', **data_kwargs)
     latitudes, _ = input_data.parameterData['Chlorophyll-a'].getVariable('latitude', **data_kwargs)
-    dxMeter, dyMeter = giveDxDy(latitudes, longitudes)
+    #dxMeter, dyMeter = giveDxDy(latitudes, longitudes)
 
     #latRef = np.zeros((len(latitudes), len(longitudes)))
     #latRef[:, :] = latitudes[np.newaxis].T
@@ -308,23 +309,23 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
         days = (data_date - datetime.datetime(year, 1, 1)).days # Note: returns an integer only, that is sufficient precision for this
 
-        bgc_terms = bgc_model(state_vars=state_vars, working_data=working_data, dt=dt,
-                              model=model, parms_run=parms_run, days=days)
+        bgc_terms = bgc_model(state_vars=state_vars, working_data=working_data,
+                              model=model)
 
         for var_name in state_vars.keys():
             state_vars[var_name] += bgc_terms[var_name] * dt
 
-        state_vars = spawn_evenfunc(state_vars=state_vars)
+        #state_vars = spawn_evenfunc(state_vars=state_vars)
 
         sim_date += datetime.timedelta(days = dt)
 
     
 
-    output_data = output_dict(state_vars=state_vars, working_data=working_data)
+    output_data = output_dict(state_vars=state_vars, working_data=working_data,model=model)
 
     # Create output file
     initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
-                      variableNames=["DSTW", "STE","POP","CHL","FW","DWW","SHL","NH4_production","CO2_production"], mask=mask)
+                      variableNames=["DSTW", "STE","FW","DWW","SHL","NH4_production","CO2_production"], mask=mask)
 
     # Write values to file
     ds = nc.Dataset(out_file_name, 'a')
@@ -335,13 +336,13 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
 
 #return the variation of each quantities in the algae model
-def bgc_model(state_vars: dict, working_data: dict, dt, model, parms_run, days):
+def bgc_model(state_vars: dict, working_data: dict, model):
 
     data_in = {
         'SST': working_data['Temperature'],
         'CHL_ext': working_data['Chlorophyll-a'],
         'F_in': np.sqrt(working_data['northward_Water_current'] ** 2 + working_data['eastward_Water_current'] ** 2),
-        't_z': (1 + parms_run['Von_Karman']) * model._parameters["z"]
+        't_z':  1.4 #(1 + parms_run['Von_Karman']) * model._parameters["z"]
     }
 
     y = {
@@ -353,12 +354,12 @@ def bgc_model(state_vars: dict, working_data: dict, dt, model, parms_run, days):
         'POP': state_vars['POP'],
     }
 
-    terms_list = model.derivative(y, data_in)
+    terms_list = model.derivative(y, data_in, model)
     all_terms = dict(zip(["CHL", "SHE", "STE", "spawnday", "sd2", 'POP'], terms_list))
 
     return all_terms
 
-def output_dict(state_vars: dict, working_data: dict):
+def output_dict(state_vars: dict, working_data: dict, model):
     # a remplacer pour t_z = (1 + parms_run['Von_Karman']) * model._parameters["z"]
     data_in = {
         'SST': working_data['Temperature'],
@@ -375,10 +376,10 @@ def output_dict(state_vars: dict, working_data: dict):
         'sd2': state_vars['sd2'],
         'POP': state_vars['POP'],
     }
-    output_data = model.get_output(y,data_in)
+    output_data = model.get_output(y,data_in, model)
     return output_data
 
-def spawn(state_vars: dict):
+def spawn_evenfunc(state_vars: dict):
     y = {
         'CHL': state_vars['CHL'],
         'SHE': state_vars['SHE'],
@@ -387,7 +388,8 @@ def spawn(state_vars: dict):
         'sd2': state_vars['sd2'],
         'POP': state_vars['POP'],
     }
-    spawn_data = model.spa
+    spawn_data = model.spawn_evenfunc(y, model)
+    return(spawn_data)
 
 def initialize_result(fileName:str, times, latitudes, longitudes, 
                       variableNames:list, mask:np.array):
