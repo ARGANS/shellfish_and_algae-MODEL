@@ -436,10 +436,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],dataBounds[par_name][1])
         if (par_name == "Nitrate") or (par_name == "Ammonium"):
             working_data[par_name] = np.maximum(working_data[par_name], 0)
-        if par_name != 'par':
-            working_data[par_name].filled(fill_value=0)
-        else:
-            working_data[par_name].filled(fill_value=8)
         #mask = np.ma.mask_or(mask, working_data[par_name].mask)
     mask = working_data['northward_Water_current'].mask.copy()
 
@@ -462,13 +458,23 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         print(working_data[par_name].shape)
 
     # Initialize the model variables
-    state_vars = {
-        'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
-        'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
-        'N_s': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
-        'N_f': np.ma.masked_array(np.ones(grid_shape)*parms_harvest['deployment_Nf'], mask.copy()),
-        'D': np.ma.masked_array(np.zeros(grid_shape), mask.copy())
-    }
+    if mask_farm:
+        state_vars = {
+            'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+            'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+            'N_s': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+            'N_f': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+            'D': np.ma.masked_array(np.zeros(grid_shape), mask.copy())
+        }
+        state_vars['N_f'][mask_farm] = parms_harvest['deployment_Nf']
+    else:
+        state_vars = {
+            'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+            'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+            'N_s': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+            'N_f': np.ma.masked_array(np.ones(grid_shape)*parms_harvest['deployment_Nf'], mask.copy()),
+            'D': np.ma.masked_array(np.zeros(grid_shape), mask.copy())
+        }
 
     availableNut = {
         'avNO3': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
@@ -487,9 +493,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     
     t_init_decenterer = time.time()
     print('Starting applying the decenterer ofr the first time')
-    '''print(np.max(np.abs(working_data['northward_Water_current'])))
-    working_data['northward_Water_current'][np.where(np.abs(working_data['northward_Water_current'])>1e7)] = 0
-    print(np.max(np.abs(working_data['northward_Water_current'])))'''
 
     working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
                                                                                   working_data['northward_Water_current'])
@@ -525,10 +528,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
                     reapply_decenterer = True
                 elif (par_name == "Nitrate") or (par_name == "Ammonium"):
                     working_data[par_name] = np.maximum(working_data[par_name], 0)
-                if par_name != 'par':
-                    working_data[par_name].filled(fill_value=0)
-                else:
-                    working_data[par_name].filled(fill_value=8)
         if reapply_decenterer:
             working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
                                                                                           working_data['northward_Water_current'])
