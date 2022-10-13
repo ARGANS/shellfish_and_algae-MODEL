@@ -368,11 +368,11 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     dataBounds = {
         'northward_Water_current': [-1e7, 1e7],
         'eastward_Water_current': [-1e7, 1e7],
-        'Nitrate': [0, 1e4],
-        'Ammonium': [0, 1e4],
+        'Nitrate': [-1e-2, 1e4],
+        'Ammonium': [-1e-2, 1e4],
         'Temperature': [-1e4, 1e4],
-        'Phosphate': [0, 1e4],
-        'par': [0, 1e4]
+        'Phosphate': [-1e-2, 1e4],
+        'par': [-1e-2, 1e4]
     }
 
     dt = 1 / 72  # days # TODO: make into parameter in json
@@ -433,8 +433,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     latRef[:, :] = latitudes[np.newaxis].T
 
     for par_name, par_data in input_data.parameterData.items():
-        working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],
-                                                      dataBounds[par_name][1])
+        working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],dataBounds[par_name][1])
         if (par_name == "Nitrate") or (par_name == "Ammonium"):
             working_data[par_name] = np.maximum(working_data[par_name], 0)
         if par_name != 'par':
@@ -458,6 +457,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         mask = resa.resampleData(mask)
     nanLists = findNan(mask)
 
+
     for par_name, par_data in input_data.parameterData.items():
         print(par_name)
         print(working_data[par_name].shape)
@@ -468,11 +468,9 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask),
         'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask),
         'N_s': np.ma.masked_array(np.zeros(grid_shape), mask),
-        'N_f': np.ma.masked_array(np.zeros(grid_shape), mask),
+        'N_f': np.ma.masked_array(np.ones(grid_shape)*parms_harvest['deployment_Nf'], mask),
         'D': np.ma.masked_array(np.zeros(grid_shape), mask)
     }
-
-    state_vars['N_f'][mask_farm] = parms_harvest['deployment_Nf']
 
     availableNut = {
         'avNO3': np.ma.masked_array(np.zeros(grid_shape), mask),
@@ -488,17 +486,21 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     print('Starting initialization of the decenterer')
     decenterer = Decenterer(mask, dxMeter, dyMeter)
     print(f'End of decenterer initialization, time taken: {(time.time() - t_init_decenterer)} seconds')
-
+    
     t_init_decenterer = time.time()
     print('Starting applying the decenterer ofr the first time')
+    '''print(np.max(np.abs(working_data['northward_Water_current'])))
+    working_data['northward_Water_current'][np.where(np.abs(working_data['northward_Water_current'])>1e7)] = 0
+    print(np.max(np.abs(working_data['northward_Water_current'])))'''
+
     working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
                                                                                   working_data['northward_Water_current'])
+
     dt_phys = give_dt(dxMeter, dyMeter, working_data["decentered_U"],working_data["decentered_V"])
 
     print(f'End of first decenterer application, time taken: {(time.time() - t_init_decenterer)} seconds')
 
     Ks = 0# 1e-3 * 60 * 60 * 24 # m2/s
-
     # Simulation loop
     sim_date = startDate
     while sim_date < endDate:
