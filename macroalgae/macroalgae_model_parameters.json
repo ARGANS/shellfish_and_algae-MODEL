@@ -1,7 +1,7 @@
 {
     "species": {
-        "section_name": "Algae Species",
-        "section_description": "blabla",
+        "section_name": "Macroalgae Species",
+        "section_description": "Species-specific parameter values",
         "parameters_descriptions": {
             "mu"      : ["maximum growth rate"                   , "1/d"],
             "V_NH4"   : ["maximum ammonium uptake rate"          , "mg(N)g-1(dw)d-1"],
@@ -30,27 +30,27 @@
         "options_descriptions": {},
         "defaults": {
             "saccharina": {
-                "name": "Saccharina",
-                "description": "long blabla",
+                "name": "Saccharaina Latissima",
+                "description": "Default paramater values for Sacchrina Latissima. Values taken from literature synthesis and tuned to growth data from Bantry Bay, Ireland. For details see documentation",
                 "parameters": {
                     "mu"      : 0.18,
-                    "V_NH4"   : 100,
-                    "V_NO3"   : 200,
-                    "K_NH4"   : 11,
-                    "K_NO3"   : 200,
+                    "V_NH4"   : 5.5,
+                    "V_NO3"   : 1.9,
+                    "K_NH4"   : 12.5,
+                    "K_NO3"   : 70,
                     "Q_max"   : 22,
-                    "Q_min"   : 10,
+                    "Q_min"   : 12,
                     "N_to_P"  : 12,
                     "K_c"     : 8,
                     "T_O"     : 12.5,
                     "T_min"   : 0,
                     "T_max"   : 20,
-                    "I_s"     : 90,
+                    "I_s"     : 100,
                     "a_cs"    : 0.00036,
-                    "d_m"     : 0.0003,
-                    "h_MA"    : 2,
+                    "d_m"     : 0.003,
+                    "h_MA"    : 3,
                     "w_MA"    : 0.3,
-                    "r_L"     : 0.10,
+                    "r_L"     : 0.2,
                     "r_N"     : 0.1,
                     "CN_MA"   : 21,
                     "kcal_MA" : 2.29,
@@ -60,26 +60,26 @@
                 "options": {}
             },
             "alaria": {
-                "name": "Alaria",
-                "description": "long blabla",
+                "name": "Alaria Esculenta",
+                "description": "Default paramater values for A. Esculenta. Values taken from literature synthesis and tuned to growth data from Bantry Bay, Ireland. For details see documentation",
                 "parameters": {
-                    "mu"      : 0.1,
-                    "V_NH4"   : 60,
-                    "V_NO3"  : 25,
-                    "K_NH4"   : 1,
-                    "K_NO3"   : 5,
-                    "Q_max"   : 70,
-                    "Q_min"   : 14,
+                    "mu"      : 0.2,
+                    "V_NH4"   : 12,
+                    "V_NO3"  : 6,
+                    "K_NH4"   : 4,
+                    "K_NO3"   : 20,
+                    "Q_max"   : 27,
+                    "Q_min"   : 15,
                     "N_to_P"  : 12,
-                    "K_c"     : 7,
-                    "T_O"     : 5,
-                    "T_min"   : 1,
+                    "K_c"     : 8,
+                    "T_O"     : 6,
+                    "T_min"   : 0,
                     "T_max"   : 16,
                     "I_s"     : 60,
-                    "a_cs"    : 0.00036,
+                    "a_cs"    : 0.00033,
                     "d_m"     : 0.003,
-                    "h_MA"    : 0.4,
-                    "w_MA"    : 0.2,
+                    "h_MA"    : 2.5,
+                    "w_MA"    : 0.3,
                     "r_L"     : 0.2,
                     "r_N"     : 0.1,
                     "CN_MA"   : 21 ,
@@ -90,8 +90,8 @@
                 "options": {}
             },
             "ulva": {
-                "name": "Ulva",
-                "description": "long blabla",
+                "name": "Ulva Lactuta",
+                "description": "Default paramater values for U. Lactuta. For details see documentation",
                 "parameters": {
                     "mu"      : 0.45,
                     "V_NH4"   : 124,
@@ -107,10 +107,10 @@
                     "T_max"   : 25,
                     "I_s"     : 200,
                     "a_cs"    : 0.00033,
-                    "d_m"     : 0.0003,
+                    "d_m"     : 0.003,
                     "h_MA"    : 0.2,
-                    "w_MA"    : 1,
-                    "r_L"     : 0.1,
+                    "w_MA"    : 0.2,
+                    "r_L"     : 0.2,
                     "r_N"     : 0.1,
                     "CN_MA"   : 15,
                     "kcal_MA" : 2.16,
@@ -123,8 +123,8 @@
     },
 
     "farm": {
-        "section_name": "Farm definition",
-        "section_description": "blabla",
+        "section_name": "Farm characteristics",
+        "section_description": "Farm setup parameters defining horizontal and vertical extent, and the density of macroalgae within the farm.",
         "parameters_descriptions": {
             "y_farm"            : ["width of farm perpendicular to flow direction"    , "m"],
             "density_MA"        : ["fraction of farm area occupied by algae"          , ""],
@@ -134,8 +134,8 @@
         "options_descriptions": {},
         "defaults": {
             "default": {
-                "name": "blabla",
-                "description": "long blabla",
+                "name": "Default values for farm parameters",
+                "description": "Farm setup parameters defining horizontal and vertical extent, and the density of macroalgae within the farm.",
                 "parameters": {
                     "y_farm"            : 1000,
                     "density_MA"        : 0.4,
@@ -149,37 +149,31 @@
 
     "harvest": {
         "section_name": "Harvesting process",
-        "section_description": "blabla",
+        "section_description": "Settings for controlling deployment and harvest",
         "parameters_descriptions": {
-            "harvest_first"     : ["days from start of run to first harvest"                , "days"],
-            "harvest_freq"      : ["days bewteen first harvest and subsequent harvests"     , "days"],
-            "harvest_fraction"  : ["fraction of total biomass to harvest at each harvest"   , ""],
-            "deployment_day"    : ["days from start of run to deployment of seaweed"        , "days"],
-            "deployment_Nf"     : ["amount of seaweed deployed"                             , "mg fixed N per m3"]
+            "deployment_Nf"     : ["amount of seaweed deployed"                                    , "mg fixed N per m3"],
+            "deployment_month"  : ["deployment month (number 1-12), deployed on the first day"     , ""],
+            "harvesting_month"  : ["harvesting month (number 1-12), harvested on the last day"     , ""] 
         },
         "options_descriptions": {},
         "defaults": {
             "Winter_growth":{
                 "name": "Winter growth",
-                "description": "long blabla",
+                "description": "Default settings for typical growth of seaweed over winter months (deploy in September, harvest in April) ",
                 "parameters":{
-                    "deployment_day"    : 280,
-                    "harvest_first"     : 520,
-                    "harvest_freq"      : 1000,
-                    "harvest_fraction"  : 1,
-                    "deployment_Nf"     : 1000
+                    "deployment_Nf"     : 1000,
+                    "deployment_month"  : 9,
+                    "harvesting_month"  : 4
                 },
                 "options": {}
             },
-            "CCA":{
-                "name": "CCA",
-                "description": "long blabla",
+            "Summer_growth":{
+                "name": "Summer growth",
+                "description": "Default settings for growth of seaweed over summer months (deploy in March, harvest in Spetember)",
                 "parameters":{
-                    "deployment_day"    : 2,
-                    "harvest_first"     : 65,
-                    "harvest_freq"      : 50,
-                    "harvest_fraction"  : 0.75,
-                    "deployment_Nf"     : 10000
+                    "deployment_Nf"     : 1000,
+                    "deployment_month"  : 3,
+                    "harvesting_month"  : 9
                 },
                 "options": {}
             }
@@ -188,38 +182,33 @@
 
     "run": {
         "section_name": "Simulation options",
-        "section_description": "blabla",
+        "section_description": "Run specific settings",
         "parameters_descriptions": {
+            "K_d490"         : ["Kd(490)"                                               , "m-1"],
+            "Von_Karman"  : ["Von Kármán constant"                                   , ""],
+            "Detritus"    : ["Background detritus concentration"                     , "mg N per m^3"],
             "min_lon"     : ["Minimum longitude"                                     , "degrees east"],
             "max_lon"     : ["Maximum longitude"                                     , "degrees east"],
             "min_lat"     : ["Minimum latitude"                                      , "degrees north"],
             "max_lat"     : ["Maximum latitude"                                      , "degrees north"],
-            "n_cores"     : ["Number of processing cores to use"                    , ""]
+            "n_cores"     : ["Number of processing cores to use"                     , ""]
         },
-        "options_descriptions": {
-            "harvest_method": ["no harvesting",
-                               "single winter deployment",
-                               "cut and come again"],
-            "light_scheme":   ["Zollman self-shading scheme",
-                               "Simple vertical light no self shading",
-                               "Solar angle light no self shading",
-                               "Selfshading with solar angle accounted for"]
-        },
+        "options_descriptions": {},
         "defaults": {
             "default": {
                 "name": "default",
-                "description": "long blabla",
+                "description": "Default values for run-specific settings",
                 "parameters": {
+                    "K_d490"                 : 0.1,
+                    "Von_Karman"          : 0.4,
+                    "Detritus"            : 0.1,
                     "min_lon"             : -180,
                     "max_lon"             : 180,
                     "min_lat"             : -90,
                     "max_lat"             : 90,
                     "n_cores"             : 10
                 },
-                "options": {
-                    "harvest_method": 0,
-                    "light_scheme": 3
-                }
+                "options": {}
             }
         }
     }

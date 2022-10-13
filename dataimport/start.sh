@@ -5,7 +5,7 @@ mkdir -p $destination
 rm -rf $destination/*
 
 echo -n $(date +%s) > $destination/start.mark
-mkdir -p $destination/{eastward_Water_current,northward_Water_current,Salinity,Phosphate,Ammonium,Nitrate,Temperature,pCO2,disolved_inorganic_carbon,primary_producer_POC,ocean_mixed_layer_thickness,par}
+mkdir -p $destination/{eastward_Water_current,northward_Water_current,Phosphate,Ammonium,Nitrate,Temperature,par,Chlorophyll-a}
 
 echo -n $INPUT_PARAMETERS > $destination/parameters.json
 error_log=$destination/error.txt
