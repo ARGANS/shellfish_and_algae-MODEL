@@ -46,7 +46,7 @@ class Resampler:
 class Decenterer:
     def __init__(self, mask, dx, dy):
 
-        self._mask = mask
+        self._mask = mask.copy()
 
         m, n = self._mask.shape
 
@@ -78,7 +78,7 @@ class Decenterer:
 
 
         # masks for where currents should be 0, obtained from diff.
-        fake_UVc = np.ma.masked_array(np.zeros((m,n)), mask)
+        fake_UVc = np.ma.masked_array(np.zeros((m,n)), self._mask)
         Uc_mask = np.ma.getmaskarray(np.diff(fake_UVc, axis=1).flatten())
         Vc_mask = np.ma.getmaskarray(np.diff(fake_UVc, axis=0).flatten())
 
@@ -88,7 +88,7 @@ class Decenterer:
         # mask where the lambda constraints are unnecessary/redundant i.e.:
         #   - where Uc/Vc is masked
         #   - one cell per independent area
-        l_mask = mask.flatten()
+        l_mask = self._mask.flatten()
         for i in range(1, n_labs+1):
             first_lab_index = np.where(labs.flatten() == i)[0][0]
             l_mask[first_lab_index] = True
@@ -375,7 +375,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         'par': [-1e-2, 1e4]
     }
 
-    dt = 1 / 72  # days # TODO: make into parameter in json
+    #dt = 1 / 72  # days # TODO: make into parameter in json
 
     # Parse the input json info
     parms_run = list(model_json['parameters']['run'].values())[0]['parameters']
@@ -441,7 +441,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         else:
             working_data[par_name].filled(fill_value=8)
         #mask = np.ma.mask_or(mask, working_data[par_name].mask)
-    mask = working_data['northward_Water_current'].mask
+    mask = working_data['northward_Water_current'].mask.copy()
 
     grid_shape = init_grid_shape
     if scenC:
@@ -457,24 +457,22 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         mask = resa.resampleData(mask)
     nanLists = findNan(mask)
 
-
     for par_name, par_data in input_data.parameterData.items():
         print(par_name)
         print(working_data[par_name].shape)
 
-
     # Initialize the model variables
     state_vars = {
-        'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask),
-        'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask),
-        'N_s': np.ma.masked_array(np.zeros(grid_shape), mask),
-        'N_f': np.ma.masked_array(np.ones(grid_shape)*parms_harvest['deployment_Nf'], mask),
-        'D': np.ma.masked_array(np.zeros(grid_shape), mask)
+        'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+        'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+        'N_s': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+        'N_f': np.ma.masked_array(np.ones(grid_shape)*parms_harvest['deployment_Nf'], mask.copy()),
+        'D': np.ma.masked_array(np.zeros(grid_shape), mask.copy())
     }
 
     availableNut = {
-        'avNO3': np.ma.masked_array(np.zeros(grid_shape), mask),
-        'avNH4': np.ma.masked_array(np.zeros(grid_shape), mask),
+        'avNO3': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+        'avNH4': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
     }
 
     if scenC:
@@ -500,7 +498,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
 
     print(f'End of first decenterer application, time taken: {(time.time() - t_init_decenterer)} seconds')
 
-    Ks = 0# 1e-3 * 60 * 60 * 24 # m2/s
     # Simulation loop
     sim_date = startDate
     while sim_date < endDate:
@@ -583,7 +580,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
                                                dxMeter=dxMeter, dyMeter=dyMeter)
         else:
             advection_terms = advection_model(state_vars=state_vars, working_data=working_data,
-                                              dxMeter=dxMeter, dyMeter=dyMeter, Ks=Ks)
+                                              dxMeter=dxMeter, dyMeter=dyMeter)
 
         # Apply the advection
         for var_name in state_vars.keys():
@@ -615,12 +612,12 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     # Write values to file
     ds = nc.Dataset(out_file_name, 'a')
     for name in model.names:
-        ds[name][0,:,:] = np.ma.masked_array(state_vars[name], mask)
+        ds[name][0,:,:] = np.ma.masked_array(state_vars[name], mask.copy())
     for name in ['cNO3', 'cNH4']:
-        ds[name][0,:,:] = np.ma.masked_array(state_vars[name], mask)
+        ds[name][0,:,:] = np.ma.masked_array(state_vars[name], mask.copy())
     for name in ['avNH4', 'avNO3']:
-        ds[name][0, :, :] = np.ma.masked_array(availableNut[name], mask)
-        availableNut[name] = np.ma.masked_array(availableNut[name], mask)
+        ds[name][0, :, :] = np.ma.masked_array(availableNut[name], mask.copy())
+        availableNut[name] = np.ma.masked_array(availableNut[name], mask.copy())
         availableNut[name][availableNut[name].mask] = np.nan
     ds.close()
     print(time.time() - t_init)
@@ -653,7 +650,7 @@ def bgc_model(state_vars: dict, working_data: dict, model, parms_run, days, latR
 
 
 def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.array, nanLists: np.array):
-    mask = working_data['Nitrate'].mask
+    mask = working_data['Nitrate'].mask.copy()
     grid_shape = working_data['Nitrate'].shape
 
     NO3_line = working_data['Nitrate'].flatten()
@@ -673,8 +670,8 @@ def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.arr
     advNH4 = advNH4.reshape(grid_shape)
 
     # reapply masks that were altered
-    advNO3 = np.ma.masked_array(advNO3, mask)
-    advNH4 = np.ma.masked_array(advNH4, mask)
+    advNO3 = np.ma.masked_array(advNO3, mask.copy())
+    advNH4 = np.ma.masked_array(advNH4, mask.copy())
 
     all_terms = {
         'avNO3': advNO3,
@@ -684,8 +681,7 @@ def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.arr
     return all_terms
 
 def advection_modelA(state_vars: dict, working_data: dict, dxMeter: np.array, dyMeter: np.array):
-
-    mask = working_data['Nitrate'].mask
+    mask = working_data['Nitrate'].mask.copy()
     grid_shape = working_data['Nitrate'].shape
 
     uGreater0 = ((working_data["decentered_U"][:, 1:] > 0) * working_data["decentered_U"][:, 1:]).flatten()
@@ -711,9 +707,9 @@ def advection_modelA(state_vars: dict, working_data: dict, dxMeter: np.array, dy
     advD = advD.reshape(grid_shape)
 
     # reapply masks that were altered # TODO: check if still necessary
-    advNO3.mask = mask
-    advNH4.mask = mask
-    advD.mask = mask
+    advNO3.mask = mask.copy()
+    advNH4.mask = mask.copy()
+    advD.mask = mask.copy()
 
     all_terms = {
         'cNO3': advNO3,
@@ -725,15 +721,12 @@ def advection_modelA(state_vars: dict, working_data: dict, dxMeter: np.array, dy
 
     return all_terms
 
-def advection_model(state_vars: dict, working_data: dict, dxMeter: float, dyMeter: float, Ks: float):
+def advection_model(state_vars: dict, working_data: dict, dxMeter: float, dyMeter: float):
 
     grid_shape = working_data['Nitrate'].shape
 
     matE_plus_half, matE_less_half = createMatEupwind(working_data["decentered_U"])
     matN_plus_half, matN_less_half = createMatNupwind(working_data["decentered_V"])
-
-    #mat_diffu_E = creatdiffusionTermE(grid_shape)
-    #mat_diffu_N = creatdiffusionTermN(grid_shape)
 
     dx = dxMeter.flatten()
     dy = dyMeter.flatten()
@@ -755,11 +748,11 @@ def advection_model(state_vars: dict, working_data: dict, dxMeter: float, dyMete
         var_hat_less_half_v = matN_less_half.dot(var_line)
 
         # Compute the left and right (up and down) flow rates for each cell
-        Fmat_plus_half = var_hat_plus_half_u * working_data["decentered_U"][:, 1:].flatten() #-Ks*(mat_diffu_E.dot(var_hat_plus_half_u))/dx
-        Gmat_plus_half = var_hat_plus_half_v * working_data["decentered_V"][1:, :].flatten() #-Ks*(mat_diffu_N.dot(var_hat_plus_half_v))/dy
+        Fmat_plus_half = var_hat_plus_half_u * working_data["decentered_U"][:, 1:].flatten()
+        Gmat_plus_half = var_hat_plus_half_v * working_data["decentered_V"][1:, :].flatten()
 
-        Fmat_less_half = var_hat_less_half_u * working_data["decentered_U"][:, :-1].flatten() #-Ks*(mat_diffu_E.dot(var_hat_less_half_u))/dx
-        Gmat_less_half = var_hat_less_half_v * working_data["decentered_V"][:-1, :].flatten() #-Ks*(mat_diffu_N.dot(var_hat_less_half_v))/dy
+        Fmat_less_half = var_hat_less_half_u * working_data["decentered_U"][:, :-1].flatten()
+        Gmat_less_half = var_hat_less_half_v * working_data["decentered_V"][:-1, :].flatten()
 
         # compute the advection terms
         advected = - (1 / dy) * (Gmat_plus_half - Gmat_less_half) - (1 / dx) * (Fmat_plus_half - Fmat_less_half)
