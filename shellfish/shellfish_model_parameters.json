@@ -150,7 +150,7 @@
                 "description": "long blabla",
                 "parameters": {
                     "y_farm"            : 1000,
-                    "density_SF_farm"   : 0.4,
+                    "density_SF_farm"   : 0.04,
                     "x_farm"            : 1000,
                     "z"                 : 2
                 },
@@ -184,10 +184,39 @@
                 },
                 "options": {
                     "POC_data": "TRUE",
-                    "PHYC_data": "TRUE"
+                    "PHYC_data": "FALSE"
                 }
             }
             
+        }
+    }
+
+    "run": {
+        "section_name": "Simulation options",
+        "section_description": "Run specific settings",
+        "parameters_descriptions": {
+            "Von_Karman"  : ["Von Kármán constant"                                   , ""],
+            "min_lon"     : ["Minimum longitude"                                     , "degrees east"],
+            "max_lon"     : ["Maximum longitude"                                     , "degrees east"],
+            "min_lat"     : ["Minimum latitude"                                      , "degrees north"],
+            "max_lat"     : ["Maximum latitude"                                      , "degrees north"],
+            "n_cores"     : ["Number of processing cores to use"                     , ""]
+        },
+        "options_descriptions": {},
+        "defaults": {
+            "default": {
+                "name": "default",
+                "description": "Default values for run-specific settings",
+                "parameters": {
+                    "Von_Karman"          : 0.4,
+                    "min_lon"             : -180,
+                    "max_lon"             : 180,
+                    "min_lat"             : -90,
+                    "max_lat"             : 90,
+                    "n_cores"             : 10
+                },
+                "options": {}
+            }
         }
     }
 }
