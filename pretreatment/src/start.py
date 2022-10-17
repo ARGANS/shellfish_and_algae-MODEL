@@ -69,7 +69,7 @@ for param, dataset_properties in dict_dataCmd.items():
 ### All datasets are resampled to the grid of one of the variables
 ################################################################################
 
-reference_param = 'Nitrate' #TODO: make into a parameter
+reference_param = 'Temperature' #TODO: make into a parameter
 reference_lonName = dict_dataCmd[reference_param]['longName']
 reference_latName = dict_dataCmd[reference_param]['latName']
 reference_varName = dict_dataCmd[reference_param]['variable']
