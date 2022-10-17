@@ -159,42 +159,13 @@
         }
     },
 
-    
-    "run": {
-        "section_name": "Simulation options",
-        "section_description": "blabla",
-        "parameters_descriptions": {
-            "ESELORG":["Energy content of chlorophyll-associated organic matter","J/mg dry weight"],
-            "Assimilation_efficiency":["Assimilation efficiency of organic matter consumption",""],
-            "Bioavailable_detrital_fraction":["Fraction of REMORG (i.e. detrital organics represented by POC in the model) that are bioavailable",""]
-            
-        },
-        "options_descriptions": {
-            "POC_data": ["TRUE","FALSE"],
-            "PHYC_data": ["TRUE","FALSE"]
-        },
-        "defaults": {
-            "default": {
-                "name": "default",
-                "description": "long blabla",
-                "parameters": {
-                    "ESELORG": 23.5,
-                    "Assimilation_efficiency":0.8,
-                    "Bioavailable_detrital_fraction":0.15
-                },
-                "options": {
-                    "POC_data": "TRUE",
-                    "PHYC_data": "FALSE"
-                }
-            }
-            
-        }
-    }
-
     "run": {
         "section_name": "Simulation options",
         "section_description": "Run specific settings",
         "parameters_descriptions": {
+            "ESELORG":["Energy content of chlorophyll-associated organic matter","J/mg dry weight"],
+            "Assimilation_efficiency":["Assimilation efficiency of organic matter consumption",""],
+            "Bioavailable_detrital_fraction":["Fraction of REMORG (i.e. detrital organics represented by POC in the model) that are bioavailable",""],
             "Von_Karman"  : ["Von Kármán constant"                                   , ""],
             "min_lon"     : ["Minimum longitude"                                     , "degrees east"],
             "max_lon"     : ["Maximum longitude"                                     , "degrees east"],
@@ -202,7 +173,10 @@
             "max_lat"     : ["Maximum latitude"                                      , "degrees north"],
             "n_cores"     : ["Number of processing cores to use"                     , ""]
         },
-        "options_descriptions": {},
+        "options_descriptions": {
+            "POC_data": ["TRUE","FALSE"],
+            "PHYC_data": ["TRUE","FALSE"]
+        },
         "defaults": {
             "default": {
                 "name": "default",
@@ -213,11 +187,16 @@
                     "max_lon"             : 180,
                     "min_lat"             : -90,
                     "max_lat"             : 90,
-                    "n_cores"             : 10
+                    "n_cores"             : 10,
+                    "ESELORG": 23.5,
+                    "Assimilation_efficiency":0.8,
+                    "Bioavailable_detrital_fraction":0.15
                 },
-                "options": {}
+                "options": {
+                    "POC_data": "TRUE",
+                    "PHYC_data": "FALSE"
+                }
             }
         }
     }
 }
-

@@ -59,7 +59,7 @@ scenario_b_destination="/media/share/data/$dataset_id/_dataread-b/${scenario_b_h
 
 
 function action_update {
-    local container_name=${2:-'ac-datareadb_run'}
+    local container_name=${2:-'ac-dataread/runtime'}
     local container_id=$( docker ps -q -f name=$container_name)
     echo "Update $container_id"
     docker cp global/dataCmd.csv ${container_id}:/opt/dataCmd.csv
