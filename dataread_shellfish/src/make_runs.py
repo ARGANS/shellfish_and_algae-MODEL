@@ -237,9 +237,9 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
     # Data import information, except for the time
     data_kwargs = {
-                'longitude': (-5.5417, 36.2917), #(-19,5),#(parms_run["min_lon"], parms_run["max_lon"]),
-                'latitude': (30.1875, 45.9792), #(26,56),#(parms_run["min_lat"], parms_run["max_lat"]),
-                "depth": (0,3),#(0, (1 + parms_run['Von_Karman']) * parms_farm["z"]),
+                'longitude': (parms_run["min_lon"], parms_run["max_lon"]),
+                'latitude': (parms_run["min_lat"], parms_run["max_lat"]),
+                "depth": (0, (1 + parms_run['Von_Karman']) * parms_farm["z"]),
                 "averagingDims": ("depth",)
                 }
 
