@@ -11,9 +11,7 @@ function build_dataread_shellfish_image {
     ### for GDAL: --build-arg WITH_GDAL="true" \
     docker build \
         --network host \
-        --build-arg REQUIREMENTS_PATH="./dataread_shellfish/requirements.txt" \
-        --build-arg WITH_R="true" \
-        --build-arg WITH_NETCDF="true" \
+        --build-arg REQUIREMENTS_PATH="./requirements.txt" \
         -t $base_image_tag:v1 -t $base_image_tag:latest \
         -f $base_image_dockerfile \
         $dir && \
@@ -49,7 +47,7 @@ function run_dataread_shellfish_in_interactive_mode {
         --name $DATAIMPORT_CONTAINER \
         --volume "$SHARED_VOLUME_NAME":/media/share \
         --volume "$GLOBAL_VOLUME_NAME":/media/global \
-        --volume $(pwd)/dataread:/opt/ \
+        --volume $(pwd)/dataread_shellfish:/opt/ \
         -e INPUT_SOURCE="$1" \
         -e INPUT_DESTINATION="$2" \
         -e INPUT_MODEL_PROPERTIES_JSON="$3" \
