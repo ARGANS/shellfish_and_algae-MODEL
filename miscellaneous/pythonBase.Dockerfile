@@ -28,6 +28,12 @@ RUN if [ ! -z "$WITH_NETCDF" ] ; then \
     else echo "Without NetCDF"; \
     fi
 
+ARG WITH_JQ
+RUN if [ ! -z "$WITH_JQ" ] ; then \
+    apt-get install -y jq; \
+    else echo "Without jq"; \
+    fi
+
 ARG REQUIREMENTS_PATH
 RUN echo ":: $REQUIREMENTS_PATH"
 COPY "$REQUIREMENTS_PATH" .
