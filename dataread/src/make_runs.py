@@ -9,6 +9,7 @@ from dateutil.relativedelta import *
 from .read_netcdf import *
 from .launch_model import *
 from .utils import import_json
+import os
 
 class Resampler:
     def __init__(self, dxRatio, dyRatio, init_grid_shape):
@@ -501,20 +502,9 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
 
     print(f'End of first decenterer application, time taken: {(time.time() - t_init_decenterer)} seconds')
 
-    unitsDict = {'NO3': 'mg/m^3',
-                'NH4': 'mg/m^3',
-                'cNO3': 'mg N/m^3',
-                'cNH4': 'mg N/m^3',
-                'D': 'mg N/m^3',
-                'N_f': 'mg N/m^3',
-                'N_s': 'mg N/m^3',
-                'avNO3': 'mg N/m^3',
-                'avNH4': 'mg N/m^3'}
-    # Create output file
-    initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
-                      variableNames=['NH4', 'NO3', 'N_s', 'N_f', 'D', 'avNH4', 'avNO3', 'cNO3', 'cNH4'], unitsDict=unitsDict, mask=mask)
-
     # Simulation loop
+    date_month = 0
+    deficitNbr = 0
     sim_date = startDate
     while sim_date < endDate:
         print(f'{sim_date}')
@@ -605,6 +595,25 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         state_vars['cNO3'] = state_vars['cNO3'] * (1 - dt/dissip_t)
         state_vars['D'] = state_vars['D'] * (1 - dt/dissip_t)
 
+        if date_month != sim_date.month:
+            date_month = sim_date.month
+            unitsDict = {
+                'cNO3': 'mg N/m^3',
+                'cNH4': 'mg N/m^3'}
+            tempFileName = out_file_name[:-3]+f'{deficitNbr:02d}'+'.nc'
+            print(tempFileName)
+            # Create output file
+            initialize_result(tempFileName, times=[0], latitudes=latitudes, longitudes=longitudes,
+                            variableNames=['cNO3', 'cNH4'], unitsDict=unitsDict, mask=mask)
+            # Write values to file
+            ds = nc.Dataset(tempFileName, 'a')
+            for name in ['cNO3', 'cNH4']:
+                ds[name][0,:,:] = np.ma.masked_array(state_vars[name], mask.copy())
+            ds.close()
+            os.system(f'gdal_translate NETCDF:"{tempFileName}":cNH4 {out_file_name[:-9]}/cNH4_{deficitNbr}.tif')
+            os.system(f'gdal_translate NETCDF:"{tempFileName}":cNO3 {out_file_name[:-9]}/cNO3_{deficitNbr}.tif')
+            deficitNbr += 1
+
         sim_date += datetime.timedelta(days = dt)
 
     if scenC:
@@ -617,6 +626,19 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     state_vars['NH4'] = working_data['Ammonium'] + state_vars['cNH4']
     state_vars['NO3'] = working_data['Nitrate'] + state_vars['cNO3']
 
+    unitsDict = {'NO3': 'mg/m^3',
+                'NH4': 'mg/m^3',
+                'cNO3': 'mg N/m^3',
+                'cNH4': 'mg N/m^3',
+                'D': 'mg N/m^3',
+                'N_f': 'mg N/m^3',
+                'N_s': 'mg N/m^3',
+                'avNO3': 'mg N/m^3',
+                'avNH4': 'mg N/m^3'}
+    # Create output file
+    initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
+                      variableNames=['NH4', 'NO3', 'N_s', 'N_f', 'D', 'avNH4', 'avNO3', 'cNO3', 'cNH4'], unitsDict=unitsDict, mask=mask)
+                      
     # Write values to file
     ds = nc.Dataset(out_file_name, 'a')
     for name in model.names:
