@@ -47,17 +47,6 @@ dataread_shellfish_destination="$dataimport_destination/_dataread_shellfish/$mod
 posttreatment_source="$dataread_destination"
 
 
-# scenario_b_json=`cat $DIR/__user1_alaria_NWS_11-08-2022.json`
-# dataset_id='3a881fd5c4aff18e57c35523c289fe88'
-
-scenario_b_json=`cat $DIR/__user1_alaria_MED_06-09-2022.json`
-dataset_id='d066c005901af8a84dd90448ccef90c0'
-
-scenario_b_hash=`echo -n "$scenario_b_json" | md5sum | head -c 32`
-scenario_b_source="/media/share/data/$dataset_id/_pretreated"
-scenario_b_destination="/media/share/data/$dataset_id/_dataread-b/${scenario_b_hash}_b"
-
-
 function action_update {
     local container_name=${2:-'ac-dataread/runtime'}
     local container_id=$( docker ps -q -f name=$container_name)
@@ -103,28 +92,16 @@ function handle_arguments {
         'run_dataread')
             run_dataread_in_interactive_mode "$dataread_source" "$dataread_destination" "$modelProperties_json"
             ;;
-        
-
-        'build_datareadb')
-            # TODO deprecated
-            build_datareadb_image
-            ;;
-        'execute_datareadb')
-            run_datareadb "$scenario_b_source" "$scenario_b_destination" "$scenario_b_json"
-            ;;
-        'run_datareadb')
-            run_datareadb_in_interactive_mode "$scenario_b_source" "$scenario_b_destination" "$scenario_b_json"
-            ;;
 
 
         'build_datareadshellfish')
-            build_datareadb_image
+            build_dataread_shellfish_image
             ;;
         'execute_datareadshellfish')
-            run_datareadb "$scenario_b_source" "$scenario_b_destination" "$scenario_b_json"
+            run_dataread_shellfish "$dataread_shellfish_source" "$dataread_shellfish_destination" "$modelProperties_json"
             ;;
         'run_datareadshellfish')
-            run_datareadb_in_interactive_mode "$scenario_b_source" "$scenario_b_destination" "$scenario_b_json"
+            run_dataread_shellfish_in_interactive_mode "$dataread_shellfish_source" "$dataread_shellfish_destination" "$modelProperties_json"
             ;;
 
 

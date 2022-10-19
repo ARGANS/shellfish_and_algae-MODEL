@@ -12,6 +12,7 @@ function build_posttreatment_action {
         --network host \
         --build-arg REQUIREMENTS_PATH="./src/requirements.txt" \
         --build-arg WITH_GDAL="true" \
+        --build-arg WITH_JQ="true" \
         -t $base_image_tag:v1 -t $base_image_tag:latest \
         -f $base_image_dockerfile \
         $dir && \
