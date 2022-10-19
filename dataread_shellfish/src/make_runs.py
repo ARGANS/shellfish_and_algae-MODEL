@@ -196,9 +196,12 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
     output_data = output_dict(state_vars=state_vars, working_data=working_data,model=model)
 
+    unitsDict = {"DSTW": 'kg/m^2', "STE": 'MJ/m^2', "FW": 'kg', "DWW": 'kg/m^2', "SHL": 'cm',
+                 "NH4_production": 'g(N)/day', "CO2_production": 'g(C)/day'}
     # Create output file
     initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
-                      variableNames=["DSTW", "STE","FW","DWW","SHL","NH4_production","CO2_production"], mask=mask)
+                      variableNames=["DSTW", "STE", "FW", "DWW", "SHL", "NH4_production", "CO2_production"],
+                      unitsDict=unitsDict, mask=mask)
 
     # Write values to file
     ds = nc.Dataset(out_file_name, 'a')
@@ -265,7 +268,7 @@ def spawn_evenfunc(state_vars: dict):
     return(spawn_data)
 
 def initialize_result(fileName:str, times, latitudes, longitudes, 
-                      variableNames:list, mask:np.array):
+                      variableNames:list, unitsDict:dict, mask:np.array):
     """Initializes a netcdf file at fileName with a time, latitude, and
     longitude dimension. Corresponding variables are created with the values
     in times, latitudes, longitudes. These also defin the size of the
@@ -293,7 +296,7 @@ def initialize_result(fileName:str, times, latitudes, longitudes,
     for name in variableNames:
         var = ds.createVariable(name, 'f4', ('time', 'latitude', 'longitude',))
         var[:,:,:] = np.ma.masked_array(np.nan*np.ones(full_mask.shape), full_mask)
-
+        var.units = unitsDict[name]
     ds.close()
 
 

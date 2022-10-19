@@ -490,7 +490,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     print('Starting initialization of the decenterer')
     decenterer = Decenterer(mask, dxMeter, dyMeter)
     print(f'End of decenterer initialization, time taken: {(time.time() - t_init_decenterer)} seconds')
-    
+
     t_init_decenterer = time.time()
     print('Starting applying the decenterer ofr the first time')
 
@@ -500,6 +500,19 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     dt_phys = give_dt(dxMeter, dyMeter, working_data["decentered_U"],working_data["decentered_V"])
 
     print(f'End of first decenterer application, time taken: {(time.time() - t_init_decenterer)} seconds')
+
+    unitsDict = {'NO3': 'mg/m^3',
+                'NH4': 'mg/m^3',
+                'cNO3': 'mg N/m^3',
+                'cNH4': 'mg N/m^3',
+                'D': 'mg N/m^3',
+                'N_f': 'mg N/m^3',
+                'N_s': 'mg N/m^3',
+                'avNO3': 'mg N/m^3',
+                'avNH4': 'mg N/m^3'}
+    # Create output file
+    initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
+                      variableNames=['NH4', 'NO3', 'N_s', 'N_f', 'D', 'avNH4', 'avNO3', 'cNO3', 'cNH4'], unitsDict=unitsDict, mask=mask)
 
     # Simulation loop
     sim_date = startDate
@@ -603,10 +616,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
 
     state_vars['NH4'] = working_data['Ammonium'] + state_vars['cNH4']
     state_vars['NO3'] = working_data['Nitrate'] + state_vars['cNO3']
-
-    # Create output file
-    initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
-                      variableNames=['NH4', 'NO3', 'N_s', 'N_f', 'D', 'avNH4', 'avNO3', 'cNO3', 'cNH4'], mask=mask)
 
     # Write values to file
     ds = nc.Dataset(out_file_name, 'a')
@@ -762,8 +771,8 @@ def advection_model(state_vars: dict, working_data: dict, dxMeter: float, dyMete
     return all_terms
 
 
-def initialize_result(fileName:str, times, latitudes, longitudes, 
-                      variableNames:list, mask:np.array):
+def initialize_result(fileName:str, times, latitudes, longitudes,
+                      variableNames:list, unitsDict:dict, mask:np.array):
     """Initializes a netcdf file at fileName with a time, latitude, and
     longitude dimension. Corresponding variables are created with the values
     in times, latitudes, longitudes. These also defin the size of the
@@ -791,7 +800,7 @@ def initialize_result(fileName:str, times, latitudes, longitudes,
     for name in variableNames:
         var = ds.createVariable(name, 'f4', ('time', 'latitude', 'longitude',))
         var[:,:,:] = np.ma.masked_array(np.nan*np.ones(full_mask.shape), full_mask)
-
+        var.units = unitsDict[name]
     ds.close()
 
 
