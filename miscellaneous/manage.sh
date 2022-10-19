@@ -106,6 +106,7 @@ function handle_arguments {
         
 
         'build_datareadb')
+            # TODO deprecated
             build_datareadb_image
             ;;
         'execute_datareadb')
@@ -155,6 +156,12 @@ function handle_arguments {
             action_update $@
             ;;
         
+        'build_world')
+            build_images_for_dataimport
+            build_images_for_pretreatment
+            build_dataread_image
+            build_posttreatment_action
+            ;;
 
         'bash')
             action_bash
@@ -165,6 +172,7 @@ function handle_arguments {
             echo 'ls, ls2'
             echo 'build_posttreatment'
             echo 'bash'
+            echo 'build_world'
             ;;
     esac
 }
