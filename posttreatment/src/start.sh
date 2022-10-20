@@ -39,7 +39,7 @@ if [ $sim_type == "Algae" ]; then
     for fileName in $input_path/concat?*.nc; do
         base_name=$(basename ${fileName%.nc})
         for variable in 'cNO3' 'cNH4'; do
-          gdal_translate NETCDF:"$fileName":$variable $destination/$base_name.tif 1>$print_log 2>$error_log
+          gdal_translate NETCDF:"$fileName":$variable $destination/$base_name$variable.tif 1>$print_log 2>$error_log
         done
     done
 
