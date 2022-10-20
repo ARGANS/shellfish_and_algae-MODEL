@@ -37,8 +37,8 @@ def main():
     # outDir = args["outputDir"]
     jsonFile = args["jsonFile"]
 
-    unitsDict = {'NO3': 'mg/m^3',
-                 'NH4': 'mg/m^3',
+    unitsDict = {'CMEMS_NO3': 'mg/m^3',
+                 'CMEMS_NH4': 'mg/m^3',
                  'DW': 'gDW m-3',
                  'DW_line': 'kg/m',
                  'DW_PUA': 'kg/m^2',
@@ -61,7 +61,7 @@ def main():
     paramAlgae, density_MA = getParameters(json_data)
     dataDict = {}
     ds_read = nc.Dataset(ncFile, 'r')
-    for dataName in ['NH4', 'NO3', 'N_s', 'N_f', 'D', 'avNH4', 'avNO3']:
+    for dataName in ['CMEMS_NH4', 'CMEMS_NO3', 'N_s', 'N_f', 'D', 'avNH4', 'avNO3']:
         dataDict[dataName] = ds_read[dataName][-1,:,:]
         #dataDict[dataName].set_fill_value(np.nan)
         dataDict[dataName][dataDict[dataName].mask]=np.nan

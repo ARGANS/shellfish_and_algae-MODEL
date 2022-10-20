@@ -20,7 +20,7 @@ class MA_model_scipy:
             self._parameters.update(first_default['parameters'])
             self._parameters.update(first_default['options'])
 
-        self.names = ["NH4", "NO3", "N_s", "N_f", "D"]
+        self.names = ["CMEMS_NH4", "CMEMS_NO3", "N_s", "N_f", "D"]
 
         self.time_reading = 0
         self.time_computing = 0

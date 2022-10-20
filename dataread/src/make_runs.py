@@ -599,19 +599,21 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
             date_month = sim_date.month
             unitsDict = {
                 'cNO3': 'mg N/m^3',
-                'cNH4': 'mg N/m^3'}
+                'cNH4': 'mg N/m^3',
+                'CMEMS_NO3': 'mg N/m^3',
+                'CMEMS_NH4': 'mg N/m^3'}
             tempFileName = out_file_name[:-3]+f'{deficitNbr:02d}'+'.nc'
             print(tempFileName)
             # Create output file
             initialize_result(tempFileName, times=[0], latitudes=latitudes, longitudes=longitudes,
-                            variableNames=['cNO3', 'cNH4'], unitsDict=unitsDict, mask=mask)
+                            variableNames=['cNO3', 'cNH4', 'CMEMS_NO3', 'CMEMS_NH4'], unitsDict=unitsDict, mask=mask)
             # Write values to file
             ds = nc.Dataset(tempFileName, 'a')
             for name in ['cNO3', 'cNH4']:
                 ds[name][0,:,:] = np.ma.masked_array(state_vars[name], mask.copy())
+            ds['CMEMS_NO3'][0,:,:] = np.ma.masked_array(working_data['Nitrate'], mask.copy())
+            ds['CMEMS_NH4'][0,:,:] = np.ma.masked_array(working_data['Ammonium'], mask.copy())
             ds.close()
-            os.system(f'gdal_translate NETCDF:"{tempFileName}":cNH4 {out_file_name[:-9]}/cNH4_{deficitNbr}.tif')
-            os.system(f'gdal_translate NETCDF:"{tempFileName}":cNO3 {out_file_name[:-9]}/cNO3_{deficitNbr}.tif')
             deficitNbr += 1
 
         sim_date += datetime.timedelta(days = dt)
@@ -623,11 +625,11 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         latitudes = latStep * np.arange(grid_shape[0]) + latitudes[0]
         longitudes = lonStep * np.arange(grid_shape[1]) + longitudes[0]
 
-    state_vars['NH4'] = working_data['Ammonium'] + state_vars['cNH4']
-    state_vars['NO3'] = working_data['Nitrate'] + state_vars['cNO3']
+    state_vars['CMEMS_NH4'] = working_data['Ammonium']
+    state_vars['CMEMS_NO3'] = working_data['Nitrate']
 
-    unitsDict = {'NO3': 'mg/m^3',
-                'NH4': 'mg/m^3',
+    unitsDict = {'CMEMS_NO3': 'mg/m^3',
+                'CMEMS_NH4': 'mg/m^3',
                 'cNO3': 'mg N/m^3',
                 'cNH4': 'mg N/m^3',
                 'D': 'mg N/m^3',
@@ -637,7 +639,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
                 'avNH4': 'mg N/m^3'}
     # Create output file
     initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
-                      variableNames=['NH4', 'NO3', 'N_s', 'N_f', 'D', 'avNH4', 'avNO3', 'cNO3', 'cNH4'], unitsDict=unitsDict, mask=mask)
+                      variableNames=['CMEMS_NH4', 'CMEMS_NO3', 'N_s', 'N_f', 'D', 'avNH4', 'avNO3', 'cNO3', 'cNH4'], unitsDict=unitsDict, mask=mask)
                       
     # Write values to file
     ds = nc.Dataset(out_file_name, 'a')

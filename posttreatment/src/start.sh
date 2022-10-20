@@ -32,13 +32,13 @@ if [ $sim_type == "Algae" ]; then
         cat $error_log
     fi
 
-    for variable in 'NO3' 'NH4' 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA' 'NO3field' 'NH4field' 'D' 'N_f' 'N_s' 'avNO3' 'avNH4' 'cNO3' 'cNH4'; do
+    for variable in 'CMEMS_NO3' 'CMEMS_NH4' 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA' 'NO3field' 'NH4field' 'D' 'N_f' 'N_s' 'avNO3' 'avNH4' 'cNO3' 'cNH4'; do
         gdal_translate NETCDF:"$tmp_path/concat.nc":$variable $destination/$variable.tif 1>$print_log 2>$error_log
     done
     #nbrIntermediateFiles = ls $input_path/concat?*.nc| wc -l
     for fileName in $input_path/concat?*.nc; do
         base_name=$(basename ${fileName%.nc})
-        for variable in 'cNO3' 'cNH4'; do
+        for variable in 'cNO3' 'cNH4' 'CMEMS_NO3' 'CMEMS_NH4'; do
           gdal_translate NETCDF:"$fileName":$variable $destination/$base_name$variable.tif 1>$print_log 2>$error_log
         done
     done
