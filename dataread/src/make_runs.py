@@ -346,18 +346,42 @@ def prepareScenC(nitrogenArray,nanLists, grid_shape):
             nitrogenArray = nitArrayLine.reshape(grid_shape)
     return nitrogenArray
 
-def latLon_to_xy(lat,lon, longitudes, latitudes):
-    return iNearest(lon, longitudes), iNearest(lat, latitudes)
+def latLon_to_xy(lat,lon, longitudes, latitudes, nanLists):
+    lonNear, latNear = iNearest(lon, longitudes), iNearest(lat, latitudes)
+    mat_mask = np.zeros(len(latitudes)*len(longitudes))
+    mat_mask[nanLists[0,0]] = 1
+    mat_mask = mat_mask.reshape(len(latitudes),len(longitudes))
+    if mat_mask[latNear,lonNear]==0:
+        return latNear,lonNear
+    else:
+        print('---------------------------------------')
+        latRef_average = (latitudes[-1] + latitudes[0]) / 2
+        lonListMeter, latListMeter = degrees_to_meters(np.abs(longitudes[lonNear-1:lonNear+2]-longitudes[lonNear]), np.abs(latitudes[latNear-1:latNear+2]-latitudes[latNear]), latRef_average)
+        listPosition = []
+        for i in [-1,0,1]:
+            for j in [-1,0,1]:
+                if (mat_mask[latNear+i,lonNear+j] == 0):
+                    print(i,j)
+                    dist = np.sqrt(lonListMeter[j]**2+latListMeter[i]**2)
+                    listPosition.append((latNear+i,lonNear+j,dist))
+        finalArray = np.array(listPosition,dtype=[('poslat',float),('poslon',float),('dist',float)])
+        if len(finalArray)>0:
+            bestCoor = np.sort(finalArray,order='dist')[0]
+        else:
+            bestCoor = [latNear,lonNear]
+        print(bestCoor)
+        return int(bestCoor[0]),int(bestCoor[1])
+        
 
-def giveFarmPos(farmList, longitudes, latitudes):
+def giveFarmPos(farmList, longitudes, latitudes, nanLists):
     xList = []
     yList = []
     for i in range(len(farmList)):
-        print(farmList[i][0],farmList[i][1])
-        print((farmList[i][0]<latitudes[-1]) , (farmList[i][0]>latitudes[0]) , (farmList[i][1]<longitudes[-1]) , (farmList[i][1]>longitudes[0]))
+        '''print(farmList[i][0],farmList[i][1])
+        print((farmList[i][0]<latitudes[-1]) , (farmList[i][0]>latitudes[0]) , (farmList[i][1]<longitudes[-1]) , (farmList[i][1]>longitudes[0]))'''
         if (farmList[i][0]<latitudes[-1]) and (farmList[i][0]>latitudes[0]) and (farmList[i][1]<longitudes[-1]) and (farmList[i][1]>longitudes[0]):
             lat,lon = farmList[i][0], farmList[i][1]
-            xi, yi= latLon_to_xy(lat,lon, longitudes, latitudes)
+            yi, xi= latLon_to_xy(lat,lon, longitudes, latitudes, nanLists)
             xList.append(xi)
             yList.append(yi)
     return (np.array(yList),np.array(xList))
@@ -423,13 +447,6 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     latitudes, _ = input_data.parameterData['Nitrate'].getVariable('latitude', **data_kwargs)
     dxMeter, dyMeter = giveDxDy(latitudes, longitudes)
 
-    #if we only put farms in the location given in farm_pos_file
-    if farm_pos_file:
-        farmList = np.loadtxt(farm_pos_file, dtype=float, delimiter=';', skiprows=1, usecols=(1, 2))
-        mask_farm = giveFarmPos(farmList, longitudes, latitudes)
-    else:
-        mask_farm =None
-
     latRef = np.zeros((len(latitudes), len(longitudes)))
     latRef[:, :] = latitudes[np.newaxis].T
 
@@ -453,6 +470,13 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         dxMeter = resa.resampleData(dxMeter)'''
         mask = resa.resampleData(mask)
     nanLists = findNan(mask)
+
+    #if we only put farms in the location given in farm_pos_file
+    if farm_pos_file:
+        farmList = np.loadtxt(farm_pos_file, dtype=float, delimiter=';', skiprows=1, usecols=(1, 2))
+        mask_farm = giveFarmPos(farmList, longitudes, latitudes, nanLists)
+    else:
+        mask_farm = None
 
     for par_name, par_data in input_data.parameterData.items():
         print(par_name)
