@@ -13,6 +13,10 @@ try:
 except:
     raise RuntimeError('Cannot parse input parameters')
 
+if input_parameters['zone'] == 'Europe':
+    print('Will not pretreat anything when "Europe" is selected, proceed to next step.')
+    os._exit(0)
+
 dict_dataCmd = input_parameters.get('datasets', None)
 
 if dict_dataCmd is None:
