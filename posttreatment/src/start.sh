@@ -11,43 +11,61 @@ rm -rf $tmp_path/*
 echo -n $(date +%s) > $destination/start.mark 
 cp $input_path/parameters.json $destination/parameters.json
 
-#  make_interest_vars.R mutates the inputed data
-cp $input_path/concat.nc $tmp_path/concat.nc
-
 # ??? catch error log
 error_log=$destination/error.txt
 print_log=$destination/print.txt
 
-# Store the type of simulation
+# Store the type of simulation and the zone
 sim_type=`cat $destination/parameters.json | jq -r ".type"`
+sim_zone=`cat $destination/parameters.json | jq -r ".metadata.zone"`
 
-if [ $sim_type == "Algae" ]; then
 
-    python ./make_interest_vars.py -i $tmp_path/concat.nc -j $input_path/parameters.json 1>$print_log 2>$error_log
-    if [ $? -eq 0 ]; then
-        echo "Success"
-    else
-        echo "Failure:"
-        echo 'Finished '$(date "+%d/%m/%Y %H:%M:%S") >> $error_log
-        cat $error_log
-    fi
+function posttreatment_Algae {
+    concat_name="$1"
 
-    for variable in 'CMEMS_NO3' 'CMEMS_NH4' 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA' 'NO3field' 'NH4field' 'D' 'N_f' 'N_s' 'avNO3' 'avNH4' 'cNO3' 'cNH4'; do
-        gdal_translate NETCDF:"$tmp_path/concat.nc":$variable $destination/$variable.tif 1>$print_log 2>$error_log
+    mkdir $destination/$concat_name
+
+    #  make_interest_vars.py mutates the inputed data
+    cp $input_path/$concat_name.nc $tmp_path/$concat_name.nc
+
+    # First add the interest variables to concat.nc
+    python ./make_interest_vars.py -i $tmp_path/$concat_name.nc -j $input_path/parameters.json
+
+    for variable in 'CMEMS_NO3' 'CMEMS_NH4' 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA' 'D' 'N_f' 'N_s' 'avNO3' 'avNH4' 'cNO3' 'cNH4'; do
+        gdal_translate NETCDF:"$tmp_path/$concat_name.nc":$variable $destination/$concat_name/$variable.tif
     done
-    #nbrIntermediateFiles = ls $input_path/concat?*.nc| wc -l
-    for fileName in $input_path/concat?*.nc; do
+
+    # Translate the intermediate files.
+    for fileName in $input_path/$concat_name??.nc; do
         base_name=$(basename ${fileName%.nc})
+        mkdir $destination/$concat_name/$base_name
         for variable in 'cNO3' 'cNH4' 'CMEMS_NO3' 'CMEMS_NH4'; do
-          gdal_translate NETCDF:"$fileName":$variable $destination/$base_name$variable.tif 1>$print_log 2>$error_log
+            gdal_translate NETCDF:"$fileName":$variable $destination/$concat_name/$base_name/$variable.tif
         done
     done
+}
 
-elif [ $sim_type == "Shellfish" ]; then
+
+function posttreatment_Shellfish {
+    concat_name="$1"
+
     for variable in 'DSTW' 'STE' 'FW' 'DWW' 'SHL' 'NH4_production' 'CO2_production'; do
-        gdal_translate NETCDF:"$tmp_path/concat.nc":$variable $destination/$variable.tif 1>$print_log 2>$error_log
+        gdal_translate NETCDF:"$input_path/$concat_name.nc":$variable $destination/$variable.tif
     done
+}
+
+
+if [ $sim_zone == "Europe" ]; then
+    for zone_name in 'IBI' 'NWS' 'MED' 'Baltic' 'BS' 'Arctic'; do
+        posttreatment_$sim_type "concat_$zone_name" 1>$print_log 2>$error_log
+    done
+    # TODO: then merge all areas
+else
+    posttreatment_$sim_type "concat" 1>$print_log 2>$error_log
+    # When only one area, the full map is this area's map
+    cp $destination/concat/* $destination/.
 fi
+
 
 # Finishing steps
 echo '-------------------- Last 100 lines printed to stdout --------------------' >> $error_log
