@@ -24,9 +24,24 @@ if not model_properties.isDataDownloadTaskCompleted():
 
 full_json = model_properties.attrs
 
-dict_dataCmd = full_json['dataset_parameters']['datasets']
-dict_to_AllData = dataCmd_to_AllData(dict_dataCmd, model_properties.file_template)
+if full_json['metadata']['zone'] != "Europe":
 
-shellData = AllData(dict_to_AllData)
+    dict_dataCmd = full_json['dataset_parameters']['datasets']
 
-time_spent = run_simulation(f"{workdir}/concat.nc", full_json, shellData)
+    dict_to_AllData = dataCmd_to_AllData(dict_dataCmd, model_properties.file_template)
+    shellData = AllData(dict_to_AllData)
+
+    time_spent = run_simulation(f"{workdir}/concat.nc", full_json, shellData)
+
+else:
+    for area_name in ['IBI', 'NWS', 'MED', 'Baltic', 'BS', 'Arctic']:
+        with open(f'/media/share/reference_data/{area_name}/parameters.json') as f:
+            dict_dataCmd_area = json.load(f)['datasets']
+
+        dict_to_AllData = dataCmd_to_AllData(dict_dataCmd_area,
+                            '/media/share/reference_data_shellfish/{Place}/_pretreated/{Parameter}/{Parameter}{Place}modelNetCDF2021-01to2022-01.nc')
+        shellData = AllData(dict_to_AllData)
+
+        time_spent = run_simulation(f"{workdir}/concat_{area_name}.nc", full_json, shellData)
+
+        print(f'AREA {area_name} IS DONE. TIME SPENT: {time_spent/60} minutes.')
