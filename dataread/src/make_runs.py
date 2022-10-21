@@ -111,15 +111,14 @@ class Decenterer:
         m, n = self._mask.shape
 
         # definition of B
-        B_u = - (Uc[:, 1:] + Uc[:, :-1]).flatten()
-        B_v = - (Vc[1:, :] + Vc[:-1, :]).flatten()
+        B_u = - (Uc[:, 1:].filled(0) + Uc[:, :-1].filled(0)).flatten()
+        B_v = - (Vc[1:, :].filled(0) + Vc[:-1, :].filled(0)).flatten()
         B_l = np.zeros((m, n)).flatten()
 
         B = np.concatenate((B_u, B_v, B_l))[np.newaxis].T
 
         # Initialize result array with zeros and mask
         X_full = np.ma.masked_array(np.zeros(B.shape), np.ones(B.shape))
-        X_full.mask[self._where_not_zero] = True
 
         B = B[self._where_not_zero]
 
@@ -377,8 +376,6 @@ def giveFarmPos(farmList, longitudes, latitudes, nanLists):
     xList = []
     yList = []
     for i in range(len(farmList)):
-        '''print(farmList[i][0],farmList[i][1])
-        print((farmList[i][0]<latitudes[-1]) , (farmList[i][0]>latitudes[0]) , (farmList[i][1]<longitudes[-1]) , (farmList[i][1]>longitudes[0]))'''
         if (farmList[i][0]<latitudes[-1]) and (farmList[i][0]>latitudes[0]) and (farmList[i][1]<longitudes[-1]) and (farmList[i][1]>longitudes[0]):
             lat,lon = farmList[i][0], farmList[i][1]
             yi, xi= latLon_to_xy(lat,lon, longitudes, latitudes, nanLists)
@@ -391,8 +388,8 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     t_init = time.time()
 
     dataBounds = {
-        'northward_Water_current': [-1e7, 1e7],
-        'eastward_Water_current': [-1e7, 1e7],
+        'northward_Water_current': [-1e6, 1e6],
+        'eastward_Water_current': [-1e6, 1e6],
         'Nitrate': [-1e-2, 1e4],
         'Ammonium': [-1e-2, 1e4],
         'Temperature': [-1e4, 1e4],
@@ -455,7 +452,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         if (par_name == "Nitrate") or (par_name == "Ammonium"):
             working_data[par_name] = np.maximum(working_data[par_name], 0)
         #mask = np.ma.mask_or(mask, working_data[par_name].mask)
-    mask = working_data['northward_Water_current'].mask.copy()
+    mask = np.ma.mask_or(working_data['northward_Water_current'].mask, working_data['eastward_Water_current'].mask)
 
     grid_shape = init_grid_shape
     if scenC:
