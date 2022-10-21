@@ -24,6 +24,7 @@ function posttreatment_Algae {
     concat_name="$1"
 
     mkdir $destination/$concat_name
+    mkdir $destination/$concat_name/params
 
     #  make_interest_vars.py mutates the inputed data
     cp $input_path/$concat_name.nc $tmp_path/$concat_name.nc
@@ -32,7 +33,7 @@ function posttreatment_Algae {
     python ./make_interest_vars.py -i $tmp_path/$concat_name.nc -j $input_path/parameters.json
 
     for variable in 'CMEMS_NO3' 'CMEMS_NH4' 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA' 'D' 'N_f' 'N_s' 'avNO3' 'avNH4' 'cNO3' 'cNH4'; do
-        gdal_translate NETCDF:"$tmp_path/$concat_name.nc":$variable $destination/$concat_name/$variable.tif
+        gdal_translate NETCDF:"$tmp_path/$concat_name.nc":$variable $destination/$concat_name/params/$variable.tif
     done
 
     # Translate the intermediate files.
@@ -49,21 +50,79 @@ function posttreatment_Algae {
 function posttreatment_Shellfish {
     concat_name="$1"
 
+    mkdir $destination/$concat_name
+    mkdir $destination/$concat_name/params
+
     for variable in 'DSTW' 'STE' 'FW' 'DWW' 'SHL' 'NH4_production' 'CO2_production'; do
-        gdal_translate NETCDF:"$input_path/$concat_name.nc":$variable $destination/$variable.tif
+        gdal_translate NETCDF:"$input_path/$concat_name.nc":$variable $destination/$concat_name/params/$variable.tif
     done
+}
+
+
+function read_zee_params {
+    zee_info=`gdalinfo -json /media/global/zee_europe.tif`
+
+    echo "zee info: $zee_info"
+
+    lon_min=`echo $zee_info | jq -r ".cornerCoordinates.lowerLeft[0]"`
+    lat_min=`echo $zee_info | jq -r ".cornerCoordinates.lowerLeft[1]"`
+    lon_max=`echo $zee_info | jq -r ".cornerCoordinates.upperRight[0]"`
+    lat_max=`echo $zee_info | jq -r ".cornerCoordinates.upperRight[1]"`
+
+    lon_step=`echo $zee_info | jq -r ".geoTransform[1]"`
+    lat_step=`echo $zee_info | jq -r ".geoTransform[5]"`
+
+    # absolute values of step
+    #lon_step=${lon_step#-}
+    #lat_step=${lat_step#-}
+}
+
+
+function resample_to_ZEE {
+    # Resample a tif file to the ZEE grid
+
+    file_in="$1"
+    file_out="$2"
+
+    tmpfile="$destination/tmp.tif"
+    tmpfile2="$destination/tmp2.tif"
+
+    cmd="gdal_translate -a_nodata \"nan\" $file_in $tmpfile"
+    echo "COMMAND: $cmd"
+    $cmd
+
+    cmd="gdalwarp -srcnodata \"9.96921e+36\" $tmpfile $tmpfile2 -tr $lon_step $lat_step -te $lon_min $lat_min $lon_max $lat_max -t_srs EPSG:4326 -dstnodata \"None\" -r cubicspline"
+    echo "COMMAND: $cmd"
+    $cmd
+
+    cmd="gdal_translate -co compress=deflate $tmpfile2 $file_out"
+    echo "COMMAND: $cmd"
+    $cmd
+
+    rm $tmpfile
+    rm $tmpfile2
 }
 
 
 if [ $sim_zone == "Europe" ]; then
     for zone_name in 'IBI' 'NWS' 'MED' 'Baltic' 'BS' 'Arctic'; do
-        posttreatment_$sim_type "concat_$zone_name" 1>$print_log 2>$error_log
+        posttreatment_$sim_type "concat_$zone_name" 1>>$print_log 2>>$error_log
     done
-    # TODO: then merge all areas
+    # read zee tif parameters
+    read_zee_params 1>>$print_log 2>>$error_log
+
+    # Resample all parameters to 1km
+    for zone_name in 'IBI' 'NWS' 'MED' 'Baltic' 'BS' 'Arctic'; do
+        mkdir $destination/concat_$zone_name/params_1km
+        for param_file in $destination/concat_$zone_name/params/*; do
+            param_file_1km=$destination/concat_$zone_name/params_1km/$(basename ${param_file%.tif})_1km.tif
+            resample_to_ZEE "$param_file" "$param_file_1km" 1>>$print_log 2>>$error_log
+        done
+    done
 else
-    posttreatment_$sim_type "concat" 1>$print_log 2>$error_log
+    posttreatment_$sim_type "concat" 1>>$print_log 2>>$error_log
     # When only one area, the full map is this area's map
-    cp $destination/concat/* $destination/.
+    cp $destination/concat/params/* $destination/.
 fi
 
 
