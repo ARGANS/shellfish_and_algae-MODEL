@@ -28,4 +28,4 @@ dict_to_AllData = dataCmd_to_AllData(dict_dataCmd, model_properties.file_templat
 algaeData = AllData(dict_to_AllData)
 
 
-time_spent = run_simulation(f"{workdir}/concat.nc", full_json, algaeData)
+time_spent = run_simulation(f"{workdir}/concat.nc", full_json, algaeData)#,'/media/global/ZEE_saccharina_scA_farms-for-5MT-FW_surf1.00000_depth-30_dist10_posfarms.txt')
