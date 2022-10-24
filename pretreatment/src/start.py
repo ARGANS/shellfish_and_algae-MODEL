@@ -13,7 +13,7 @@ try:
 except:
     raise RuntimeError('Cannot parse input parameters')
 
-if input_parameters['zone'] == 'Europe':
+if 'zone' in input_parameters and input_parameters['zone'] == 'Europe':
     print('Will not pretreat anything when "Europe" is selected, proceed to next step.')
     os._exit(0)
 
