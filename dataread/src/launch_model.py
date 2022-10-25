@@ -17,8 +17,10 @@ class MA_model_scipy:
             # take the first option for each section which should be the only one
             first_default = next(iter(section.values()))
 
-            self._parameters.update(first_default['parameters'])
-            self._parameters.update(first_default['options'])
+            if 'parameters' in first_default:
+                self._parameters.update(first_default['parameters'])
+            if 'options' in first_default:
+                self._parameters.update(first_default['options'])
 
         self.names = ["CMEMS_NH4", "CMEMS_NO3", "N_s", "N_f", "D"]
 
