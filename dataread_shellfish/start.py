@@ -42,6 +42,10 @@ else:
                             '/media/share/reference_data_shellfish/{Place}/_pretreated/{Parameter}/{Parameter}{Place}modelNetCDF2021-01to2022-01.nc')
         shellData = AllData(dict_to_AllData)
 
+        # Ensure that we call the correct year in case the user changed it.
+        europe_json = full_json.copy()
+        europe_json['dataset_parameters']['year'] = 2021
+
         time_spent = run_simulation(f"{workdir}/concat_{area_name}.nc", full_json, shellData)
 
         print(f'AREA {area_name} IS DONE. TIME SPENT: {time_spent/60} minutes.')
