@@ -81,26 +81,49 @@ function read_zee_params {
 function resample_to_ZEE {
     # Resample a tif file to the ZEE grid
 
-    file_in="$1"
-    file_out="$2"
+    local file_in="$1"
+    local file_out="$2"
 
-    tmpfile="$destination/tmp.tif"
-    tmpfile2="$destination/tmp2.tif"
+    local tmpfile="$destination/tmp.tif"
 
-    cmd="gdal_translate -a_nodata \"nan\" $file_in $tmpfile"
+    cmd="gdalwarp $file_in $tmpfile -tr $lon_step $lat_step -te $lon_min $lat_min $lon_max $lat_max -t_srs EPSG:4326 -r cubicspline"
     echo "COMMAND: $cmd"
     $cmd
 
-    cmd="gdalwarp -srcnodata \"9.96921e+36\" $tmpfile $tmpfile2 -tr $lon_step $lat_step -te $lon_min $lat_min $lon_max $lat_max -t_srs EPSG:4326 -dstnodata \"None\" -r cubicspline"
-    echo "COMMAND: $cmd"
-    $cmd
-
-    cmd="gdal_translate -co compress=deflate $tmpfile2 $file_out"
+    cmd="gdal_translate -co compress=deflate $tmpfile $file_out"
     echo "COMMAND: $cmd"
     $cmd
 
     rm $tmpfile
-    rm $tmpfile2
+}
+
+
+function fusion_zones {
+    # Fusion all zones into one European map
+
+    # Superimpose zones in the correct order (left is bottom)
+    ordered_zones=(Arctic Baltic BS NWS IBI MED)
+
+    for param_name in 'CMEMS_NO3' 'CMEMS_NH4' 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA' 'D' 'N_f' 'N_s' 'avNO3' 'avNH4' 'cNO3' 'cNH4'; do
+
+        local file_out=$destination/$param_name.tif
+        local tmpfile="$destination/tmp.tif"
+
+        # File names in the correct order
+        local file_in_names=(${ordered_zones[@]/#/"$destination/concat_"})
+        file_in_names=(${file_in_names[@]/%/"/params_1km/${param_name}_1km.tif"})
+
+        #cmd="gdalwarp -overwrite -srcnodata \"9.96921e+36\" "$destination/*/params_1km/${param_name}_1km.tif" $tmpfile -tr $lon_step $lat_step -te $lon_min $lat_min $lon_max $lat_max -t_srs EPSG:4326"
+        cmd="gdalwarp -overwrite "${file_in_names[*]}" $tmpfile -tr $lon_step $lat_step -te $lon_min $lat_min $lon_max $lat_max -t_srs EPSG:4326"
+        echo "COMMAND: $cmd"
+        $cmd
+
+        cmd="gdal_translate -co compress=deflate $tmpfile $file_out"
+        echo "COMMAND: $cmd"
+        $cmd
+
+        rm $tmpfile
+    done
 }
 
 
@@ -119,6 +142,9 @@ if [ $sim_zone == "Europe" ]; then
             resample_to_ZEE "$param_file" "$param_file_1km" 1>>$print_log 2>>$error_log
         done
     done
+
+    # Fusion all zones for each parameter
+    fusion_zones 1>>$print_log 2>>$error_log
 else
     posttreatment_$sim_type "concat" 1>>$print_log 2>>$error_log
     # When only one area, the full map is this area's map
