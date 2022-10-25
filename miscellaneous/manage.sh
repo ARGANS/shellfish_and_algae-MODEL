@@ -4,7 +4,7 @@ DIR=$(dirname $0)
 echo $DIR
 source $DIR/_common.sh
 source $DIR/_dataread.sh
-source $DIR/_dataread_b.sh
+source $DIR/_farm_repartition.sh
 source $DIR/_dataread_shellfish.sh
 source $DIR/_dataimport.sh
 source $DIR/_pretreatment.sh
@@ -138,6 +138,7 @@ function handle_arguments {
             build_images_for_pretreatment
             build_dataread_image
             build_posttreatment_action
+            build_datareadshellfish
             ;;
 
         'bash')

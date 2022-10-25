@@ -1,6 +1,6 @@
 #!/bin/bash
-DATAREADB_IMAGE='ac-datareadb/runtime'
-DATAREADB_CONTAINER='ac-datareadb_run'
+DATAREADB_IMAGE='ac-farmrepartition/runtime'
+DATAREADB_CONTAINER='ac-farmrepartition_run'
 
 function build_datareadb_image {
     local dir="./"
@@ -8,12 +8,10 @@ function build_datareadb_image {
     local base_image_dockerfile="./miscellaneous/pythonBase.Dockerfile"
     local runtime_image_dockerfile="./miscellaneous/scenario_b.Dockerfile"
 
-    ### for GDAL: --build-arg WITH_GDAL="true" \
-            # --build-arg WITH_NETCDF="true" \
     docker build \
         --network host \
-        --build-arg REQUIREMENTS_PATH="./scenario_b/requirements.txt" \
-        --build-arg WITH_R="true" \
+        --build-arg REQUIREMENTS_PATH="./farm_repartition/requirements.txt" \
+        --build-arg WITH_NETCDF="true" \
         --build-arg WITH_GDAL="true" \
         -t $base_image_tag:v1 -t $base_image_tag:latest \
         -f $base_image_dockerfile \
@@ -50,11 +48,7 @@ function run_datareadb_in_interactive_mode {
         --name $DATAIMPORT_CONTAINER \
         --volume "$SHARED_VOLUME_NAME":/media/share \
         --volume "$GLOBAL_VOLUME_NAME":/media/global \
-        --volume $(pwd)/dataread/src:/opt/dataread \
-        --volume $(pwd)/advectionPrototype:/opt/advectionPrototype \
-        --volume $(pwd)/scenario_b/start.py:/opt/start.py \
-        --volume $(pwd)/scenario_b/test.py:/opt/test.py \
-        --volume $(pwd)/scenario_b/start.sh:/opt/start.sh \
+        --volume $(pwd)/farm_repartition:/opt \
         --memory=4g \
 		--memory-swap=8g \
         --label 'task.model.id=012' \
