@@ -79,8 +79,8 @@ def fusionDesFichiers(path1:str, path2: str, outpath:str):
     print(array1, len(array1))
     array = array1
     for y in range(band1.YSize):
-        if y % 10 == 0:
-            print(f'Y {y}')
+        # if y % 10 == 0:
+            # print(f'Y {y}')
         for x in range(band1.XSize):
             if array2[y][x] > 0:
                 array[y][x] = array2[y][x]
@@ -102,8 +102,8 @@ def fusion_zones2(zee_path:str, tmp_path:str, zee_transformed_path:str):
     dataset_tmp, band_tmp, array_tmp = read(tmp_path)
 
     for y in range(band_tmp.YSize):
-        if y % 10 == 0:
-            print(f'Y {y}')
+        # if y % 10 == 0:
+        #     print(f'Y {y}')
         for x in range(band_tmp.XSize):
             if array_zee[y][x] == 0:
                 array_tmp[y][x] = band_tmp.GetNoDataValue()

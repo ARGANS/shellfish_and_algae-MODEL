@@ -56,7 +56,7 @@ def optimal_farming(espece, scenario, prod, depth, surf, dist, minprod, ficbathy
 
     # ; Lecture du fichier production
     # ; -----------------------------
-    fictmp = './tmp/' + os.path.basename(ficin)
+    fictmp = '/tmp/' + os.path.basename(ficin)
     run('gdal_translate -co compress=none {ficin} {fictmp}'.format(ficin=ficin, fictmp=fictmp))
     dataset_prod, band_prod, array_prod = read(fictmp)
     run('rm -f ' + fictmp)
