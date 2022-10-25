@@ -2,11 +2,11 @@
 DATAREADB_IMAGE='ac-farmrepartition/runtime'
 DATAREADB_CONTAINER='ac-farmrepartition_run'
 
-function build_datareadb_image {
+function build_farmrepartition_image {
     local dir="./"
     local base_image_tag="ac-datareadb/base"
     local base_image_dockerfile="./miscellaneous/pythonBase.Dockerfile"
-    local runtime_image_dockerfile="./miscellaneous/scenario_b.Dockerfile"
+    local runtime_image_dockerfile="./miscellaneous/farmrepartition.Dockerfile"
 
     docker build \
         --network host \
@@ -24,7 +24,7 @@ function build_datareadb_image {
         $dir
 }
 
-function run_datareadb {
+function run_farmrepartition {
     stop_existed_container DATAREADB_CONTAINER
     create_volumes
 
@@ -42,7 +42,7 @@ function run_datareadb {
         -it $DATAREADB_IMAGE:latest
 }
 
-function run_datareadb_in_interactive_mode {
+function run_farmrepartition_in_interactive_mode {
     docker run \
         --rm \
         --name $DATAIMPORT_CONTAINER \

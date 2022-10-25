@@ -6,4 +6,3 @@ from code.utils.cmd import run
 test_path1 = './tmp/IBI_alaria_Biomass_CO2_B_1km.tif'
 test_path2 = './tmp/NWS_alaria_Biomass_CO2_B_1km.tif'
 fusionDesFichiers(test_path1, test_path2)
-

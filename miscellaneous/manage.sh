@@ -124,6 +124,9 @@ function handle_arguments {
             run_posttreatment_in_interactive_mode "$posttreatment_source" "$posttreatment_destination"
             ;;
 
+        'build_farmrepartition')
+            build_farmrepartition_image
+            ;;
 
         'create_volumes')
             create_volumes
