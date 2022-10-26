@@ -451,9 +451,18 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],dataBounds[par_name][1])
         if (par_name == "Nitrate") or (par_name == "Ammonium"):
             working_data[par_name] = np.maximum(working_data[par_name], 0)
-        #mask = np.ma.mask_or(mask, working_data[par_name].mask)
-    mask = np.ma.mask_or(working_data['northward_Water_current'].mask, working_data['eastward_Water_current'].mask)
 
+    # Iniitializing the mask to be used, based on the first time step.
+    for par_name, par_data in input_data.parameterData.items():
+        working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],dataBounds[par_name][1])
+        if (par_name == "Nitrate") or (par_name == "Ammonium"):
+            working_data[par_name] = np.maximum(working_data[par_name], 0)
+
+    mask = working_data['Temperature'].mask.copy()
+    for par_name in ['Nitrate', 'Ammonium', 'Phosphate', 'northward_Water_current', 'eastward_Water_current']:
+        mask = np.ma.mask_or(mask, working_data[par_name].mask)
+
+    # In the case of scenario C, resample the data to near 1 mile.
     grid_shape = init_grid_shape
     if scenC:
         dxRatio = 1852 / np.mean(dxMeter) #1852 meters = 1 nautical mile
