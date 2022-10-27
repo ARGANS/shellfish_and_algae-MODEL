@@ -10,7 +10,7 @@ mkdir -p $workdir/out3
 echo -n $(date +%s) > $workdir/start.mark
 echo -n $INPUT_MODEL_PROPERTIES_JSON > $workdir/parameters.json
 ls -la
-sleep 10
+
 # error_log=$workdir/error.txt
 # print_log=$workdir/print.txt
 
@@ -27,5 +27,4 @@ sleep 10
 # tail -n 100 $print_log >> $error_log
 python index.py
 
-sleep 60
 echo -n $(date +%s) > $workdir/end.mark

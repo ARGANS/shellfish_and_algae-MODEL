@@ -46,19 +46,22 @@ def parse_parameters(path):
         get('default', {}).\
         get('parameters', {})
 
+    mask_file_path = '/'.join(DATA_DIR.split('/')[:-3]) + '/' + farm_distr.get('external_mask_file', '')
+
     return {
     	'especes': especes,
         'scenario': scenario,
         'zones': [zone],
         'params': params,
         'farm_distribution': {
+            '_mask_file_path_exists': os.path.exists(mask_file_path) and os.path.isfile(mask_file_path),
             # TODO merge JSONs
             "production_required":  farm_distr.get("production_required", 10),
             "maximum_bathymetry": farm_distr.get("maximum_bathymetry", -30),
             "farms_separated_by": farm_distr.get("farms_separated_by", 10),
             "surface": farm_distr.get("surface", 1),
             "minimum_production": farm_distr.get("minimum_production", 10000),
-            "external_mask_file": farm_distr.get("external_mask_file", "")
+            "external_mask_file": mask_file_path
         },
         'DATA_DIR': DATA_DIR,
         'OUT_DIR': OUT_DIR
@@ -190,6 +193,9 @@ dist = conf.get('farm_distribution', {}).get("farms_separated_by") #; pas de fer
 prodsmin = [conf.get('farm_distribution', {}).get("minimum_production")] #; Poduction minimmum d'une ferme en kg/m²/an
 
 # TODO mask file
+
+    
+
 ficbathy = MAPS_DIR + '/Bathy.TIF' #; Fichier bathymetie globale
 ficzee = MAPS_DIR + '/zee_europe.tif' #; Fichier des zee
 ficbathyout = OUT_DIR + '/bathy_europe.tif'
