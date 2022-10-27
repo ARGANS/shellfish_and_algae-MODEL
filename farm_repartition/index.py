@@ -59,7 +59,9 @@ def parse_parameters(path):
             "surface": farm_distr.get("surface", 1),
             "minimum_production": farm_distr.get("minimum_production", 10000),
             "external_mask_file": farm_distr.get("external_mask_file", "")
-        }
+        },
+        'DATA_DIR': DATA_DIR,
+        'OUT_DIR': OUT_DIR
     }
 
 conf = parse_parameters(model_parameters_path)
