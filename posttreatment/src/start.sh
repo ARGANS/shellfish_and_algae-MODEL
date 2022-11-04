@@ -35,7 +35,7 @@ function posttreatment_Algae {
     python ./make_interest_vars.py -i $tmp_path/$concat_name.nc -j $input_path/parameters.json
 
     for variable in ${params_algae[*]}; do
-        gdal_translate NETCDF:"$tmp_path/$concat_name.nc":$variable $destination/$concat_name/params/$.tif
+        gdal_translate NETCDF:"$tmp_path/$concat_name.nc":$variable $destination/$concat_name/params/$variable.tif
     done
 
     # Translate the intermediate files.
@@ -153,6 +153,9 @@ else
     posttreatment_$sim_type "concat" 1>>$print_log 2>>$error_log
     # When only one area, the full map is this area's map
     cp $destination/concat/params/* $destination/.
+
+    # read zee tif parameters
+    read_zee_params 1>>$print_log 2>>$error_log
 
     # Resample to ZEE for farm optimization
     mkdir $destination/concat/params_1km
