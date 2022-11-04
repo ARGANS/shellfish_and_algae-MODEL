@@ -405,7 +405,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     parms_harvest = list(model_json['parameters']['harvest'].values())[0]['parameters']
     harvest_type = list(model_json['parameters']['harvest'].keys())[0]
 
-    scenC = (model_json['metadata']['scenario']=="C")
+    scenC = (model_json['metadata']['scenario']=="C" and (not farm_pos_file))
 
     year = int(model_json['dataset_parameters']['year'])
 
@@ -607,7 +607,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
             availableNut[var_name] += availableNut_term[var_name]
 
         # Compute the advection terms
-        if (model_json['metadata']['scenario'] == "A"):
+        if ((model_json['metadata']['scenario'] == "A") and (not farm_pos_file)):
             advection_terms = advection_modelA(state_vars=state_vars, working_data=working_data,
                                                dxMeter=dxMeter, dyMeter=dyMeter)
         else:
