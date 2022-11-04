@@ -142,6 +142,7 @@ function handle_arguments {
             build_dataread_image
             build_posttreatment_action
             build_datareadshellfish
+            build_farmrepartition
             ;;
 
         'bash')

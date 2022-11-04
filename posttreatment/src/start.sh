@@ -1,6 +1,6 @@
 #!/bin/bash
 input_path="$SOURCE_DIR"
-destination=$input_path/posttreatment
+destination="$INPUT_DESTINATION"
 tmp_path=/tmp/$(basename $input_path)
 
 mkdir -p $destination
