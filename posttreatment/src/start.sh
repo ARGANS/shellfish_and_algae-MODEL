@@ -19,6 +19,8 @@ print_log=$destination/print.txt
 sim_type=`cat $destination/parameters.json | jq -r ".type"`
 sim_zone=`cat $destination/parameters.json | jq -r ".metadata.zone"`
 
+params_algae=('CMEMS_NO3' 'CMEMS_NH4' 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA' 'D' 'N_f' 'N_s' 'avNO3' 'avNH4' 'cNO3' 'cNH4')
+params_shellfish=('DSTW' 'STE' 'FW' 'DWW' 'SHL' 'NH4_production' 'CO2_production')
 
 function posttreatment_Algae {
     concat_name="$1"
@@ -32,8 +34,8 @@ function posttreatment_Algae {
     # First add the interest variables to concat.nc
     python ./make_interest_vars.py -i $tmp_path/$concat_name.nc -j $input_path/parameters.json
 
-    for variable in 'CMEMS_NO3' 'CMEMS_NH4' 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA' 'D' 'N_f' 'N_s' 'avNO3' 'avNH4' 'cNO3' 'cNH4'; do
-        gdal_translate NETCDF:"$tmp_path/$concat_name.nc":$variable $destination/$concat_name/params/$variable.tif
+    for variable in ${params_algae[*]}; do
+        gdal_translate NETCDF:"$tmp_path/$concat_name.nc":$variable $destination/$concat_name/params/$.tif
     done
 
     # Translate the intermediate files.
@@ -53,7 +55,7 @@ function posttreatment_Shellfish {
     mkdir $destination/$concat_name
     mkdir $destination/$concat_name/params
 
-    for variable in 'DSTW' 'STE' 'FW' 'DWW' 'SHL' 'NH4_production' 'CO2_production'; do
+    for variable in ${params_shellfish[*]}; do
         gdal_translate NETCDF:"$input_path/$concat_name.nc":$variable $destination/$concat_name/params/$variable.tif
     done
 }
@@ -128,9 +130,11 @@ function fusion_zones {
 
 
 if [ $sim_zone == "Europe" ]; then
+
     for zone_name in 'IBI' 'NWS' 'MED' 'Baltic' 'BS' 'Arctic'; do
         posttreatment_$sim_type "concat_$zone_name" 1>>$print_log 2>>$error_log
     done
+
     # read zee tif parameters
     read_zee_params 1>>$print_log 2>>$error_log
 
@@ -149,6 +153,13 @@ else
     posttreatment_$sim_type "concat" 1>>$print_log 2>>$error_log
     # When only one area, the full map is this area's map
     cp $destination/concat/params/* $destination/.
+
+    # Resample to ZEE for farm optimization
+    mkdir $destination/concat/params_1km
+    for param_file in $destination/concat/params/*; do
+        param_file_1km=$destination/concat/params_1km/$(basename ${param_file%.tif})_1km.tif
+        resample_to_ZEE "$param_file" "$param_file_1km" 1>>$print_log 2>>$error_log
+    done
 fi
 
 
