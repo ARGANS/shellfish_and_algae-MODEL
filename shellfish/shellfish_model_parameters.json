@@ -198,5 +198,34 @@
                 }
             }
         }
+    },
+
+    "OptimalFarmsRepartition": {
+        "section_name": "Optimal farms repartition",
+        "section_description": "",
+        "parameters_descriptions": {
+            "production_required" : ["Production required, mega tons of fresh weight", "MT"],
+            "maximum_bathymetry"  : ["Maximum bathymetry", "m"],
+            "farms_separated_by"  : ["Distance between farms", "km"],
+            "surface"             : ["Surface", "km^2"],
+            "minimum_production"  : ["Minimum production", "T/Year"],
+            "external_mask_file"  : ["External mask file", "", "file"]
+        },
+        "options_descriptions": {},
+        "defaults": {
+            "default": {
+                "name": "",
+                "description": "",
+                "parameters": {
+                    "production_required": 10,
+                    "maximum_bathymetry": -30,
+                    "farms_separated_by": 10,
+                    "surface": 1,
+                    "minimum_production": 10000,
+                    "external_mask_file": ""
+                },
+                "options": {}
+            }
+        }
     }
 }
