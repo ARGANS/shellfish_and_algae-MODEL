@@ -24,6 +24,7 @@ def parse_parameters(path):
     zone = model_parameters.\
         get('metadata', {}).\
         get('zone', None)
+        
     scenario = model_parameters.\
         get('metadata', {}).\
         get('scenario', None)
@@ -35,8 +36,9 @@ def parse_parameters(path):
         get('parameters', {})
 
     mask_file_path = '/'.join(DATA_DIR.split('/')[:-3]) + '/' + farm_distr.get('external_mask_file', '')
-
-    return {
+    
+    if type == 'Algae':
+        return {
     	'especes': especes,
         'scenario': scenario,
         'zones': [zone],
@@ -53,7 +55,29 @@ def parse_parameters(path):
         },
         'DATA_DIR': DATA_DIR,
         'OUT_DIR': OUT_DIR
-    }
+        }, type
+    elif type == 'Shellfish':
+        return {
+    	'especes': especes,
+        'scenario': scenario,
+        'zones': [zone],
+        'params': params,
+        'farm_distribution': {
+            '_mask_file_path_exists': os.path.exists(mask_file_path) and os.path.isfile(mask_file_path),
+            # TODO merge JSONs
+            "production_required":  farm_distr.get("production_required", 10),
+            "maximum_bathymetry": farm_distr.get("maximum_bathymetry", -30),
+            "farms_separated_by": farm_distr.get("farms_separated_by", 10),
+            "surface": farm_distr.get("surface", 1),
+            "minimum_production": farm_distr.get("minimum_production", 1000),
+            "external_mask_file": mask_file_path
+        },
+        'DATA_DIR': DATA_DIR,
+        'OUT_DIR': OUT_DIR
+        }, type
+    else:
+        return {}, type
+    
 
 
 DATA_DIR=os.getenv('INPUT_SOURCE')
@@ -62,7 +86,7 @@ OUT_DIR=os.getenv('INPUT_DESTINATION')
 TMP_DIR='/tmp'
 
 model_parameters_path = DATA_DIR + '/parameters.json'
-conf = parse_parameters(model_parameters_path)
+conf, type = parse_parameters(model_parameters_path)
 print(f'Used variables of the current execution {conf}')
 dump_json(conf, OUT_DIR + '/conf.json')
 
@@ -95,10 +119,14 @@ prodsmin = [conf.get('farm_distribution', {}).get("minimum_production")] #; Podu
 ficbathy = MAPS_DIR + '/Bathy.TIF' #; Fichier bathymetie globale
 ficzee = MAPS_DIR + '/zee_europe.tif' #; Fichier des zee
 ficbathyout = OUT_DIR + '/bathy_europe.tif'
-if zones != "Europe":
-    ficin=DATA_DIR + '/concat/params_1km/FW_PUA_1km.tif'
+if type == 'Algae':
+    varname = 'FW_PUA'
+elif type == 'Shellfish':
+    varname = 'FW'
+if zones[0] != "Europe":
+    ficin=DATA_DIR + f'/concat/params_1km/{varname}_1km.tif'
 else:
-    ficin=DATA_DIR + '/FW_PUA_1km.tif'
+    ficin=DATA_DIR + f'/{varname}.tif'
 
 for espece, minprod in zip(especes, prodsmin):
     for prod in prods:
@@ -113,6 +141,6 @@ for espece, minprod in zip(especes, prodsmin):
             ficbathy=ficbathy,
             ficbathyout=ficbathyout,
             ficzee=ficzee,
-            ficin=DATA_DIR + '/concat/params_1km/FW_PUA_1km.tif',
-            ficout=OUT_DIR + f'/ZEE_{espece}_sc{scenario}farms-for-{prod}MT-FW_surf{surf}_depth{depth}_dist{dist}',
+            ficin=ficin,
+            ficout=OUT_DIR + f'/opt',
         )

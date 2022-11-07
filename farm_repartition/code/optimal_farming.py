@@ -74,7 +74,7 @@ def optimal_farming(espece:str, scenario:str, prod:float, depth:float, surf:floa
 
     array_prod[np.where(array_prod>1000)] = 0
     array_prod[np.where(~np.isfinite(array_prod))] = 0
-    array_prod = array_prod*1000
+    array_prod = array_prod*1000 # convertion between kg/m2 and T/km2
     # ind=where(r GT 1000,ct)
     # IF (ct GT 0) THEN r(ind)=0
     # r[where(~finite(r), /null)] = 0
@@ -100,23 +100,23 @@ def optimal_farming(espece:str, scenario:str, prod:float, depth:float, surf:floa
 
     ulfic = open(ficout+'_posfarms.txt', 'w')
 
-    wprod=prod*1e6 # ; pour passer en T
+    wprod=prod*1e6 # convertion from T/km2 to T
     _, max_prod = band_prod.ComputeRasterMinMax()
     lineNbr = 0
     print('minprod')
     print(minprod)
     while (prodfin < wprod) and (lineNbr<1e4):
         lineNbr += 1
-        ind = np.where(array_prod==np.max(array_prod))
+        ind = np.where(array_prod==np.max(array_prod)) #we search the maximal production coordinates
         indi = ind[0][0]
         indj = ind[1][0]
-        fprod = array_prod[indi, indj]
+        fprod = array_prod[indi, indj]# we get the maximal production value
         print('fprod')
         print(fprod)
-        if fprod<minprod:
+        if fprod<minprod: # if the production is lower than the minimal production we stop searching after farms
             break
-        farm[indi, indj] = 1
-        farmprod[indi, indj] = surf * array_prod[indi, indj]
+        farm[indi, indj] = 1 #we place the farm on the optimal farms map
+        farmprod[indi, indj] = surf * array_prod[indi, indj] #we place the farm production on the optimal farms production map
         prodfin += farmprod[indi, indj]
         flat = lat[indi]
         flon = lon[indj]
@@ -135,9 +135,9 @@ def optimal_farming(espece:str, scenario:str, prod:float, depth:float, surf:floa
         j1=max(indj-dist,0)
         i2=min(indi+dist,ncol-1)
         j2=min(indj+dist,nlig-1)
-        array_prod[i1:i2, j1:j2] = 0
+        array_prod[i1:i2, j1:j2] = 0 #we put to 0 the farms arround the selected farm to make sure to don't select farms to close to each others
         nbfarms=nbfarms+1
-        ulfic.write(';'.join([str(item) for item in [nbfarms, flat, flon, fprod]]) + '\n')
+        ulfic.write(';'.join([str(item) for item in [nbfarms, flat, flon, fprod]]) + '\n') #we save the selected farm coordinates and production value
     ulfic.close()
 
     # ; Ecriture des résultats

@@ -1,11 +1,7 @@
-import pandas as pd
-import numpy as np
-import datetime
-import time
 import json
 import os
-import multiprocessing as mp
 from src.make_runs import *
+# from src.make_runs import run_simulation
 from src.launch_model import MA_model_scipy
 from src.models.ModelProperties import ModelProperties
 from src.read_netcdf import *
@@ -23,14 +19,25 @@ if not model_properties.isDataDownloadTaskCompleted():
 
 full_json = model_properties.attrs
 
+
+if os.getenv('RUN_SIMULATION_WITH_FARMS') is not None:
+    farm_pos_file = '/_farmdistribution/opt_posfarms.txt'
+else:
+    farm_pos_file = None
+
+
 if full_json['metadata']['zone'] != "Europe":
 
     dict_dataCmd = full_json['dataset_parameters']['datasets']
 
     dict_to_AllData = dataCmd_to_AllData(dict_dataCmd, model_properties.file_template)
     algaeData = AllData(dict_to_AllData)
-
-    time_spent = run_simulation(f"{workdir}/concat.nc", full_json, algaeData)
+    time_spent = run_simulation(
+        f"{workdir}/concat.nc",
+        full_json,
+        algaeData,
+        farm_pos_file=farm_pos_file
+    )
 
 else:
     for area_name in ['IBI', 'NWS', 'MED', 'Baltic', 'BS', 'Arctic']:
@@ -49,7 +56,11 @@ else:
                                 '/media/share/reference_data/{Place}/_pretreated/{Parameter}/{Parameter}{Place}modelNetCDF2021-01to2022-01.nc')
 
         algaeData = AllData(dict_to_AllData)
-
-        time_spent = run_simulation(f"{workdir}/concat_{area_name}.nc", europe_json, algaeData)
+        time_spent = run_simulation(
+            f"{workdir}/concat_{area_name}.nc", 
+            europe_json, 
+            algaeData, 
+            farm_pos_file=farm_pos_file
+        )
 
         print(f'AREA {area_name} IS DONE. TIME SPENT: {time_spent/60} minutes.')

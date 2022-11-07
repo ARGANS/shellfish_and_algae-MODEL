@@ -103,10 +103,17 @@ function resample_to_ZEE {
 function fusion_zones {
     # Fusion all zones into one European map
 
+    simulation_type="$1"
+    if [ $simulation_type = "Algae" ]; then
+        param_name_table=${params_algae[*]}
+    else
+        param_name_table=${params_shellfish[*]}
+    fi
+
     # Superimpose zones in the correct order (left is bottom)
     ordered_zones=(Arctic Baltic BS NWS IBI MED)
 
-    for param_name in 'CMEMS_NO3' 'CMEMS_NH4' 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA' 'D' 'N_f' 'N_s' 'avNO3' 'avNH4' 'cNO3' 'cNH4'; do
+    for param_name in ${param_name_table[*]}; do
 
         local file_out=$destination/$param_name.tif
         local tmpfile="$destination/tmp.tif"
@@ -115,7 +122,6 @@ function fusion_zones {
         local file_in_names=(${ordered_zones[@]/#/"$destination/concat_"})
         file_in_names=(${file_in_names[@]/%/"/params_1km/${param_name}_1km.tif"})
 
-        #cmd="gdalwarp -overwrite -srcnodata \"9.96921e+36\" "$destination/*/params_1km/${param_name}_1km.tif" $tmpfile -tr $lon_step $lat_step -te $lon_min $lat_min $lon_max $lat_max -t_srs EPSG:4326"
         cmd="gdalwarp -overwrite "${file_in_names[*]}" $tmpfile -tr $lon_step $lat_step -te $lon_min $lat_min $lon_max $lat_max -t_srs EPSG:4326"
         echo "COMMAND: $cmd"
         $cmd
@@ -148,7 +154,7 @@ if [ $sim_zone == "Europe" ]; then
     done
 
     # Fusion all zones for each parameter
-    fusion_zones 1>>$print_log 2>>$error_log
+    fusion_zones $sim_type 1>>$print_log 2>>$error_log
 else
     posttreatment_$sim_type "concat" 1>>$print_log 2>>$error_log
     # When only one area, the full map is this area's map

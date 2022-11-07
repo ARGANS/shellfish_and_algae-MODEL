@@ -196,7 +196,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
 
     output_data = output_dict(state_vars=state_vars, working_data=working_data,model=model)
 
-    unitsDict = {"DSTW": 'kg/m^2', "STE": 'MJ/m^2', "FW": 'kg', "DWW": 'kg/m^2', "SHL": 'cm',
+    unitsDict = {"DSTW": 'kg/m^2', "STE": 'MJ/m^2', "FW": 'kg/m^2', "DWW": 'kg/m^2', "SHL": 'cm',
                  "NH4_production": 'g(N)/day', "CO2_production": 'g(C)/day'}
     # Create output file
     initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
