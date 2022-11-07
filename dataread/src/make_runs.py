@@ -405,7 +405,8 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     parms_harvest = list(model_json['parameters']['harvest'].values())[0]['parameters']
     harvest_type = list(model_json['parameters']['harvest'].keys())[0]
 
-    scenC = (model_json['metadata']['scenario']=="C" and (not farm_pos_file))
+    scenC = (model_json['metadata']['scenario']=="C" and (not farm_pos_file)) #if scenario C is selected and if we are not working with the optimal farms
+    scenA = ((model_json['metadata']['scenario'] == "A") and (not farm_pos_file)) #if scenario A is selected and if we are not working with the optimal farms
 
     year = int(model_json['dataset_parameters']['year'])
 
@@ -607,10 +608,10 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
             availableNut[var_name] += availableNut_term[var_name]
 
         # Compute the advection terms
-        if ((model_json['metadata']['scenario'] == "A") and (not farm_pos_file)):
+        if scenA: #if we are running scenA
             advection_terms = advection_modelA(state_vars=state_vars, working_data=working_data,
                                                dxMeter=dxMeter, dyMeter=dyMeter)
-        else:
+        else: #otherwise (we are running scenario B or C)
             advection_terms = advection_model(state_vars=state_vars, working_data=working_data,
                                               dxMeter=dxMeter, dyMeter=dyMeter)
 
