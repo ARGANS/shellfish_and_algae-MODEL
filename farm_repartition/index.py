@@ -45,10 +45,10 @@ def parse_parameters(path):
         'params': params,
         'farm_distribution': {
             '_mask_file_path_exists': os.path.exists(mask_file_path) and os.path.isfile(mask_file_path),
-            # TODO merge JSONs
             "production_required":  farm_distr.get("production_required", 10),
             "maximum_bathymetry": farm_distr.get("maximum_bathymetry", -30),
             "farms_separated_by": farm_distr.get("farms_separated_by", 10),
+            "mask_name": farm_distr.get("external_mask_file", 'maskFile.tif'),
             "surface": farm_distr.get("surface", 1),
             "minimum_production": farm_distr.get("minimum_production", 10000),
             "external_mask_file": mask_file_path
@@ -64,10 +64,10 @@ def parse_parameters(path):
         'params': params,
         'farm_distribution': {
             '_mask_file_path_exists': os.path.exists(mask_file_path) and os.path.isfile(mask_file_path),
-            # TODO merge JSONs
             "production_required":  farm_distr.get("production_required", 10),
             "maximum_bathymetry": farm_distr.get("maximum_bathymetry", -30),
             "farms_separated_by": farm_distr.get("farms_separated_by", 10),
+            "mask_name": farm_distr.get("external_mask_file", 'maskFile.tif'),
             "surface": farm_distr.get("surface", 1),
             "minimum_production": farm_distr.get("minimum_production", 1000),
             "external_mask_file": mask_file_path
@@ -77,8 +77,6 @@ def parse_parameters(path):
         }, type
     else:
         return {}, type
-    
-
 
 DATA_DIR=os.getenv('INPUT_SOURCE')
 MAPS_DIR='/media/global/maps'
@@ -104,6 +102,11 @@ params = conf['params']
 ficzee = MAPS_DIR + '/zee_europe.tif' # Fichier des zee
 ficzee_image:TiffImage = read_tiff(ficzee)
 
+mask_name = conf.get('farm_distribution', {}).get("mask_name")
+if os.path.exists(DATA_DIR + '/../'+mask_name):
+    mask = DATA_DIR + '/../'+mask_name
+else:
+    mask = None
 
 #; Farms optimal distribution
 #; -------------------------------
@@ -113,8 +116,6 @@ depth = conf.get('farm_distribution', {}).get("maximum_bathymetry") #; Profondeu
 surf = conf.get('farm_distribution', {}).get("surface") #; surface de la ferme en km²
 dist = conf.get('farm_distribution', {}).get("farms_separated_by") #; pas de fermes à moins 2 pixels (km)
 prodsmin = [conf.get('farm_distribution', {}).get("minimum_production")] #; Poduction minimmum d'une ferme en kg/m²/an
-
-# TODO mask file
 
 ficbathy = MAPS_DIR + '/Bathy.TIF' #; Fichier bathymetie globale
 ficzee = MAPS_DIR + '/zee_europe.tif' #; Fichier des zee
@@ -137,10 +138,12 @@ for espece, minprod in zip(especes, prodsmin):
             depth=depth,
             surf=surf,
             dist=dist,
-            minprod=minprod,
+            minprod=1000,
             ficbathy=ficbathy,
             ficbathyout=ficbathyout,
             ficzee=ficzee,
             ficin=ficin,
             ficout=OUT_DIR + f'/opt',
+            outDir = OUT_DIR,
+            mask = mask
         )

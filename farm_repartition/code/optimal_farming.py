@@ -4,7 +4,7 @@ import numpy as np
 import math
 import os
 
-def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf: float, dist: float, minprod: float, ficbathy: str, ficbathyout: str, ficzee: str, ficin: str, ficout: str):
+def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf: float, dist: float, minprod: float, ficbathy: str, ficbathyout: str, ficzee: str, ficin: str, ficout: str, outDir, mask:str):
     '''
     espece(str): the species studied
     scenario(str): the scenario considered
@@ -18,6 +18,8 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
     ficzee(str): european exclusive economic zone file address
     ficin(str): fresh weight in kg/m2/year PUA file address
     ficout(str): output file address
+    outDir(str): output directory
+    mask(str): the mask address
     '''
     print('optimal_farming')
 
@@ -85,6 +87,23 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
     # ind=where(zee LE 0, ct)
     # IF (ct GT 0) THEN r(ind)=0
 
+    if mask:
+        cmd = 'gdalwarp -overwrite {mask} -tr {pasx} {pasy} -dstnodata "-999" -r near -te {lonmin} {latmin} {lonmax} {latmax} {maskout} -t_srs EPSG:4326'
+        run(cmd.format(
+            mask=mask,
+            pasx=tiffImage.pasx,
+            pasy=tiffImage.pasy,
+            lonmin=tiffImage.lonmin,
+            latmin=tiffImage.latmin,
+            lonmax=tiffImage.lonmax,
+            latmax=tiffImage.latmax,
+            maskout=outDir + '/reshaped_mask.tif'
+        ))
+        # bath=rotate(read_tiff(bathyout, geo=geob), 7)
+        dataset_bath, band_bath, array_mask = read(outDir + '/reshaped_mask.tif')
+        array_prod[np.where(array_mask <= 0)] = 0
+
+
     ncol, nlig = np.shape(array_prod)
 
     # ; Boucle sur les pixels
@@ -135,12 +154,13 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
         j1 = max(indj - dist, 0)
         i2 = min(indi + dist, ncol - 1)
         j2 = min(indj + dist, nlig - 1)
-        array_prod[i1:i2,
-        j1:j2] = 0  # we put to 0 the farms arround the selected farm to make sure to don't select farms to close to each others
+        array_prod[i1:i2,j1:j2] = 0  # we put to 0 the farms arround the selected farm to make sure to don't select farms to close to each others
         nbfarms = nbfarms + 1
         ulfic.write(';'.join([str(item) for item in [nbfarms, flat, flon,
                                                      fprod]]) + '\n')  # we save the selected farm coordinates and production value
     ulfic.close()
+    print('nbr of farms:')
+    print(str(nbfarms))
 
     # ; Ecriture des résultats
     # ; -----------------------
