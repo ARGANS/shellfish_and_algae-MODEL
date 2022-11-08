@@ -2,9 +2,9 @@ from code.utils.cmd import run
 from code.utils.tiff import read, read_tiff, printBand, createRaster
 import numpy as np
 import math
-import os    
+import os
 
-def optimal_farming(espece:str, scenario:str, prod:float, depth:float, surf:float, dist:float, minprod:float, ficbathy:str, ficbathyout:str, ficzee:str, ficin:str, ficout:str):
+def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf: float, dist: float, minprod: float, ficbathy: str, ficbathyout: str, ficzee: str, ficin: str, ficout: str):
     '''
     espece(str): the species studied
     scenario(str): the scenario considered
@@ -25,12 +25,12 @@ def optimal_farming(espece:str, scenario:str, prod:float, depth:float, surf:floa
     # ; -----------
     tiffImage = read_tiff(ficzee)
     dataset_zee, band_zee, array_zee = read(ficzee)
-    nb_col=dataset_zee.RasterXSize
-    nb_lig=dataset_zee.RasterYSize
-    lon = [(x*tiffImage.pasx + tiffImage.lonmin) for x in range(nb_col)]
-    lat = [(x*tiffImage.pasy + tiffImage.latmin) for x in range(nb_lig)]
-    
-    #------------------------------------------------------------------------------------
+    nb_col = dataset_zee.RasterXSize
+    nb_lig = dataset_zee.RasterYSize
+    lon = [(x * tiffImage.pasx + tiffImage.lonmin) for x in range(nb_col)]
+    lat = [(x * tiffImage.pasy + tiffImage.latmin) for x in range(nb_lig)]
+
+    # ------------------------------------------------------------------------------------
     # zee=rotate(read_tiff(ficzee, geo=geo), 7)
     # sz=size(zee, /dim)
     # nbcol=sz(0)
@@ -43,7 +43,7 @@ def optimal_farming(espece:str, scenario:str, prod:float, depth:float, surf:floa
     # latmin=latmax-(nblig*pasy)
     # lats=findgen(5031)*pasy+latmin+pasy
     # lons=findgen(8005)*pasx+lonmin+pasx
-    #------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------
 
     # ; Bathymetry extraction on the european eez
     # ; ----------------------------------------------
@@ -58,7 +58,6 @@ def optimal_farming(espece:str, scenario:str, prod:float, depth:float, surf:floa
         latmax=tiffImage.latmax,
         bathyout=ficbathyout
     ))
-
     # bath=rotate(read_tiff(bathyout, geo=geob), 7)
     dataset_bath, band_bath, array_bath = read(ficbathyout)
 
@@ -71,54 +70,55 @@ def optimal_farming(espece:str, scenario:str, prod:float, depth:float, surf:floa
     run('gdal_translate -co compress=none {ficin} {fictmp}'.format(ficin=ficin, fictmp=fictmp))
     dataset_prod, band_prod, array_prod = read(fictmp)
     run('rm -f ' + fictmp)
-
-    array_prod[np.where(array_prod>1000)] = 0
+    array_prod[np.where(array_prod > 1000)] = 0
     array_prod[np.where(~np.isfinite(array_prod))] = 0
-    array_prod = array_prod*1000 # convertion between kg/m2 and T/km2
+    array_prod = array_prod * 1000  # convertion between kg/m2 and T/km2
     # ind=where(r GT 1000,ct)
     # IF (ct GT 0) THEN r(ind)=0
     # r[where(~finite(r), /null)] = 0
     # r=r*1000. 						; pour passer en T/km²
-    array_prod[np.where((array_bath>0)*(array_bath<depth))] = 0
-    array_prod[np.where(array_zee<=0)] = 0
-    # ; Masquage par Bathy et Zee        
+    array_prod[np.where((array_bath > 0) * (array_bath < depth))] = 0
+    array_prod[np.where(array_zee <= 0)] = 0
+    # ; Masquage par Bathy et Zee
     # ind=where(bath LE depth, ct)
     # IF (ct GT 0) THEN r(ind)=0
     # ind=where(zee LE 0, ct)
     # IF (ct GT 0) THEN r(ind)=0
 
-    ncol, nlig= np.shape(array_prod)
+    ncol, nlig = np.shape(array_prod)
 
     # ; Boucle sur les pixels
     # ; ---------------------
-    farm =  np.zeros((ncol, nlig))
+    farm = np.zeros((ncol, nlig))
     # farm=bytarr(ncol, nlig)
-    farmprod =  np.zeros((ncol, nlig))
+    farmprod = np.zeros((ncol, nlig))
     # farmprod=fltarr(ncol, nlig)
-    prodfin=0
-    nbfarms=0
+    prodfin = 0
+    nbfarms = 0
 
-    ulfic = open(ficout+'_posfarms.txt', 'w')
+    ulfic = open(ficout + '_posfarms.txt', 'w')
 
-    wprod=prod*1e6 # convertion from T/km2 to T
+    wprod = prod * 1e6  # convertion from T/km2 to T
     _, max_prod = band_prod.ComputeRasterMinMax()
     lineNbr = 0
     print('minprod')
     print(minprod)
-    while (prodfin < wprod) and (lineNbr<1e4):
+    ulfic.write('farm;lat;lon;fw \n')
+    while (prodfin < wprod) and (lineNbr < 1e4):
         lineNbr += 1
-        ind = np.where(array_prod==np.max(array_prod)) #we search the maximal production coordinates
+        ind = np.where(array_prod == np.max(array_prod))  # we search the maximal production coordinates
         indi = ind[0][0]
         indj = ind[1][0]
-        fprod = array_prod[indi, indj]# we get the maximal production value
+        fprod = array_prod[indi, indj]  # we get the maximal production value
         print('fprod')
         print(fprod)
-        if fprod<minprod: # if the production is lower than the minimal production we stop searching after farms
+        if fprod < minprod:  # if the production is lower than the minimal production we stop searching after farms
             break
-        farm[indi, indj] = 1 #we place the farm on the optimal farms map
-        farmprod[indi, indj] = surf * array_prod[indi, indj] #we place the farm production on the optimal farms production map
+        farm[indi, indj] = 1  # we place the farm on the optimal farms map
+        farmprod[indi, indj] = surf * array_prod[
+            indi, indj]  # we place the farm production on the optimal farms production map
         prodfin += farmprod[indi, indj]
-        flat = lat[indi]
+        flat = lat[::-1][indi]
         flon = lon[indj]
         '''for y in range(band_prod.YSize):
             for x in range(band_prod.XSize):
@@ -131,40 +131,42 @@ def optimal_farming(espece:str, scenario:str, prod:float, depth:float, surf:floa
                 flat = lat[y]
                 flon = lon[x]
         '''
-        i1=max(indi-dist, 0)
-        j1=max(indj-dist,0)
-        i2=min(indi+dist,ncol-1)
-        j2=min(indj+dist,nlig-1)
-        array_prod[i1:i2, j1:j2] = 0 #we put to 0 the farms arround the selected farm to make sure to don't select farms to close to each others
-        nbfarms=nbfarms+1
-        ulfic.write(';'.join([str(item) for item in [nbfarms, flat, flon, fprod]]) + '\n') #we save the selected farm coordinates and production value
+        i1 = max(indi - dist, 0)
+        j1 = max(indj - dist, 0)
+        i2 = min(indi + dist, ncol - 1)
+        j2 = min(indj + dist, nlig - 1)
+        array_prod[i1:i2,
+        j1:j2] = 0  # we put to 0 the farms arround the selected farm to make sure to don't select farms to close to each others
+        nbfarms = nbfarms + 1
+        ulfic.write(';'.join([str(item) for item in [nbfarms, flat, flon,
+                                                     fprod]]) + '\n')  # we save the selected farm coordinates and production value
     ulfic.close()
 
     # ; Ecriture des résultats
     # ; -----------------------
     createRaster(
-        farm, 
-        ficout+'.tif',
-        band_prod.DataType, 
-        dataset_prod.GetGeoTransform(), 
+        farm,
+        ficout + '.tif',
+        band_prod.DataType,
+        dataset_prod.GetGeoTransform(),
         band_prod.GetNoDataValue()
     )
     createRaster(
-        farmprod, 
-        ficout+'_prod.tif',
-        band_prod.DataType, 
-        dataset_prod.GetGeoTransform(), 
+        farmprod,
+        ficout + '_prod.tif',
+        band_prod.DataType,
+        dataset_prod.GetGeoTransform(),
         band_prod.GetNoDataValue()
     )
 
-    if np.sum((farmprod > 0)*1)==0:
+    if np.sum((farmprod > 0) * 1) == 0:
         print('The minimal production is too hight')
     else:
-        minprod=np.min(farmprod[farmprod > 0])
-        maxprod=np.max(farmprod)
+        minprod = np.min(farmprod[farmprod > 0])
+        maxprod = np.max(farmprod)
         with open(ficout + '.txt', 'w') as f:
             f.write('readme')
-            f.write('Species: '+ espece + '\n')
+            f.write('Species: ' + espece + '\n')
             f.write('Scenario: ' + scenario + '\n')
             f.write('Production to be reached: ' + str(prod) + 'MT/year' + '\n')
             f.write('Maximal depth: ' + str(depth) + 'm' + '\n')
