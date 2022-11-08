@@ -21,7 +21,7 @@ full_json = model_properties.attrs
 
 
 if os.getenv('RUN_SIMULATION_WITH_FARMS') is not None:
-    farm_pos_file = '/_farmdistribution/opt_posfarms.txt'
+    farm_pos_file = workdir + '/../_farmdistribution/opt_posfarms.txt'
 else:
     farm_pos_file = None
 
