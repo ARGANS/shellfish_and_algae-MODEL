@@ -513,7 +513,7 @@ def run_simulation(out_file_name: str, model_json: dict, input_data: AllData, fa
 
     # Initialize the model variables
     if mask_farm:
-        if len(mask_farm[0][0]) == 0:
+        if len(mask_farm[0]) == 0:
             print('no optimal farms in this area')
             state_vars = {
                 'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
@@ -522,6 +522,7 @@ def run_simulation(out_file_name: str, model_json: dict, input_data: AllData, fa
                 'N_f': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
                 'D': np.ma.masked_array(np.zeros(grid_shape), mask.copy())
             }
+            mask_farm = None
         else:
             state_vars = {
                 'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
