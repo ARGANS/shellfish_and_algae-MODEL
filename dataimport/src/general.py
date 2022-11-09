@@ -62,9 +62,6 @@ def getdataFromMarineCopernicus(dataInfo, dateBeginning, dateEnd, outputDirector
             f' --depth-max {deepthmax}'
         )
     
-    # Motucient cannot throw exceptions on errors. 
-    # Thus, in order to detect errors, an application must parse errors from log messages as follows:
-    # 2022-08-30 13:30:57.983 [ERROR] 010-20 : The limit of file size is exceeded. Please narrow your request. 
     print(f'Command: {options}')
     process =  subprocess.Popen(options, shell=True, stdout=subprocess.PIPE)
     while True:
@@ -86,6 +83,7 @@ def giveFile(filename, filetype):
     else:
         return filename + '.' + filetype
 
+#return the extension in fonction of the file type
 def getFileExtension(filetype:str) -> str:
     if filetype == 'GeoTiFF':
         return 'tiff'
@@ -94,6 +92,7 @@ def getFileExtension(filetype:str) -> str:
     else:
         return filetype
 
+#dowload the data from a ftp
 def getdataFromFtp(dataFin, outputDirectory):
     HOSTNAME = dataFin["link"]
     USERNAME = dataFin["motu"]
@@ -176,14 +175,18 @@ def validate(value, cls):
         return value
     return None
 
-
+#main function to download the wantedData(str) on zone(str) between a minimal and a maximal depth (float) and between dateBeginning(datetime) and dateEnd(datetime)
+#frequency(str): the wanted frequency
+#type(str): data type
 def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, dateBeginning=None, dateEnd=None,
             frequency='daily', type='model'):
     # we select the lines that contains the data on the right zone
     wantedDataLine = dataFin.loc[
         (dataFin["Parameter"] == wantedData) & (dataFin["Place"] == zone) & (dataFin["frequency"] == frequency) & (dataFin["type"] == type)]
+    # for all lines corresponding to the wanted data
     for j in wantedDataLine.index.values:
         servicetype = dataFin.iloc[j]["source"]
+        #define the donwloaded file name depending of the wanted frequency
         if wantedDataLine.iloc[0]["frequency"] == 'daily':
             begDate = splitDate(dateBeginning)
             endDate = splitDate(dateEnd)
@@ -201,10 +204,11 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
                 "fileType"] + dateBeginning.strftime("%Y-%m-%d%H%M%S") + 'to' + dateEnd.strftime("%Y-%m-%d%H%M%S")
         else:
             filename = wantedData + zone + dataFin.iloc[j]["fileType"]
-
-        outputFile = giveFile(filename, dataFin.iloc[j]["fileType"])
+        
+        outputFile = giveFile(filename, dataFin.iloc[j]["fileType"]) #add the extention to the file name (example: '.nc')
         print(servicetype)
         
+        #depending of the data source we call the webservice to download it
         if servicetype == 'marineCopernicus':
             getdataFromMarineCopernicus(dataFin.iloc[j], dateBeginning.strftime('"%Y-%m-%d %H:%M:%S"'),
                                         dateEnd.strftime('"%Y-%m-%d %H:%M:%S"'), outputDirectory,
@@ -247,16 +251,20 @@ def getData(wantedData, zone, dataFin, deepthmin, deepthmax, outputDirectory, da
         elif servicetype == 'ftp':
             getdataFromFtp(dataFin.iloc[j], outputDirectory)
 
-
 def giveDateslist(dateBeginning, dateEnd, frequency, timestep = None):
-    if timestep:
+    '''
+    Return a list of intervals depending of the frequency
+    the begining of each interval is returned in begList(array) and the end in endList(array)
+    the sum of the interval cover the interval between dateBeginning, dateEnd
+    '''
+    if timestep: #if a special time step is refered
         ndays = (dateEnd - dateBeginning).days
         begList = [(dateBeginning + datetime.timedelta(days=timestep)) for i in range(int(ndays/timestep))]
         endList = [(dateBeginning + datetime.timedelta(days=timestep)) for i in range(1, int(ndays/timestep) + 1)]
-    elif frequency == 'monthly':
+    elif frequency == 'monthly': #if monthly data will be downloaded
         begList = [datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')]
         endList = [datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')]
-    elif frequency == 'hourly' or frequency=='daily':
+    elif frequency == 'hourly' or frequency=='daily':#if hourly or daily data will be downloaded
         datetimeBeginning = datetime.datetime.strptime(dateBeginning, '%Y-%m-%d %H:%M:%S')
         datetimeEnd = datetime.datetime.strptime(dateEnd, '%Y-%m-%d %H:%M:%S')
 
@@ -277,6 +285,7 @@ def giveDateslist(dateBeginning, dateEnd, frequency, timestep = None):
 
 FREQ_PROP = 'frequency'
 
+#define the donwloaded file name depending of the wanted frequency
 def getFilename(properties:dict, dateBeginning, dateEnd) -> str:
     frequency = properties[FREQ_PROP]
     filename = properties['Parameter'] + properties['Place']
@@ -295,6 +304,7 @@ def getFilename(properties:dict, dateBeginning, dateEnd) -> str:
 
     return filename + '.' + getFileExtension(properties['fileType'])
 
+#depending of the data source we call the webservice to download it
 def processCollectionOfProperties(collection:dict, outputDirectory:str, year:int, deepthmin:int, deepthmax:int):
     dateBeginning = f'{year}-01-01 00:00:00'
     dateEnd = f'{year + 1}-01-01 00:00:00'
