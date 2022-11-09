@@ -23,7 +23,7 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
     '''
     print('optimal_farming')
 
-    # ; Fichier ZEE
+    # ; EEZ file
     # ; -----------
     tiffImage = read_tiff(ficzee)
     dataset_zee, band_zee, array_zee = read(ficzee)
@@ -32,20 +32,6 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
     lon = [(x * tiffImage.pasx + tiffImage.lonmin) for x in range(nb_col)]
     lat = [(x * tiffImage.pasy + tiffImage.latmin) for x in range(nb_lig)]
 
-    # ------------------------------------------------------------------------------------
-    # zee=rotate(read_tiff(ficzee, geo=geo), 7)
-    # sz=size(zee, /dim)
-    # nbcol=sz(0)
-    # nblig=sz(1)
-    # pasx=geo.MODELPIXELSCALETAG(0)
-    # pasy=geo.MODELPIXELSCALETAG(1)
-    # lonmin=geo.MODELTIEPOINTTAG(3)
-    # latmax=geo.MODELTIEPOINTTAG(4)
-    # lonmax=lonmin+(nbcol*pasx)
-    # latmin=latmax-(nblig*pasy)
-    # lats=findgen(5031)*pasy+latmin+pasy
-    # lons=findgen(8005)*pasx+lonmin+pasx
-    # ------------------------------------------------------------------------------------
 
     # ; Bathymetry extraction on the european eez
     # ; ----------------------------------------------
@@ -60,34 +46,27 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
         latmax=tiffImage.latmax,
         bathyout=ficbathyout
     ))
-    # bath=rotate(read_tiff(bathyout, geo=geob), 7)
+
     dataset_bath, band_bath, array_bath = read(ficbathyout)
 
-    # bath[where(~finite(bath), /null)] = 0
+    # we put at 0 the masked pixels
     array_bath[np.where(~np.isfinite(array_bath))] = 0
 
-    # ; Lecture du fichier production
+    # ; File reading
     # ; -----------------------------
     fictmp = '/tmp/' + os.path.basename(ficin)
     run('gdal_translate -co compress=none {ficin} {fictmp}'.format(ficin=ficin, fictmp=fictmp))
     dataset_prod, band_prod, array_prod = read(fictmp)
     run('rm -f ' + fictmp)
+    # we put at 0 the masked pixels
     array_prod[np.where(array_prod > 1000)] = 0
     array_prod[np.where(~np.isfinite(array_prod))] = 0
     array_prod = array_prod * 1000  # convertion between kg/m2 and T/km2
-    # ind=where(r GT 1000,ct)
-    # IF (ct GT 0) THEN r(ind)=0
-    # r[where(~finite(r), /null)] = 0
-    # r=r*1000. 						; pour passer en T/km²
-    array_prod[np.where((array_bath > 0) * (array_bath < depth))] = 0
-    array_prod[np.where(array_zee <= 0)] = 0
-    # ; Masquage par Bathy et Zee
-    # ind=where(bath LE depth, ct)
-    # IF (ct GT 0) THEN r(ind)=0
-    # ind=where(zee LE 0, ct)
-    # IF (ct GT 0) THEN r(ind)=0
 
-    if mask:
+    array_prod[np.where((array_bath > 0) * (array_bath < depth))] = 0 #we mask the value with a too hight or too low bathimetry
+    array_prod[np.where(array_zee <= 0)] = 0 # we mask the data out of the zee area
+
+    if mask: # if we use a mask
         cmd = 'gdalwarp -overwrite {mask} -tr {pasx} {pasy} -dstnodata "-999" -r near -te {lonmin} {latmin} {lonmax} {latmax} {maskout} -t_srs EPSG:4326'
         run(cmd.format(
             mask=mask,
@@ -98,20 +77,16 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
             lonmax=tiffImage.lonmax,
             latmax=tiffImage.latmax,
             maskout=outDir + '/reshaped_mask.tif'
-        ))
-        # bath=rotate(read_tiff(bathyout, geo=geob), 7)
+        )) # we put the mask on the same grid as the others data
+
         dataset_bath, band_bath, array_mask = read(outDir + '/reshaped_mask.tif')
         array_prod[np.where(array_mask <= 0)] = 0
 
 
     ncol, nlig = np.shape(array_prod)
 
-    # ; Boucle sur les pixels
-    # ; ---------------------
-    farm = np.zeros((ncol, nlig))
-    # farm=bytarr(ncol, nlig)
-    farmprod = np.zeros((ncol, nlig))
-    # farmprod=fltarr(ncol, nlig)
+    farm = np.zeros((ncol, nlig)) # creating the array containing the selected farms production
+    farmprod = np.zeros((ncol, nlig)) # creating the array containing the selected farms production
     prodfin = 0
     nbfarms = 0
 
@@ -139,17 +114,7 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
         prodfin += farmprod[indi, indj]
         flat = lat[::-1][indi]
         flon = lon[indj]
-        '''for y in range(band_prod.YSize):
-            for x in range(band_prod.XSize):
-                if array_prod[y, x] == max_prod and y > 0 and x > 0:
-                    farm[y, x] = 1
-                    farmprod[y, x] = surf * array_prod[y, x]
-                    prodfin += farmprod[y, x]
 
-                fprod = array_prod[y, x]
-                flat = lat[y]
-                flon = lon[x]
-        '''
         i1 = max(indi - dist, 0)
         j1 = max(indj - dist, 0)
         i2 = min(indi + dist, ncol - 1)
@@ -162,7 +127,7 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
     print('nbr of farms:')
     print(str(nbfarms))
 
-    # ; Ecriture des résultats
+    # ; Writing the results
     # ; -----------------------
     createRaster(
         farm,
@@ -179,9 +144,9 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
         band_prod.GetNoDataValue()
     )
 
-    if np.sum((farmprod > 0) * 1) == 0:
+    if np.sum((farmprod > 0) * 1) == 0: # if we have not selected any farm
         print('The minimal production is too hight')
-    else:
+    else: # otherwise we create a file which sum up the farm repartition
         minprod = np.min(farmprod[farmprod > 0])
         maxprod = np.max(farmprod)
         with open(ficout + '.txt', 'w') as f:

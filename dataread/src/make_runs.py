@@ -14,19 +14,32 @@ import os
 
 class Resampler:
     def __init__(self, dxRatio, dyRatio, init_grid_shape):
+        '''
+        dxRatio and dyRatio (float): the ratio between the initial time step in our data and a nautical mile
+        generally dxRatio and dyRatio < 1
+        tuple (int,int): the initial grid shape
+        ''''
         self.dxRatio = dxRatio
         self.dyRatio = dyRatio
         nbry, nbrx = init_grid_shape
-        self.grid_shape = (int(nbry / dyRatio), int(nbrx / dxRatio))
+        #compute the shape of the 1 mile space step grid
+        self.grid_shape = (int(nbry / dyRatio), int(nbrx / dxRatio)) 
 
     def findElmt(self, i, j):
+        '''
+        input i,j (int) indices of a pixel in the 1 mile array
+        output newi,newj indices in the old array of the value that goes in the i,j position in the new array
+        '''
         newi = np.floor(i * self.dyRatio).astype(int)
         newj = np.floor(j * self.dxRatio).astype(int)
         return newi, newj
 
     def giveNewMatCoor(self):
-        rowCoor = np.zeros(self.grid_shape[0] * self.grid_shape[1])
-        columnCoor = np.zeros(self.grid_shape[0] * self.grid_shape[1])
+        '''
+        give the coordinates of the values of the 1 mile array in the old array
+        '''
+        rowCoor = np.zeros(self.grid_shape[0] * self.grid_shape[1]) #row indices list
+        columnCoor = np.zeros(self.grid_shape[0] * self.grid_shape[1]) #column indices list
         ival, jval = self.findElmt(np.arange(self.grid_shape[0]),
                                    np.arange(self.grid_shape[1]))
         # for each row value
@@ -42,6 +55,9 @@ class Resampler:
         return lon[lon_id], lat[lat_id]
 
     def resampleData(self, dataArray):
+        '''
+        Resample dataArray on a 1 nautical mile space step
+        '''
         rowCoor, columnCoor = self.giveNewMatCoor()
         resampledArray = dataArray[rowCoor, columnCoor].reshape(self.grid_shape)
         return resampledArray
@@ -340,6 +356,9 @@ def giveEpsilon(day, temp, NH4, NO3, N_s, N_f, D, PAR, latRef, model, dt, Zmix):
 
 
 def prepareScenC(nitrogenArray, nanLists, grid_shape):
+    '''
+    Put to zeros the masked pixels in scenario C 1 mile space step array
+    '''
     for iRel in [-1, 0, 1]:  # along latitude
         for jRel in [-1, 0, 1]:  # along longitude
             nanL = nanLists[iRel, jRel]
@@ -412,8 +431,6 @@ def run_simulation(out_file_name: str, model_json: dict, input_data: AllData, fa
         'par': [-1e-2, 1e4]
     }
 
-    # dt = 1 / 72  # days # TODO: make into parameter in json
-
     # Parse the input json info
     parms_run = list(model_json['parameters']['run'].values())[0]['parameters']
     parms_farm = list(model_json['parameters']['farm'].values())[0]['parameters']
@@ -461,18 +478,13 @@ def run_simulation(out_file_name: str, model_json: dict, input_data: AllData, fa
         print(data_dims)
 
     init_grid_shape = working_data['Nitrate'].shape  # the shape should be the same for all parameters
-    longitudes, _ = input_data.parameterData['Nitrate'].getVariable('longitude', **data_kwargs)
-    latitudes, _ = input_data.parameterData['Nitrate'].getVariable('latitude', **data_kwargs)
-    dxMeter, dyMeter = giveDxDy(latitudes, longitudes)
+    longitudes, _ = input_data.parameterData['Nitrate'].getVariable('longitude', **data_kwargs) #get latitude list
+    latitudes, _ = input_data.parameterData['Nitrate'].getVariable('latitude', **data_kwargs) #get longitude list
+    dxMeter, dyMeter = giveDxDy(latitudes, longitudes) #get the space step in meters
 
-    latRef = np.zeros((len(latitudes), len(longitudes)))
+    latRef = np.zeros((len(latitudes), len(longitudes))) #creates an array containing the latitude of each pixels
     latRef[:, :] = latitudes[np.newaxis].T
-
-    for par_name, par_data in input_data.parameterData.items():
-        working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],
-                                                      dataBounds[par_name][1])
-        if (par_name == "Nitrate") or (par_name == "Ammonium"):
-            working_data[par_name] = np.maximum(working_data[par_name], 0)
+    
 
     # Iniitializing the mask to be used, based on the first time step.
     for par_name, par_data in input_data.parameterData.items():
@@ -495,8 +507,6 @@ def run_simulation(out_file_name: str, model_json: dict, input_data: AllData, fa
         for par_name, par_data in input_data.parameterData.items():
             working_data[par_name] = resa.resampleData(working_data[par_name])
         latRef = resa.resampleData(latRef)
-        '''dyMeter = resa.resampleData(dyMeter)
-        dxMeter = resa.resampleData(dxMeter)'''
         mask = resa.resampleData(mask)
     nanLists = findNan(mask)
 
@@ -512,8 +522,8 @@ def run_simulation(out_file_name: str, model_json: dict, input_data: AllData, fa
         print(working_data[par_name].shape)
 
     # Initialize the model variables
-    if mask_farm:
-        if len(mask_farm[0]) == 0:
+    if mask_farm: # if we select only the optimal farms
+        if len(mask_farm[0]) == 0: # if we don't have any optimal farm
             print('no optimal farms in this area')
             state_vars = {
                 'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
@@ -531,8 +541,8 @@ def run_simulation(out_file_name: str, model_json: dict, input_data: AllData, fa
                 'N_f': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
                 'D': np.ma.masked_array(np.zeros(grid_shape), mask.copy())
             }
-            state_vars['N_f'][mask_farm] = parms_harvest['deployment_Nf']
-    else:
+            state_vars['N_f'][mask_farm] = parms_harvest['deployment_Nf'] #we plant algae only in the optimal farms
+    else: #otherwise we put farms evrywhere
         state_vars = {
             'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
             'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
@@ -546,6 +556,7 @@ def run_simulation(out_file_name: str, model_json: dict, input_data: AllData, fa
         'avNH4': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
     }
 
+    #we put to zero the masked pixels in scenario C
     if scenC:
         state_vars['N_s'] = prepareScenC(state_vars['N_s'], nanLists, grid_shape)
         state_vars['N_f'] = prepareScenC(state_vars['N_f'], nanLists, grid_shape)
@@ -660,7 +671,7 @@ def run_simulation(out_file_name: str, model_json: dict, input_data: AllData, fa
         state_vars['cNO3'] = state_vars['cNO3'] * (1 - dt / dissip_t)
         state_vars['D'] = state_vars['D'] * (1 - dt / dissip_t)
 
-        if date_month != sim_date.month:
+        if date_month != sim_date.month: #if we begin a new month we save the deficit and CMEMS concentration
             date_month = sim_date.month
             unitsDict = {
                 'cNO3': 'mg N/m^3',
@@ -741,14 +752,14 @@ def bgc_model(state_vars: dict, working_data: dict, model, parms_run, days, latR
         'D': state_vars['D'],
     }
 
-    terms_list = model.hadley_advection(days, y, data_in, latRef, state_vars['cNH4'])
+    terms_list = model.hadley_advection(days, y, data_in, latRef, state_vars['cNH4']) #call the bgc model
     all_terms = dict(zip(["cNH4", "cNO3", "N_s", "N_f", "D"], terms_list))
 
     return all_terms
 
 
 def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.array, nanLists: np.array):
-    mask = working_data['Nitrate'].mask.copy()
+    mask = working_data['Nitrate'].mask.copy() #get the masked values
     grid_shape = working_data['Nitrate'].shape
 
     NO3_line = working_data['Nitrate'].flatten()
@@ -825,6 +836,9 @@ def advection_modelA(state_vars: dict, working_data: dict, dxMeter: np.array, dy
 
 
 def advection_model(state_vars: dict, working_data: dict, dxMeter: float, dyMeter: float):
+    '''
+    advection model for scenario B and C
+    '''
     grid_shape = working_data['Nitrate'].shape
 
     matE_plus_half, matE_less_half = createMatEupwind(working_data["decentered_U"])
