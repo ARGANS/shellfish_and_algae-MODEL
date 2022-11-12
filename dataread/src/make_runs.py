@@ -11,34 +11,53 @@ from .launch_model import *
 from .utils import import_json
 import os
 
+
 class Resampler:
     def __init__(self, dxRatio, dyRatio, init_grid_shape):
+        '''
+        dxRatio and dyRatio (float): the ratio between the initial time step in our data and a nautical mile
+        generally dxRatio and dyRatio < 1
+        tuple (int,int): the initial grid shape
+        ''''
         self.dxRatio = dxRatio
         self.dyRatio = dyRatio
         nbry, nbrx = init_grid_shape
-        self.grid_shape = (int(nbry/dyRatio),int(nbrx/dxRatio))
+        #compute the shape of the 1 mile space step grid
+        self.grid_shape = (int(nbry / dyRatio), int(nbrx / dxRatio)) 
 
     def findElmt(self, i, j):
+        '''
+        input i,j (int) indices of a pixel in the 1 mile array
+        output newi,newj indices in the old array of the value that goes in the i,j position in the new array
+        '''
         newi = np.floor(i * self.dyRatio).astype(int)
         newj = np.floor(j * self.dxRatio).astype(int)
         return newi, newj
 
     def giveNewMatCoor(self):
-        rowCoor = np.zeros(self.grid_shape[0] * self.grid_shape[1])
-        columnCoor = np.zeros(self.grid_shape[0] * self.grid_shape[1])
+        '''
+        give the coordinates of the values of the 1 mile array in the old array
+        '''
+        rowCoor = np.zeros(self.grid_shape[0] * self.grid_shape[1]) #row indices list
+        columnCoor = np.zeros(self.grid_shape[0] * self.grid_shape[1]) #column indices list
         ival, jval = self.findElmt(np.arange(self.grid_shape[0]),
                                    np.arange(self.grid_shape[1]))
-        #for each row value
+        # for each row value
         for k in range(self.grid_shape[0]):
-            rowCoor[k * self.grid_shape[1]:(k + 1) * self.grid_shape[1]] = ival[k]
-            columnCoor[k * self.grid_shape[1]:(k + 1) * self.grid_shape[1]] = jval
+            rowCoor[k * self.grid_shape[1]:(k + 1) * self.grid_shape[1]] = ival[
+                k]  # we attribute to it the k th value of i list repeated grid_shape[1] time
+            columnCoor[
+            k * self.grid_shape[1]:(k + 1) * self.grid_shape[1]] = jval  # we attribute to it all the values of j list
         return rowCoor.astype(int), columnCoor.astype(int)
 
-    def resampleLonLat(self,lon,lat):
+    def resampleLonLat(self, lon, lat):
         lat_id, lon_id = self.findElmt(np.arange(self.grid_shape[0]), np.arange(self.grid_shape[1]))
         return lon[lon_id], lat[lat_id]
 
     def resampleData(self, dataArray):
+        '''
+        Resample dataArray on a 1 nautical mile space step
+        '''
         rowCoor, columnCoor = self.giveNewMatCoor()
         resampledArray = dataArray[rowCoor, columnCoor].reshape(self.grid_shape)
         return resampledArray
@@ -54,18 +73,18 @@ class Decenterer:
         # gradl(L(U, V, l)) = A * X + B
 
         # Blocks of A
-        A_uu = sp.eye(m*(n-1)) * 2
-        A_vv = sp.eye((m-1)*n) * 2
+        A_uu = sp.eye(m * (n - 1)) * 2
+        A_vv = sp.eye((m - 1) * n) * 2
         A_uv = None
         A_vu = None
 
-        diags_ul = np.ones((2, m*n))
+        diags_ul = np.ones((2, m * n))
         diags_ul[1, :] = -1
-        ul_block = sp.dia_matrix((diags_ul, [0, 1]), shape=(n-1, n)) * dy
-        A_ul = sp.block_diag([ul_block]*m)
+        ul_block = sp.dia_matrix((diags_ul, [0, 1]), shape=(n - 1, n)) * dy
+        A_ul = sp.block_diag([ul_block] * m)
 
-        A_vl = sp.lil_matrix(((m-1)*n, m*n))
-        for k in range((m-1)*n):
+        A_vl = sp.lil_matrix(((m - 1) * n, m * n))
+        for k in range((m - 1) * n):
             A_vl[k, k] = dx
             A_vl[k, k + n] = -dx
 
@@ -77,9 +96,8 @@ class Decenterer:
                      [A_vu, A_vv, A_vl],
                      [A_lu, A_lv, A_ll]])
 
-
         # masks for where currents should be 0, obtained from diff.
-        fake_UVc = np.ma.masked_array(np.zeros((m,n)), self._mask)
+        fake_UVc = np.ma.masked_array(np.zeros((m, n)), self._mask)
         Uc_mask = np.ma.getmaskarray(np.diff(fake_UVc, axis=1).flatten())
         Vc_mask = np.ma.getmaskarray(np.diff(fake_UVc, axis=0).flatten())
 
@@ -90,7 +108,7 @@ class Decenterer:
         #   - where Uc/Vc is masked
         #   - one cell per independent area
         l_mask = self._mask.flatten()
-        for i in range(1, n_labs+1):
+        for i in range(1, n_labs + 1):
             first_lab_index = np.where(labs.flatten() == i)[0][0]
             l_mask[first_lab_index] = True
 
@@ -104,7 +122,7 @@ class Decenterer:
         self._A = A
 
         # invert the matrix
-        #self._Ainv = sp.linalg.inv(A)
+        # self._Ainv = sp.linalg.inv(A)
 
     def apply(self, Uc, Vc):
 
@@ -122,17 +140,16 @@ class Decenterer:
 
         B = B[self._where_not_zero]
 
-        #X = - self._Ainv.dot(B)
+        # X = - self._Ainv.dot(B)
         X = sp.linalg.spsolve(self._A, -B)
 
         # Apply the result where relevant in X_full
         X_full[self._where_not_zero] = X[np.newaxis].T
 
-
-        U = np.ma.masked_array(np.zeros((m, n+1)))
-        V = np.ma.masked_array(np.zeros((m+1, n)))
-        U[:, 1:-1] = X_full[0:(m*(n-1))].reshape((m, n-1))
-        V[1:-1, :] = X_full[(m*(n-1)):(m*(n-1) + (m-1)*n)].reshape((m-1, n))
+        U = np.ma.masked_array(np.zeros((m, n + 1)))
+        V = np.ma.masked_array(np.zeros((m + 1, n)))
+        U[:, 1:-1] = X_full[0:(m * (n - 1))].reshape((m, n - 1))
+        V[1:-1, :] = X_full[(m * (n - 1)):(m * (n - 1) + (m - 1) * n)].reshape((m - 1, n))
 
         return U.filled(0), V.filled(0)
 
@@ -141,7 +158,7 @@ def degrees_to_meters(lonDist, latDist, refLat):
     """Converts degrees of latDist,lonDist to meters assuming that the latitude
     stays near refLat.
     """
-    lat_degree = 111000 # conversion of latitude degrees to meters
+    lat_degree = 111000  # conversion of latitude degrees to meters
 
     Dx = lonDist * lat_degree * np.cos(np.deg2rad(refLat))
     Dy = latDist * lat_degree
@@ -153,20 +170,22 @@ def meters_to_degrees(Dx, Dy, refLat):
     """Converts longitudinal and meridional distances Dx and Dy to degrees of
     longitude and latitude assuming that the latitude stays near refLat"""
 
-    lat_degree = 111000 # conversion of latitude degrees to meters
+    lat_degree = 111000  # conversion of latitude degrees to meters
 
     lonDist = Dx / (lat_degree * np.cos(np.deg2rad(refLat)))
     latDist = Dy / lat_degree
 
     return lonDist, latDist
 
-#return dt number in function of the current speed and time steps
+
+# return dt number in function of the current speed and time steps
 def give_dt(dx, dy, Ewc, Nwc):
     Cx = np.abs(Ewc[:, 1:] / dx).flatten()
     Cy = np.abs(Nwc[1:, :] / dy).flatten()
-    return 0.9/np.max([Cx, Cy])
+    return 0.9 / np.max([Cx, Cy])
 
-#take as input a mask (tuple), and return the position of the masked values in a vector (dim x * dim y)
+
+# take as input a mask (tuple), and return the position of the masked values in a vector (dim x * dim y)
 def createListNan(maskPosition, nbry):
     listNan = []
     for k in range(len(maskPosition[0])):
@@ -175,13 +194,14 @@ def createListNan(maskPosition, nbry):
         listNan.append(n)
     return listNan
 
-#return the nan or masked data position
+
+# return the nan or masked data position
 def findNan(mask):
     # mask: 2D array (lat, lon) of booleans, typically the mask of a maskedArray
 
     nbry, nbrx = mask.shape
 
-    nanPositions = np.empty((5,5), dtype=object)
+    nanPositions = np.empty((5, 5), dtype=object)
     # examples:
     #   - nanPositions[0,0] = mask
     #   - nanPositions[0,1] = eastNan
@@ -189,17 +209,18 @@ def findNan(mask):
     #   - nanPositions[2,0] = up2Nan / north2Nan
     #   - nanPositions[1,-1] = upWestNan / northWestNan
 
-    for iRel in [-2, -1, 0, 1, 2]: # along latitude
-        for jRel in [-2, -1, 0, 1, 2]: # along longitude
+    for iRel in [-2, -1, 0, 1, 2]:  # along latitude
+        for jRel in [-2, -1, 0, 1, 2]:  # along longitude
             # Matrix to shift mask along E-W by -jRel
-            shiftMatE = sp.spdiags([1]*nbrx, -jRel, nbrx, nbrx).todense()
+            shiftMatE = sp.spdiags([1] * nbrx, -jRel, nbrx, nbrx).todense()
             # Matrix to shift mask along N-S by -iRel
-            shiftMatN = sp.spdiags([1]*nbry, iRel, nbry, nbry).todense()
+            shiftMatN = sp.spdiags([1] * nbry, iRel, nbry, nbry).todense()
             nanPositions[iRel, jRel] = np.flatnonzero(shiftMatN.dot(mask).dot(shiftMatE))
 
     return nanPositions
 
-#creates the matrix to compute the flux in u direction
+
+# creates the matrix to compute the flux in u direction
 def createMatE_available(decenteredEwc, nanLists):
     nbrx, nbry = decenteredEwc[:, 1:].shape
 
@@ -210,7 +231,6 @@ def createMatE_available(decenteredEwc, nanLists):
 
     termA = -uGreater0
     termB = uLower0
-
 
     termA[::nbry] = 0
     termB[nbry - 1::nbry] = 0
@@ -225,7 +245,8 @@ def createMatE_available(decenteredEwc, nanLists):
 
     return Mat
 
-#creates the matrix to compute the flux in v direction
+
+# creates the matrix to compute the flux in v direction
 def createMatN_available(decenteredNwc, nanLists):
     nbrx, nbry = decenteredNwc[1:, :].shape
 
@@ -250,7 +271,6 @@ def createMatN_available(decenteredNwc, nanLists):
 
 
 def createMatEupwind(decenteredEwc):
-
     decenteredEwcPlus = decenteredEwc[:, 1:]
     decenteredEwcMinus = decenteredEwc[:, :-1]
 
@@ -281,7 +301,6 @@ def createMatEupwind(decenteredEwc):
 
 
 def createMatNupwind(decenteredNwc):
-
     decenteredNwcPlus = decenteredNwc[1:, :]
     decenteredNwcMinus = decenteredNwc[:-1, :]
 
@@ -311,9 +330,8 @@ def createMatNupwind(decenteredNwc):
     return matNplus, matNminus
 
 
-#returns the space step
+# returns the space step
 def giveDxDy(latitudes, longitudes):
-
     lon_step_average = (longitudes[-1] - longitudes[0]) / (len(longitudes) - 1)
     lat_step_average = (latitudes[-1] - latitudes[0]) / (len(latitudes) - 1)
 
@@ -324,7 +342,7 @@ def giveDxDy(latitudes, longitudes):
     return dxMeter, dyMeter
 
 
-#return the variation of each quantities in the algae model
+# return the variation of each quantities in the algae model
 def giveEpsilon(day, temp, NH4, NO3, N_s, N_f, D, PAR, latRef, model, dt, Zmix):
     data_in = {
         'SST': temp,
@@ -336,55 +354,71 @@ def giveEpsilon(day, temp, NH4, NO3, N_s, N_f, D, PAR, latRef, model, dt, Zmix):
     y = dict(zip(["NH4", "NO3", "N_s", "N_f", "D"], [NH4, NO3, N_s, N_f, D]))
     return model.hadley_advection(day, y, data_in, dt, latRef)
 
-def prepareScenC(nitrogenArray,nanLists, grid_shape):
+
+def prepareScenC(nitrogenArray, nanLists, grid_shape):
+    '''
+    Put to zeros the masked pixels in scenario C 1 mile space step array
+    '''
     for iRel in [-1, 0, 1]:  # along latitude
         for jRel in [-1, 0, 1]:  # along longitude
-            nanL = nanLists[iRel,jRel]
+            nanL = nanLists[iRel, jRel]
             nitArrayLine = nitrogenArray.flatten()
             nitArrayLine[nanL] = 0
             nitrogenArray = nitArrayLine.reshape(grid_shape)
     return nitrogenArray
 
-def latLon_to_xy(lat,lon, longitudes, latitudes, nanLists):
-    lonNear, latNear = iNearest(lon, longitudes), iNearest(lat, latitudes)
-    mat_mask = np.zeros(len(latitudes)*len(longitudes))
-    mat_mask[nanLists[0,0]] = 1
-    mat_mask = mat_mask.reshape(len(latitudes),len(longitudes))
-    if mat_mask[latNear,lonNear]==0:
-        return latNear,lonNear
-    else:
+
+def latLon_to_xy(lat, lon, longitudes, latitudes, nanLists):
+    '''
+    convert lat lon to the indices in the matrix
+    '''
+    lonNear, latNear = iNearest(lon, longitudes), iNearest(lat,
+                                                           latitudes)  # we found the nearest pixel to the given lon lat
+    mat_mask = np.zeros(len(latitudes) * len(longitudes))
+    mat_mask[nanLists[0, 0]] = 1  # we get the mask
+    mat_mask = mat_mask.reshape(len(latitudes), len(longitudes))
+    if mat_mask[latNear, lonNear] == 0:  # if the nearest pixel isn't masked
+        return latNear, lonNear
+    else:  # if the selected pixel is masked, we search after the nearest no masked pixel to the lon lat
         print('---------------------------------------')
         latRef_average = (latitudes[-1] + latitudes[0]) / 2
-        lonListMeter, latListMeter = degrees_to_meters(np.abs(longitudes[lonNear-1:lonNear+2]-longitudes[lonNear]), np.abs(latitudes[latNear-1:latNear+2]-latitudes[latNear]), latRef_average)
+        lonListMeter, latListMeter = degrees_to_meters(
+            np.abs(longitudes[lonNear - 1:lonNear + 2] - longitudes[lonNear]),
+            np.abs(latitudes[latNear - 1:latNear + 2] - latitudes[latNear]), latRef_average)
         listPosition = []
-        for i in [-1,0,1]:
-            for j in [-1,0,1]:
-                if (mat_mask[latNear+i,lonNear+j] == 0):
-                    print(i,j)
-                    dist = np.sqrt(lonListMeter[j]**2+latListMeter[i]**2)
-                    listPosition.append((latNear+i,lonNear+j,dist))
-        finalArray = np.array(listPosition,dtype=[('poslat',float),('poslon',float),('dist',float)])
-        if len(finalArray)>0:
-            bestCoor = np.sort(finalArray,order='dist')[0]
+        for i in [-1, 0, 1]:
+            for j in [-1, 0, 1]:
+                if (mat_mask[latNear + i, lonNear + j] == 0):
+                    print(i, j)
+                    dist = np.sqrt(lonListMeter[j] ** 2 + latListMeter[i] ** 2)
+                    listPosition.append((latNear + i, lonNear + j, dist))
+        finalArray = np.array(listPosition, dtype=[('poslat', float), ('poslon', float), ('dist', float)])
+        if len(finalArray) > 0:
+            bestCoor = np.sort(finalArray, order='dist')[0]
         else:
-            bestCoor = [latNear,lonNear]
+            bestCoor = [latNear, lonNear]
         print(bestCoor)
-        return int(bestCoor[0]),int(bestCoor[1])
-        
+        return int(bestCoor[0]), int(bestCoor[1])
+
 
 def giveFarmPos(farmList, longitudes, latitudes, nanLists):
+    '''
+    place the farms given in farmList on the grid described by longitudes, latitudes
+    '''
     xList = []
     yList = []
     for i in range(len(farmList)):
-        if (farmList[i][0]<latitudes[-1]) and (farmList[i][0]>latitudes[0]) and (farmList[i][1]<longitudes[-1]) and (farmList[i][1]>longitudes[0]):
-            lat,lon = farmList[i][0], farmList[i][1]
-            yi, xi= latLon_to_xy(lat,lon, longitudes, latitudes, nanLists)
+        # if the farm is in the studied area
+        if (farmList[i][0] < latitudes[-1]) and (farmList[i][0] > latitudes[0]) and (
+                farmList[i][1] < longitudes[-1]) and (farmList[i][1] > longitudes[0]):
+            lat, lon = farmList[i][0], farmList[i][1]
+            yi, xi = latLon_to_xy(lat, lon, longitudes, latitudes, nanLists)
             xList.append(xi)
             yList.append(yi)
-    return (np.array(yList),np.array(xList))
+    return (np.array(yList), np.array(xList))
 
-def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, farm_pos_file=None):
 
+def run_simulation(out_file_name: str, model_json: dict, input_data: AllData, farm_pos_file=None):
     t_init = time.time()
 
     dataBounds = {
@@ -397,16 +431,16 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         'par': [-1e-2, 1e4]
     }
 
-    #dt = 1 / 72  # days # TODO: make into parameter in json
-
     # Parse the input json info
     parms_run = list(model_json['parameters']['run'].values())[0]['parameters']
     parms_farm = list(model_json['parameters']['farm'].values())[0]['parameters']
     parms_harvest = list(model_json['parameters']['harvest'].values())[0]['parameters']
     harvest_type = list(model_json['parameters']['harvest'].keys())[0]
 
-    scenC = (model_json['metadata']['scenario']=="C" and (not farm_pos_file)) #if scenario C is selected and if we are not working with the optimal farms
-    scenA = ((model_json['metadata']['scenario'] == "A") and (not farm_pos_file)) #if scenario A is selected and if we are not working with the optimal farms
+    scenC = (model_json['metadata']['scenario'] == "C" and (
+        not farm_pos_file))  # if scenario C is selected and if we are not working with the optimal farms
+    scenA = ((model_json['metadata']['scenario'] == "A") and (
+        not farm_pos_file))  # if scenario A is selected and if we are not working with the optimal farms
 
     year = int(model_json['dataset_parameters']['year'])
 
@@ -415,17 +449,19 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     # Define beginning and end times of the simulation
     startDate = datetime.datetime(year, int(parms_harvest['deployment_month']), 1)
     if harvest_type == "Winter_growth":
-        endDate = datetime.datetime(year + 1, int(parms_harvest['harvesting_month']), 1) + relativedelta(months=1) #first day of the next month at midnight
+        endDate = datetime.datetime(year + 1, int(parms_harvest['harvesting_month']), 1) + relativedelta(
+            months=1)  # first day of the next month at midnight
     else:
-        endDate = datetime.datetime(year, int(parms_harvest['harvesting_month']), 1) + relativedelta(months=1) #first day of the next month at midnight
+        endDate = datetime.datetime(year, int(parms_harvest['harvesting_month']), 1) + relativedelta(
+            months=1)  # first day of the next month at midnight
 
     # Data import information, except for the time
     data_kwargs = {
-                'longitude': (parms_run["min_lon"], parms_run["max_lon"]),
-                'latitude': (parms_run["min_lat"], parms_run["max_lat"]),
-                "depth": (0, (1 + parms_run['Von_Karman']) * parms_farm["z"]),
-                "averagingDims": ("depth",)
-                }
+        'longitude': (parms_run["min_lon"], parms_run["max_lon"]),
+        'latitude': (parms_run["min_lat"], parms_run["max_lat"]),
+        "depth": (0, (1 + parms_run['Von_Karman']) * parms_farm["z"]),
+        "averagingDims": ("depth",)
+    }
 
     # Time axis of each variable, stored in a dict
     time_axes, _ = input_data.getData(variable='time')
@@ -435,27 +471,25 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     working_data = {}
     for par_name, par_data in input_data.parameterData.items():
         nearest_time_i[par_name] = iNearest(startDate, time_axes[par_name])
-        working_data[par_name], data_dims = par_data.getVariable(time_index=nearest_time_i[par_name], **data_kwargs) #TODO: are dims really laways lat,lon ?
+        working_data[par_name], data_dims = par_data.getVariable(time_index=nearest_time_i[par_name],
+                                                                 **data_kwargs)  # TODO: are dims really laways lat,lon ?
         print(par_name)
         print(working_data[par_name].shape)
         print(data_dims)
 
-    init_grid_shape = working_data['Nitrate'].shape #the shape should be the same for all parameters
-    longitudes, _ = input_data.parameterData['Nitrate'].getVariable('longitude', **data_kwargs)
-    latitudes, _ = input_data.parameterData['Nitrate'].getVariable('latitude', **data_kwargs)
-    dxMeter, dyMeter = giveDxDy(latitudes, longitudes)
+    init_grid_shape = working_data['Nitrate'].shape  # the shape should be the same for all parameters
+    longitudes, _ = input_data.parameterData['Nitrate'].getVariable('longitude', **data_kwargs) #get latitude list
+    latitudes, _ = input_data.parameterData['Nitrate'].getVariable('latitude', **data_kwargs) #get longitude list
+    dxMeter, dyMeter = giveDxDy(latitudes, longitudes) #get the space step in meters
 
-    latRef = np.zeros((len(latitudes), len(longitudes)))
+    latRef = np.zeros((len(latitudes), len(longitudes))) #creates an array containing the latitude of each pixels
     latRef[:, :] = latitudes[np.newaxis].T
-
-    for par_name, par_data in input_data.parameterData.items():
-        working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],dataBounds[par_name][1])
-        if (par_name == "Nitrate") or (par_name == "Ammonium"):
-            working_data[par_name] = np.maximum(working_data[par_name], 0)
+    
 
     # Iniitializing the mask to be used, based on the first time step.
     for par_name, par_data in input_data.parameterData.items():
-        working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],dataBounds[par_name][1])
+        working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],
+                                                      dataBounds[par_name][1])
         if (par_name == "Nitrate") or (par_name == "Ammonium"):
             working_data[par_name] = np.maximum(working_data[par_name], 0)
 
@@ -466,19 +500,17 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     # In the case of scenario C, resample the data to near 1 mile.
     grid_shape = init_grid_shape
     if scenC:
-        dxRatio = 1852 / np.mean(dxMeter) #1852 meters = 1 nautical mile
+        dxRatio = 1852 / np.mean(dxMeter)  # 1852 meters = 1 nautical mile
         dyRatio = 1852 / np.mean(dyMeter)
-        resa = Resampler(dxRatio,dyRatio,init_grid_shape)
+        resa = Resampler(dxRatio, dyRatio, init_grid_shape)
         grid_shape = resa.grid_shape
         for par_name, par_data in input_data.parameterData.items():
             working_data[par_name] = resa.resampleData(working_data[par_name])
         latRef = resa.resampleData(latRef)
-        '''dyMeter = resa.resampleData(dyMeter)
-        dxMeter = resa.resampleData(dxMeter)'''
         mask = resa.resampleData(mask)
     nanLists = findNan(mask)
 
-    #if we only put farms in the location given in farm_pos_file
+    # if we only put farms in the location given in farm_pos_file
     if farm_pos_file:
         farmList = np.loadtxt(farm_pos_file, dtype=float, delimiter=';', skiprows=1, usecols=(1, 2))
         mask_farm = giveFarmPos(farmList, longitudes, latitudes, nanLists)
@@ -490,21 +522,32 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         print(working_data[par_name].shape)
 
     # Initialize the model variables
-    if mask_farm:
+    if mask_farm: # if we select only the optimal farms
+        if len(mask_farm[0]) == 0: # if we don't have any optimal farm
+            print('no optimal farms in this area')
+            state_vars = {
+                'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+                'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+                'N_s': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+                'N_f': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+                'D': np.ma.masked_array(np.zeros(grid_shape), mask.copy())
+            }
+            mask_farm = None
+        else:
+            state_vars = {
+                'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+                'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+                'N_s': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+                'N_f': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
+                'D': np.ma.masked_array(np.zeros(grid_shape), mask.copy())
+            }
+            state_vars['N_f'][mask_farm] = parms_harvest['deployment_Nf'] #we plant algae only in the optimal farms
+    else: #otherwise we put farms evrywhere
         state_vars = {
             'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
             'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
             'N_s': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
-            'N_f': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
-            'D': np.ma.masked_array(np.zeros(grid_shape), mask.copy())
-        }
-        state_vars['N_f'][mask_farm] = parms_harvest['deployment_Nf']
-    else:
-        state_vars = {
-            'cNO3': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
-            'cNH4': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
-            'N_s': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
-            'N_f': np.ma.masked_array(np.ones(grid_shape)*parms_harvest['deployment_Nf'], mask.copy()),
+            'N_f': np.ma.masked_array(np.ones(grid_shape) * parms_harvest['deployment_Nf'], mask.copy()),
             'D': np.ma.masked_array(np.zeros(grid_shape), mask.copy())
         }
 
@@ -513,6 +556,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         'avNH4': np.ma.masked_array(np.zeros(grid_shape), mask.copy()),
     }
 
+    #we put to zero the masked pixels in scenario C
     if scenC:
         state_vars['N_s'] = prepareScenC(state_vars['N_s'], nanLists, grid_shape)
         state_vars['N_f'] = prepareScenC(state_vars['N_f'], nanLists, grid_shape)
@@ -526,10 +570,11 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     t_init_decenterer = time.time()
     print('Starting applying the decenterer ofr the first time')
 
-    working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
-                                                                                  working_data['northward_Water_current'])
+    working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(
+        working_data['eastward_Water_current'],
+        working_data['northward_Water_current'])
 
-    dt_phys = give_dt(dxMeter, dyMeter, working_data["decentered_U"],working_data["decentered_V"])
+    dt_phys = give_dt(dxMeter, dyMeter, working_data["decentered_U"], working_data["decentered_V"])
 
     print(f'End of first decenterer application, time taken: {(time.time() - t_init_decenterer)} seconds')
 
@@ -542,7 +587,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
 
         # Alter the date after new year in case of winter growth
         if harvest_type == "Winter_growth":
-            data_date = sim_date.replace(year = year)
+            data_date = sim_date.replace(year=year)
         else:
             data_date = sim_date
 
@@ -563,14 +608,15 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
                 elif (par_name == "Nitrate") or (par_name == "Ammonium"):
                     working_data[par_name] = np.maximum(working_data[par_name], 0)
         if reapply_decenterer:
-            working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(working_data['eastward_Water_current'],
-                                                                                          working_data['northward_Water_current'])
+            working_data['decentered_U'], working_data['decentered_V'] = decenterer.apply(
+                working_data['eastward_Water_current'],
+                working_data['northward_Water_current'])
             dt_phys = give_dt(dxMeter, dyMeter, working_data["decentered_U"],
-                                  working_data["decentered_V"])
-
+                              working_data["decentered_V"])
 
         # Compute the BGC terms
-        days = (data_date - datetime.datetime(year, 1, 1)).days # Note: returns an integer only, that is sufficient precision for this
+        days = (data_date - datetime.datetime(year, 1,
+                                              1)).days  # Note: returns an integer only, that is sufficient precision for this
 
         bgc_terms = bgc_model(state_vars=state_vars, working_data=working_data,
                               model=model, parms_run=parms_run, days=days, latRef=latRef)
@@ -578,7 +624,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         # Value of dt for Ns and Nf > 0
         dt_list = []
         for var_name in ['N_s', 'N_f']:
-            dt_array = - state_vars[var_name]/bgc_terms[var_name]
+            dt_array = - state_vars[var_name] / bgc_terms[var_name]
             dt_array[dt_array <= 0] = np.inf
             dt_positive = np.amin(dt_array)
 
@@ -608,10 +654,10 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
             availableNut[var_name] += availableNut_term[var_name]
 
         # Compute the advection terms
-        if scenA: #if we are running scenA
+        if scenA:  # if we are running scenA
             advection_terms = advection_modelA(state_vars=state_vars, working_data=working_data,
                                                dxMeter=dxMeter, dyMeter=dyMeter)
-        else: #otherwise (we are running scenario B or C)
+        else:  # otherwise (we are running scenario B or C)
             advection_terms = advection_model(state_vars=state_vars, working_data=working_data,
                                               dxMeter=dxMeter, dyMeter=dyMeter)
 
@@ -619,36 +665,36 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
         for var_name in state_vars.keys():
             state_vars[var_name] += advection_terms[var_name] * dt
 
-
         # Time dissipation of the signal
-        dissip_t = 10 #days
-        state_vars['cNH4'] = state_vars['cNH4'] * (1 - dt/dissip_t)
-        state_vars['cNO3'] = state_vars['cNO3'] * (1 - dt/dissip_t)
-        state_vars['D'] = state_vars['D'] * (1 - dt/dissip_t)
+        dissip_t = 10  # days
+        state_vars['cNH4'] = state_vars['cNH4'] * (1 - dt / dissip_t)
+        state_vars['cNO3'] = state_vars['cNO3'] * (1 - dt / dissip_t)
+        state_vars['D'] = state_vars['D'] * (1 - dt / dissip_t)
 
-        if date_month != sim_date.month:
+        if date_month != sim_date.month: #if we begin a new month we save the deficit and CMEMS concentration
             date_month = sim_date.month
             unitsDict = {
                 'cNO3': 'mg N/m^3',
                 'cNH4': 'mg N/m^3',
                 'CMEMS_NO3': 'mg N/m^3',
                 'CMEMS_NH4': 'mg N/m^3'}
-            tempFileName = out_file_name[:-3]+f'{deficitNbr:02d}'+'.nc'
+            tempFileName = out_file_name[:-3] + f'{deficitNbr:02d}' + '.nc'
             print(tempFileName)
             # Create output file
             initialize_result(tempFileName, times=[0], latitudes=latitudes, longitudes=longitudes,
-                            variableNames=['cNO3', 'cNH4', 'CMEMS_NO3', 'CMEMS_NH4'], unitsDict=unitsDict, mask=mask)
+                              variableNames=['cNO3', 'cNH4', 'CMEMS_NO3', 'CMEMS_NH4'], unitsDict=unitsDict, mask=mask)
             # Write values to file
             ds = nc.Dataset(tempFileName, 'a')
             for name in ['cNO3', 'cNH4']:
-                ds[name][0,:,:] = np.ma.masked_array(state_vars[name], mask.copy())
-            ds['CMEMS_NO3'][0,:,:] = np.ma.masked_array(working_data['Nitrate'], mask.copy())
-            ds['CMEMS_NH4'][0,:,:] = np.ma.masked_array(working_data['Ammonium'], mask.copy())
+                ds[name][0, :, :] = np.ma.masked_array(state_vars[name], mask.copy())
+            ds['CMEMS_NO3'][0, :, :] = np.ma.masked_array(working_data['Nitrate'], mask.copy())
+            ds['CMEMS_NH4'][0, :, :] = np.ma.masked_array(working_data['Ammonium'], mask.copy())
             ds.close()
             deficitNbr += 1
 
-        sim_date += datetime.timedelta(days = dt)
+        sim_date += datetime.timedelta(days=dt)
 
+    # we defined the grid for scenario C
     if scenC:
         latStep = (latitudes[-1] - latitudes[0]) / (grid_shape[0] - 1)
         lonStep = (longitudes[-1] - longitudes[0]) / (grid_shape[1] - 1)
@@ -660,24 +706,25 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     state_vars['CMEMS_NO3'] = working_data['Nitrate']
 
     unitsDict = {'CMEMS_NO3': 'mg/m^3',
-                'CMEMS_NH4': 'mg/m^3',
-                'cNO3': 'mg N/m^3',
-                'cNH4': 'mg N/m^3',
-                'D': 'mg N/m^3',
-                'N_f': 'mg N/m^3',
-                'N_s': 'mg N/m^3',
-                'avNO3': 'mg N/m^3',
-                'avNH4': 'mg N/m^3'}
+                 'CMEMS_NH4': 'mg/m^3',
+                 'cNO3': 'mg N/m^3',
+                 'cNH4': 'mg N/m^3',
+                 'D': 'mg N/m^3',
+                 'N_f': 'mg N/m^3',
+                 'N_s': 'mg N/m^3',
+                 'avNO3': 'mg N/m^3',
+                 'avNH4': 'mg N/m^3'}
     # Create output file
     initialize_result(out_file_name, times=[0], latitudes=latitudes, longitudes=longitudes,
-                      variableNames=['CMEMS_NH4', 'CMEMS_NO3', 'N_s', 'N_f', 'D', 'avNH4', 'avNO3', 'cNO3', 'cNH4'], unitsDict=unitsDict, mask=mask)
-                      
+                      variableNames=['CMEMS_NH4', 'CMEMS_NO3', 'N_s', 'N_f', 'D', 'avNH4', 'avNO3', 'cNO3', 'cNH4'],
+                      unitsDict=unitsDict, mask=mask)
+
     # Write values to file
     ds = nc.Dataset(out_file_name, 'a')
     for name in model.names:
-        ds[name][0,:,:] = np.ma.masked_array(state_vars[name], mask.copy())
+        ds[name][0, :, :] = np.ma.masked_array(state_vars[name], mask.copy())
     for name in ['cNO3', 'cNH4']:
-        ds[name][0,:,:] = np.ma.masked_array(state_vars[name], mask.copy())
+        ds[name][0, :, :] = np.ma.masked_array(state_vars[name], mask.copy())
     for name in ['avNH4', 'avNO3']:
         ds[name][0, :, :] = np.ma.masked_array(availableNut[name], mask.copy())
         availableNut[name] = np.ma.masked_array(availableNut[name], mask.copy())
@@ -687,9 +734,8 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData, far
     return time.time() - t_init
 
 
-#return the variation of each quantities in the algae model
+# return the variation of each quantities in the algae model
 def bgc_model(state_vars: dict, working_data: dict, model, parms_run, days, latRef):
-
     data_in = {
         'SST': working_data['Temperature'],
         'PAR': working_data['par'],
@@ -706,14 +752,14 @@ def bgc_model(state_vars: dict, working_data: dict, model, parms_run, days, latR
         'D': state_vars['D'],
     }
 
-    terms_list = model.hadley_advection(days, y, data_in, latRef, state_vars['cNH4'])
+    terms_list = model.hadley_advection(days, y, data_in, latRef, state_vars['cNH4']) #call the bgc model
     all_terms = dict(zip(["cNH4", "cNO3", "N_s", "N_f", "D"], terms_list))
 
     return all_terms
 
 
 def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.array, nanLists: np.array):
-    mask = working_data['Nitrate'].mask.copy()
+    mask = working_data['Nitrate'].mask.copy() #get the masked values
     grid_shape = working_data['Nitrate'].shape
 
     NO3_line = working_data['Nitrate'].flatten()
@@ -725,8 +771,8 @@ def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.arr
     matN = createMatN_available(working_data["decentered_V"], nanLists)
 
     # we compute the advection terms
-    advNO3 = -(dt / dx) * matE.dot(NO3_line)-(dt / dy) * matN.dot(NO3_line)
-    advNH4 = -(dt / dx) * matE.dot(NH4_line)-(dt / dy) * matN.dot(NH4_line)
+    advNO3 = -(dt / dx) * matE.dot(NO3_line) - (dt / dy) * matN.dot(NO3_line)
+    advNH4 = -(dt / dx) * matE.dot(NH4_line) - (dt / dy) * matN.dot(NH4_line)
 
     # reshape to the grid
     advNO3 = advNO3.reshape(grid_shape)
@@ -743,7 +789,11 @@ def give_availableNut(working_data: dict, dt, dxMeter: np.array, dyMeter: np.arr
 
     return all_terms
 
+
 def advection_modelA(state_vars: dict, working_data: dict, dxMeter: np.array, dyMeter: np.array):
+    '''
+    advection model for scenario A
+    '''
     mask = working_data['Nitrate'].mask.copy()
     grid_shape = working_data['Nitrate'].shape
 
@@ -759,10 +809,10 @@ def advection_modelA(state_vars: dict, working_data: dict, dxMeter: np.array, dy
     dx = dxMeter.flatten()
     dy = dyMeter.flatten()
 
-    #we compute the advection terms
-    advNO3 = ((1 / dx) * (-uGreater0 + uLower0) + (1 / dy) * (-vGreater0 + vLower0))*cNO3_line
-    advNH4 = ((1 / dx) * (-uGreater0 + uLower0) + (1 / dy) * (-vGreater0 + vLower0))*cNH4_line
-    advD = ((1 / dx) * (-uGreater0 + uLower0) + (1 / dy) * (-vGreater0 + vLower0))*D_line_eps
+    # we compute the advection terms
+    advNO3 = ((1 / dx) * (-uGreater0 + uLower0) + (1 / dy) * (-vGreater0 + vLower0)) * cNO3_line
+    advNH4 = ((1 / dx) * (-uGreater0 + uLower0) + (1 / dy) * (-vGreater0 + vLower0)) * cNH4_line
+    advD = ((1 / dx) * (-uGreater0 + uLower0) + (1 / dy) * (-vGreater0 + vLower0)) * D_line_eps
 
     # reshape to the grid
     advNO3 = advNO3.reshape(grid_shape)
@@ -784,8 +834,11 @@ def advection_modelA(state_vars: dict, working_data: dict, dxMeter: np.array, dy
 
     return all_terms
 
-def advection_model(state_vars: dict, working_data: dict, dxMeter: float, dyMeter: float):
 
+def advection_model(state_vars: dict, working_data: dict, dxMeter: float, dyMeter: float):
+    '''
+    advection model for scenario B and C
+    '''
     grid_shape = working_data['Nitrate'].shape
 
     matE_plus_half, matE_less_half = createMatEupwind(working_data["decentered_U"])
@@ -800,7 +853,6 @@ def advection_model(state_vars: dict, working_data: dict, dxMeter: float, dyMete
     }
 
     for var_name in ['cNO3', 'cNH4', 'D']:
-
         var_line = state_vars[var_name].flatten()
 
         # Obtain the left or right (up or down) value of var depending on the sign of currents
@@ -826,8 +878,8 @@ def advection_model(state_vars: dict, working_data: dict, dxMeter: float, dyMete
     return all_terms
 
 
-def initialize_result(fileName:str, times, latitudes, longitudes,
-                      variableNames:list, unitsDict:dict, mask:np.array):
+def initialize_result(fileName: str, times, latitudes, longitudes,
+                      variableNames: list, unitsDict: dict, mask: np.array):
     """Initializes a netcdf file at fileName with a time, latitude, and
     longitude dimension. Corresponding variables are created with the values
     in times, latitudes, longitudes. These also defin the size of the
@@ -854,16 +906,16 @@ def initialize_result(fileName:str, times, latitudes, longitudes,
 
     for name in variableNames:
         var = ds.createVariable(name, 'f4', ('time', 'latitude', 'longitude',))
-        var[:,:,:] = np.ma.masked_array(np.nan*np.ones(full_mask.shape), full_mask)
+        var[:, :, :] = np.ma.masked_array(np.nan * np.ones(full_mask.shape), full_mask)
         var.units = unitsDict[name]
     ds.close()
 
 
-def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.DataFrame, frequency='monthly', dataType='model'):
-
-    dataRows = [dataRef.index[(dataRef['Parameter']==param) & (dataRef['Place']==zone) &
-                              (dataRef['frequency']==frequency) & (dataRef['type']==dataType)][0]
-                    for param in paramNames]
+def open_data_input(file_adress: str, zone: str, paramNames: list, dataRef: pd.DataFrame, frequency='monthly',
+                    dataType='model'):
+    dataRows = [dataRef.index[(dataRef['Parameter'] == param) & (dataRef['Place'] == zone) &
+                              (dataRef['frequency'] == frequency) & (dataRef['type'] == dataType)][0]
+                for param in paramNames]
 
     # Gives the argument to ParamData() corresponding to a column in dataRef
     columns_arguments = {
@@ -895,7 +947,8 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
             parameter_dict[parName][argName] = dataRef[colName].fillna(fill_na[colName])[iRow]
 
         # timeOrigin must be expressed in ISO 8601"
-        parameter_dict[parName]['time_zero'] = datetime.datetime.strptime(dataRef['timeOrigin'][iRow], "%Y-%m-%dT%H:%M:%SZ")
+        parameter_dict[parName]['time_zero'] = datetime.datetime.strptime(dataRef['timeOrigin'][iRow],
+                                                                          "%Y-%m-%dT%H:%M:%SZ")
 
         # convert dataRef['timeUnit'][iRow] to a float if possible
         try:
@@ -905,13 +958,13 @@ def open_data_input(file_adress:str, zone:str, paramNames:list, dataRef: pd.Data
 
         if type(timeUnit) is str:
             parameter_dict[parName]['time_step'] = datetime.timedelta(**{timeUnit: 1})
-        else: # should be a number
+        else:  # should be a number
             parameter_dict[parName]['time_step'] = datetime.timedelta(seconds=timeUnit)
 
     return parameter_dict
 
 
-def dataCmd_to_AllData(dataCmdDict: dict, adress_format:str):
+def dataCmd_to_AllData(dataCmdDict: dict, adress_format: str):
     """
     Converts a dictionary containing items from lines in dataCmd.csv to a
     dictionary of inputs that can be passed to the AllData() constructor.
@@ -949,11 +1002,11 @@ def dataCmd_to_AllData(dataCmdDict: dict, adress_format:str):
 
         if type(timeUnit) is str:
             parameter_dict[parName]['time_step'] = datetime.timedelta(**{timeUnit: 1})
-        else: # should be a number
+        else:  # should be a number
             parameter_dict[parName]['time_step'] = datetime.timedelta(seconds=timeUnit)
 
     return parameter_dict
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     pass

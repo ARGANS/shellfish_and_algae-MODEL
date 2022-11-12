@@ -21,7 +21,7 @@ sim_zone=`cat $destination/parameters.json | jq -r ".metadata.zone"`
 
 params_algae=('CMEMS_NO3' 'CMEMS_NH4' 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA' 'D' 'N_f' 'N_s' 'avNO3' 'avNH4' 'cNO3' 'cNH4')
 params_shellfish=('DSTW' 'STE' 'FW' 'DWW' 'SHL' 'NH4_production' 'CO2_production')
-
+continuous_param="CMEMS_NO3 CMEMS_NH4 D cNO3 cNH4"
 function posttreatment_Algae {
     concat_name="$1"
 
@@ -60,6 +60,20 @@ function posttreatment_Shellfish {
     done
 }
 
+function exists_in_list() {
+    LIST=$1
+    DELIMITER=$2
+    VALUE=$3
+    LIST_WHITESPACES=`echo $LIST | tr "$DELIMITER" " "`
+    for x in $LIST_WHITESPACES; do
+        echo $x
+        echo $VALUE
+        if [ $x = $VALUE ]; then
+            return 0
+        fi
+    done
+    return 1
+}
 
 function read_zee_params {
     zee_info=`gdalinfo -json /media/global/zee_europe.tif`
@@ -85,10 +99,26 @@ function resample_to_ZEE {
 
     local file_in="$1"
     local file_out="$2"
+    local var_name=$(basename ${file_in%.tif})
+
+    local out_basename="${destination##*/}"
+
+    echo $out_basename
 
     local tmpfile="$destination/tmp.tif"
 
-    cmd="gdalwarp $file_in $tmpfile -tr $lon_step $lat_step -te $lon_min $lat_min $lon_max $lat_max -t_srs EPSG:4326 -r cubicspline"
+    if [ $out_basename = '_posttreatment' ]; then
+        interpol='cubicspline'
+    else
+        if exists_in_list "$continuous_param" " " $var_name; then
+            interpol='cubicspline'
+        else
+            interpol='near'
+        fi
+    fi
+    echo $var_name
+    echo $interpol
+    cmd="gdalwarp $file_in $tmpfile -tr $lon_step $lat_step -te $lon_min $lat_min $lon_max $lat_max -t_srs EPSG:4326 -r $interpol"
     echo "COMMAND: $cmd"
     $cmd
 
