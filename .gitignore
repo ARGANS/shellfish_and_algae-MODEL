@@ -1,3 +1,4 @@
 share/*
 __pycache__
 .vscode
+global/maps/*

@@ -12,7 +12,19 @@ function stop_existed_container {
 }
 
 function create_volumes {
-    echo "::" $(pwd)/global
+    local destination=$(pwd)/global/maps
+    mkdir -p $destination
+
+    local host='https://213.166.43.12'
+    local login='bot'
+    local password='bot_ma5ter'
+    local cookie_file='cookies.txt'
+
+    local redirectURL=$(curl -sik -o /dev/null -F "username=$login" -F "password=$password" -H 'Cache-Control: no-cache'  -X POST --write-out '%{redirect_url}' -c $cookie_file $host/api/v1/auth/login)
+    # curl -k -b $cookie_file $host/api/v1/auth/whoami
+    curl -sk -b $cookie_file $host/api/v2/file?path=/media/global/maps/Bathy.TIF -o $destination/Bathy.TIF
+    curl -sk -b $cookie_file $host/api/v2/file?path=/media/global/maps/zee_europe.tif -o $destination/zee_europe.tif
+
     docker volume create --name $SHARED_VOLUME_NAME
     docker volume create \
         --driver local \
@@ -23,13 +35,3 @@ function create_volumes {
 }
 
 #  docker volume create -d local-persist -o mountpoint=/mnt/ --name=extra-addons
-
-
-# DEPRECATED
-# function prepare_runtime {
-#     local image_tag="$1"
-#     local image_id=$( docker images -q $image_tag )
-#     if [[ -z "$image_id" ]]; then
-#         build_images_for_model_execution
-#     fi
-# }

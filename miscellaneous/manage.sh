@@ -26,7 +26,6 @@ function action_bash {
 }
 
 
-# DATASET PROPERTIES: year depth-min depth-max datasets (from metadata)
 datasetProperties_json=`cat $DIR/__dataimport_input_parameters.json` 
 modelProperties_json=`cat $DIR/__user1_alaria_IBI_26-07-2022.json`
 
