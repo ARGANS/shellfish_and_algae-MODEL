@@ -18,7 +18,7 @@ class Resampler:
         dxRatio and dyRatio (float): the ratio between the initial time step in our data and a nautical mile
         generally dxRatio and dyRatio < 1
         tuple (int,int): the initial grid shape
-        ''''
+        '''
         self.dxRatio = dxRatio
         self.dyRatio = dyRatio
         nbry, nbrx = init_grid_shape
