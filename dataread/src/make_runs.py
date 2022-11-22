@@ -680,6 +680,13 @@ def run_simulation(out_file_name: str, model_json: dict, input_data: AllData, fa
                 'CMEMS_NH4': 'mg N/m^3'}
             tempFileName = out_file_name[:-3] + f'{deficitNbr:02d}' + '.nc'
             print(tempFileName)
+             # we defined the grid for scenario C
+            if scenC:
+                latStep = (latitudes[-1] - latitudes[0]) / (grid_shape[0] - 1)
+                lonStep = (longitudes[-1] - longitudes[0]) / (grid_shape[1] - 1)
+
+                latitudes = latStep * np.arange(grid_shape[0]) + latitudes[0]
+                longitudes = lonStep * np.arange(grid_shape[1]) + longitudes[0]
             # Create output file
             initialize_result(tempFileName, times=[0], latitudes=latitudes, longitudes=longitudes,
                               variableNames=['cNO3', 'cNH4', 'CMEMS_NO3', 'CMEMS_NH4'], unitsDict=unitsDict, mask=mask)

@@ -135,7 +135,7 @@ for espece, minprod in zip(especes, prodsmin):
             depth=depth,
             surf=surf,
             dist=dist,
-            minprod=1000,
+            minprod=minprod,
             ficbathy=ficbathy,
             ficbathyout=ficbathyout,
             ficzee=ficzee,
