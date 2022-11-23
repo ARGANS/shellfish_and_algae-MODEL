@@ -35,8 +35,8 @@ if full_json['metadata']['zone'] != "Europe":
 
 else:
     for area_name in ['IBI', 'NWS', 'MED', 'Baltic', 'BS', 'Arctic']:
-        with open(f'/media/share/reference_data/{area_name}/parameters.json') as f:
-            dict_dataCmd_area = json.load(f)['datasets']
+        with open(f'/media/share/reference_data_shellfish/{area_name}/parameters.json') as f:
+            dict_dataCmd_area = json.load(f)['dataset_parameters']['datasets']
 
         dict_to_AllData = dataCmd_to_AllData(dict_dataCmd_area,
                             '/media/share/reference_data_shellfish/{Place}/_pretreated/{Parameter}/{Parameter}{Place}modelNetCDF2021-01to2022-01.nc')
