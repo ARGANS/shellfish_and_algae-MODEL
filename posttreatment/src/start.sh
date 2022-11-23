@@ -146,6 +146,7 @@ function fusion_zones {
     for param_name in ${param_name_table[*]}; do
 
         local file_out=$destination/$param_name.tif
+        local ncfile_out=$destination/$param_name.nc
         local tmpfile="$destination/tmp.tif"
 
         # File names in the correct order
@@ -160,7 +161,12 @@ function fusion_zones {
         echo "COMMAND: $cmd"
         $cmd
 
+        cmd="gdal_translate -of NetCDF $file_out $ncfile_out"
+        echo "COMMAND: $cmd"
+        $cmd
         rm $tmpfile
+
+        python ./add_metadata.py -i $ncfile_out -j $input_path/parameters.json -n ${param_name} 1>>$error_log 2>>$error_log
     done
 }
 
@@ -197,7 +203,10 @@ else
     mkdir $destination/concat/params_1km
     for param_file in $destination/concat/params/*; do
         param_file_1km=$destination/concat/params_1km/$(basename ${param_file%.tif})_1km.tif
+        ncfile_out=$destination/$(basename ${param_file%.tif})_1km.nc
         resample_to_ZEE "$param_file" "$param_file_1km" 1>>$print_log 2>>$error_log
+        gdal_translate -of NetCDF "$param_file_1km" $ncfile_out
+        python ./add_metadata.py -i $ncfile_out -j $input_path/parameters.json -n $(basename ${param_file%.tif})
     done
 fi
 

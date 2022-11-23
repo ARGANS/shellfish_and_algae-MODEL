@@ -38,7 +38,7 @@ def parse_parameters(path):
         get('OptimalFarmsRepartition', {}).\
         get('default', {}).\
         get('parameters', {})
-    
+    mask_file_path = '/'.join(DATA_DIR.split('/')[:-3]) + '/' + farm_distr.get('external_mask_file', '')
     if type == 'Algae':
         return {
     	'especes': especes,
@@ -98,7 +98,7 @@ ficzee = MAPS_DIR + '/zee_europe.tif' # eez file
 ficzee_image:TiffImage = read_tiff(ficzee)
 
 mask_name = conf.get('farm_distribution', {}).get("mask_name") #look if a mask is defined
-if os.path.exists(DATA_DIR + '/../'+mask_name):
+if os.path.exists(DATA_DIR + '/../'+mask_name) and len(mask_name)>1:
     mask = DATA_DIR + '/../'+mask_name
 else:
     mask = None
@@ -135,7 +135,7 @@ for espece, minprod in zip(especes, prodsmin):
             depth=depth,
             surf=surf,
             dist=dist,
-            minprod=1000,
+            minprod=minprod,
             ficbathy=ficbathy,
             ficbathyout=ficbathyout,
             ficzee=ficzee,
