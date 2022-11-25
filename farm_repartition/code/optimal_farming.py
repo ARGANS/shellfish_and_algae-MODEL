@@ -59,11 +59,11 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
     dataset_prod, band_prod, array_prod = read(fictmp)
     run('rm -f ' + fictmp)
     # we put at 0 the masked pixels
-    array_prod[np.where(array_prod > 1000)] = 0
+    array_prod[np.where(array_prod > 30)] = 0
     array_prod[np.where(~np.isfinite(array_prod))] = 0
     array_prod = array_prod * 1000  # convertion between kg/m2 and T/km2
 
-    array_prod[np.where((array_bath > 0) * (array_bath < depth))] = 0 #we mask the value with a too hight or too low bathimetry
+    array_prod[np.where((array_bath > 0) + (array_bath < depth))] = 0 #we mask the value with a too hight or too low bathimetry
     array_prod[np.where(array_zee <= 0)] = 0 # we mask the data out of the zee area
 
     if mask: # if we use a mask
@@ -79,7 +79,7 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
             maskout=outDir + '/reshaped_mask.tif'
         )) # we put the mask on the same grid as the others data
 
-        dataset_bath, band_bath, array_mask = read(outDir + '/reshaped_mask.tif')
+        dataset_mask, band_mask, array_mask = read(outDir + '/reshaped_mask.tif')
         array_prod[np.where(array_mask <= 0)] = 0
 
 
@@ -98,7 +98,7 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
     print('minprod')
     print(minprod)
     ulfic.write('farm;lat;lon;fw \n')
-    while (prodfin < wprod) and (lineNbr < 1e4):
+    while (prodfin < wprod) and (lineNbr < 2e4):
         lineNbr += 1
         ind = np.where(array_prod == np.max(array_prod))  # we search the maximal production coordinates
         indi = ind[0][0]
@@ -126,6 +126,8 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
     ulfic.close()
     print('nbr of farms:')
     print(str(nbfarms))
+    print('final production: ')
+    print(prodfin)
 
     # ; Writing the results
     # ; -----------------------

@@ -37,14 +37,18 @@ else:
     for area_name in ['IBI', 'NWS', 'MED', 'Baltic', 'BS', 'Arctic']:
         with open(f'/media/share/reference_data_shellfish/{area_name}/parameters.json') as f:
             dict_dataCmd_area = json.load(f)['dataset_parameters']['datasets']
-
-        dict_to_AllData = dataCmd_to_AllData(dict_dataCmd_area,
-                            '/media/share/reference_data_shellfish/{Place}/_pretreated/{Parameter}/{Parameter}{Place}modelNetCDF2021-01to2022-01.nc')
-        shellData = AllData(dict_to_AllData)
-
-        # Ensure that we call the correct year in case the user changed it.
         europe_json = full_json.copy()
-        europe_json['dataset_parameters']['year'] = 2021
+        if area_name == 'Baltic': # No good data for 2021 Baltic so 2020 is used
+            europe_json['dataset_parameters']['year'] = 2020
+            dict_to_AllData = dataCmd_to_AllData(dict_dataCmd_area,
+                            '/media/share/reference_data_shellfish/{Place}/_pretreated/{Parameter}/{Parameter}{Place}modelNetCDF2020-01to2021-01.nc')
+        else:
+            # Ensure that we call the correct year in case the user changed it.
+            europe_json['dataset_parameters']['year'] = 2021
+            dict_to_AllData = dataCmd_to_AllData(dict_dataCmd_area,
+                            '/media/share/reference_data_shellfish/{Place}/_pretreated/{Parameter}/{Parameter}{Place}modelNetCDF2021-01to2022-01.nc')
+        
+        shellData = AllData(dict_to_AllData)
 
         time_spent = run_simulation(f"{workdir}/concat_{area_name}.nc", full_json, shellData)
 

@@ -30,15 +30,11 @@ def main():
 
     ds_append = nc.Dataset(ncFile, 'a')
 
-    '''print(ds_append)
-    for name in rootgrp.ncattrs():
-        print("Global attr {} = {}".format(name, getattr(rootgrp, name)))'''
-
     ds_append.project = 'Studies to support the European Grenn Deal - Lot 1 Shellfish and algae: http://www.??????.com'
     ds_append.institution = 'ARGANS-FR, Bantry Marine Research Station (BMRS), Cofrepeche'
     ds_append.production = 'ARGANS-FR E-mails: contact@argans.eu'
     ds_append.Author_email = 'contact@argans.eu'
-    ds_append.creation_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    ds_append.creation_time = datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
     ds_append.spatial_resolution = '1km'
     ds_append.source = 'CMEMS models, EMODNET, NASA/OCEANCOLOR'
     ds_append.title = str(name) + ' ' + str(json_data["metadata"]["name"])
@@ -48,8 +44,6 @@ def main():
 
     print(ds_append)
 
-    '''for name in rootgrp.ncattrs():
-        print("Global attr {} = {}".format(name, getattr(rootgrp, name)))'''
     ds_append.close()
 
 if __name__ == "__main__":

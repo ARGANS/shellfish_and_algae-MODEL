@@ -1,7 +1,7 @@
 import os
 
 from code.optimal_farming import optimal_farming
-from code.utils.tiff import read_tiff, fusionDesFichiers, fusion_zones2
+from code.utils.tiff import read_tiff
 from code.models.TiffImage import TiffImage
 from code.utils.json import import_json, dump_json
 
@@ -51,7 +51,7 @@ def parse_parameters(path):
             "farms_separated_by": farm_distr.get("farms_separated_by", 10),
             "mask_name": farm_distr.get("external_mask_file", 'maskFile.tif'),
             "surface": farm_distr.get("surface", 1),
-            "minimum_production": farm_distr.get("minimum_production", 10000),
+            "minimum_production": farm_distr.get("minimum_production", 1000),
             "external_mask_file": mask_file_path
         },
         'DATA_DIR': DATA_DIR,

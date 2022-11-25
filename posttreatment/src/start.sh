@@ -21,7 +21,7 @@ sim_zone=`cat $destination/parameters.json | jq -r ".metadata.zone"`
 
 params_algae=('CMEMS_NO3' 'CMEMS_NH4' 'DW' 'DW_line' 'DW_PUA' 'FW' 'FW_line' 'FW_PUA' 'kcal_PUA' 'protein_PUA' 'Biomass_CO2' 'CO2_uptake_PUA' 'D' 'N_f' 'N_s' 'avNO3' 'avNH4' 'cNO3' 'cNH4')
 params_shellfish=('DSTW' 'STE' 'FW' 'DWW' 'SHL' 'NH4_production' 'CO2_production')
-continuous_param="CMEMS_NO3 CMEMS_NH4 D cNO3 cNH4"
+continuous_param="CMEMS_NO3 CMEMS_NH4 D cNO3 cNH4 avNO3 avNH4"
 function posttreatment_Algae {
     concat_name="$1"
 
@@ -106,9 +106,18 @@ function resample_to_ZEE {
     echo $out_basename
 
     local tmpfile="$destination/tmp.tif"
+    local tmpfile2="$destination/tmp2.tif"
 
     if [ $out_basename = '_posttreatment' ]; then
-        interpol='cubicspline'
+        if exists_in_list "$continuous_param" " " $var_name; then
+            interpol='cubicspline'
+        else
+            interpol='near'
+            cmd="gdalwarp $file_in $tmpfile2 -tr $lon_step $lat_step -srcnodata 0 -dstnodata 9.969209968386869e+36 -te $lon_min $lat_min $lon_max $lat_max -t_srs EPSG:4326 -r $interpol"
+            $cmd
+            interpol='cubicspline'
+            local file_in="$destination/tmp2.tif"
+        fi
     else
         if exists_in_list "$continuous_param" " " $var_name; then
             interpol='cubicspline'
@@ -127,6 +136,7 @@ function resample_to_ZEE {
     $cmd
 
     rm $tmpfile
+    rm $tmpfile2
 }
 
 
