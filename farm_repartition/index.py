@@ -13,7 +13,9 @@ def parse_parameters(path):
     try: # we try to read the file
         model_parameters:dict = import_json(path)
     except OSError as e:
-        raise RuntimeError(f'File {path} does not exists')
+        raise RuntimeError(f'File {path} does not exists: {e}')
+
+    print(f'Model parameters: {model_parameters}')
 
     type = model_parameters.get('type', 'Algae')
 
@@ -21,7 +23,7 @@ def parse_parameters(path):
         params = ['DW_PUA','FW_PUA','protein_PUA','kcal_PUA','Biomass_CO2','CO2_uptake_PUA']
     elif type == 'Shellfish':
         params = ["NH4_production", "CO2_production", "DSTW", "SHL", "STE", "FW", "DWW"]
-
+        
     *especes, = model_parameters.\
         get('parameters', {}).\
         get('species', {})
@@ -84,7 +86,7 @@ OUT_DIR=os.getenv('INPUT_DESTINATION')
 TMP_DIR='/tmp'
 
 # we read the json file
-model_parameters_path = DATA_DIR + '/parameters.json'
+model_parameters_path = os.getenv('INPUT_MODEL_PROPERTIES_JSON', DATA_DIR + '/parameters.json')
 conf, type = parse_parameters(model_parameters_path)
 print(f'Used variables of the current execution {conf}')
 dump_json(conf, OUT_DIR + '/conf.json')
