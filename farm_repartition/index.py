@@ -3,18 +3,13 @@ import os
 from code.optimal_farming import optimal_farming
 from code.utils.tiff import read_tiff
 from code.models.TiffImage import TiffImage
-from code.utils.json import import_json, dump_json
+from code.utils.json import import_json, dump_json, loads
 
-def parse_parameters(path):
+def parse_parameters(model_parameters: dict):
     '''
     Create a dictonary with the needed information for farm distribution
-    This information come from the file in path (str)
+    This information come from the model_parameters dictioanry
     '''
-    try: # we try to read the file
-        model_parameters:dict = import_json(path)
-    except OSError as e:
-        raise RuntimeError(f'File {path} does not exists: {e}')
-
     print(f'Model parameters: {model_parameters}')
 
     type = model_parameters.get('type', 'Algae')
@@ -23,7 +18,7 @@ def parse_parameters(path):
         params = ['DW_PUA','FW_PUA','protein_PUA','kcal_PUA','Biomass_CO2','CO2_uptake_PUA']
     elif type == 'Shellfish':
         params = ["NH4_production", "CO2_production", "DSTW", "SHL", "STE", "FW", "DWW"]
-        
+
     *especes, = model_parameters.\
         get('parameters', {}).\
         get('species', {})
@@ -85,9 +80,19 @@ MAPS_DIR='/media/global/maps'
 OUT_DIR=os.getenv('INPUT_DESTINATION')
 TMP_DIR='/tmp'
 
-# we read the json file
-model_parameters_path = os.getenv('INPUT_MODEL_PROPERTIES_JSON', DATA_DIR + '/parameters.json')
-conf, type = parse_parameters(model_parameters_path)
+serialized_properties = os.getenv('INPUT_MODEL_PROPERTIES_JSON')
+
+if serialized_properties is not None:
+    model_parameters:dict = loads(serialized_properties)
+else:
+    # we read the json file
+    model_parameters_path = DATA_DIR + '/parameters.json'
+    try: # we try to read the file
+        model_parameters:dict = import_json(model_parameters_path)
+    except OSError as e:
+        raise RuntimeError(f'File {model_parameters_path} does not exists: {e}')
+    
+conf, type = parse_parameters(model_parameters)
 print(f'Used variables of the current execution {conf}')
 dump_json(conf, OUT_DIR + '/conf.json')
 

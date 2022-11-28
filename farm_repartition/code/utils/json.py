@@ -1,4 +1,6 @@
 import json
+from json import loads
+
 
 def import_json(path: str) -> dict:
     with open(path, 'r') as f:
