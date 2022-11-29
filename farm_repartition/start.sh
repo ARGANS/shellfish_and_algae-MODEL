@@ -8,7 +8,7 @@ mkdir -p $workdir/out2
 mkdir -p $workdir/out3
 
 echo -n $(date +%s) > $workdir/start.mark
-# echo -n $INPUT_MODEL_PROPERTIES_JSON > $workdir/parameters.json
+echo -n $INPUT_MODEL_PROPERTIES_JSON > $workdir/parameters.json
 ls -la
 
 error_log=$workdir/error.txt

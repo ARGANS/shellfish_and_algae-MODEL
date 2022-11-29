@@ -84,6 +84,8 @@ serialized_properties = os.getenv('INPUT_MODEL_PROPERTIES_JSON')
 
 if serialized_properties is not None:
     model_parameters:dict = loads(serialized_properties)
+    print('INPUT_MODEL_PROPERTIES_JSON')
+    print(f'INPUT_MODEL_PROPERTIES_JSON: {serialized_properties} // {serialized_properties.__class__}')
 else:
     # we read the json file
     model_parameters_path = DATA_DIR + '/parameters.json'
