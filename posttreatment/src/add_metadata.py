@@ -30,7 +30,7 @@ def main():
 
     ds_append = nc.Dataset(ncFile, 'a')
 
-    ds_append.project = 'Studies to support the European Grenn Deal - Lot 1 Shellfish and algae: http://www.??????.com'
+    ds_append.project = 'Studies to support the European Green Deal - Lot 1 Shellfish and algae'
     ds_append.institution = 'ARGANS-FR, Bantry Marine Research Station (BMRS), Cofrepeche'
     ds_append.production = 'ARGANS-FR E-mails: contact@argans.eu'
     ds_append.Author_email = 'contact@argans.eu'
