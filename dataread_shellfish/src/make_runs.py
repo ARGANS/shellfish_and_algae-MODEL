@@ -137,11 +137,12 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     #latRef = np.zeros((len(latitudes), len(longitudes)))
     #latRef[:, :] = latitudes[np.newaxis].T
 
-    mask = working_data['Chlorophyll-a'].mask
     for par_name, par_data in input_data.parameterData.items():
         working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],
                                                       dataBounds[par_name][1])
         working_data[par_name].filled(fill_value=0)
+    
+    mask = working_data['Chlorophyll-a'].mask
 
     grid_shape = init_grid_shape
 
@@ -159,6 +160,8 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         'STE': np.ma.masked_array(np.ones(grid_shape)*1000, mask),
         'POP': np.ma.masked_array(np.ones(grid_shape)*3000, mask),
         'spawnday': np.ma.masked_array(np.ones(grid_shape)*365, mask),
+        'POC': np.ma.masked_array(np.ones(grid_shape)*100, mask),
+        'PHYC': np.ma.masked_array(np.ones(grid_shape), mask),
         'sd2' : np.ma.masked_array(np.ones(grid_shape)*365, mask)
     }
 
@@ -178,6 +181,8 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
             if new_i != nearest_time_i[par_name]:
                 nearest_time_i[par_name] = new_i
                 working_data[par_name], _ = par_data.getVariable(time_index=new_i, **data_kwargs)
+                working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],
+                                                              dataBounds[par_name][1])
                 working_data[par_name].filled(fill_value=0)
 
         days = (data_date - datetime.datetime(year, 1, 1)).days # Note: returns an integer only, that is sufficient precision for this
@@ -218,7 +223,9 @@ def bgc_model(state_vars: dict, working_data: dict, model):
         'SST': working_data['Temperature'],
         'CHL_ext': working_data['Chlorophyll-a'],
         'F_in': np.sqrt(working_data['northward_Water_current'] ** 2 + working_data['eastward_Water_current'] ** 2),
-        't_z':  1.4 #(1 + parms_run['Von_Karman']) * model._parameters["z"]
+        't_z':  1.4, #(1 + parms_run['Von_Karman']) * model._parameters["z"]
+        'POC': 100,
+        'PHYC': state_vars['PHYC'],
     }
 
     y = {
@@ -228,10 +235,11 @@ def bgc_model(state_vars: dict, working_data: dict, model):
         'spawnday': state_vars['spawnday'],
         'sd2': state_vars['sd2'],
         'POP': state_vars['POP'],
+        'POC': 100,
     }
 
     terms_list = model.derivative(y, data_in, model)
-    all_terms = dict(zip(["CHL", "SHE", "STE", "spawnday", "sd2", 'POP'], terms_list))
+    all_terms = dict(zip(["CHL", "SHE", "STE", "spawnday", "sd2", 'POP', 'POC', 'PHYC'], terms_list))
 
     return all_terms
 

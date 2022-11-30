@@ -38,15 +38,15 @@ class SF_model_scipy:
         per_unit_area = per_farm/(p.x_farm*p.y_farm)
 
         #for  individual shellfish
-        if p.POC_data == TRUE :
-            if p.PHYC_data == TRUE : 
+        if p.POC_data== 'TRUE':
+            if p.PHYC_data == 'TRUE':
                 SELORG = data['PHYC']*2/1000
-            else:  
+            else: 
                 SELORG = data['CHL_ext']*12/(0.38*1000)
-                REMORG = max(0, (2.33*data['POC']/1000) - SELORG)
+                REMORG = np.maximum(0, (2.33*data['POC']/1000) - SELORG)
                 EREM = 20.48
         else : 
-            SELORG = data['CHL_ext']*50/(0.38*1000)  #what is the unit of these deux paramaters suppose to be in mg per l if chl is in micro/l but chl is in mg/m3
+            SELORG = data['CHL_ext']*50/(0.38*1000)  #what is the unit of these two paramaters suppose to be in mg per l if chl is in micro/l but chl is in mg/m3
             REMORG = 0
             EREM = 0
         DSHW = y['SHE']/(p.ECS*1000)
@@ -70,7 +70,7 @@ class SF_model_scipy:
         DWW = DSHW*(1+p.WCS)+DSTW*(1+p.WCT)
         SHL = p.a_SHL*DSHW**p.b_SHL
 
-        if p.POC_data == TRUE : 
+        if p.POC_data == 'TRUE': 
             PHYC_uptake = NIRSELORG*24*1000/2 
             CHL_uptake = NIRSELORG*(0.38*1000)*24/12
             POC_uptake = CHL_uptake+(NIRREMORG*p.Bioavailable_detrital_fraction)*1000*24/2.33
@@ -85,11 +85,11 @@ class SF_model_scipy:
         dspawnday = 1
         dsd2 = 1
         #farm level state variables
-        if p.POC_data == TRUE: 
+        if p.POC_data == 'TRUE': 
             dPOC_farm = turnover*(y['POC'] - data['POC'])-(POC_uptake*y["POP"]*V_SF/V_INT)/1000
         else:
             dPOC_farm = 0
-        if p.PHYC_data == TRUE:
+        if p.PHYC_data == 'TRUE':
             dCHL_farm = 0 
             dPHYC_farm = turnover*(y['PHYC'] - data['PHYC'])-(PHYC_uptake*y["POP"]*V_SF/V_INT)/1000 #ug/l/day
         else: 
@@ -97,7 +97,7 @@ class SF_model_scipy:
             dPHYC_farm = 0
 
         dPOP = starvation_mortality
-        return  np.array([dCHL_farm, dSHE, dSTE, dspawnday, dsd2, dPOP]) 
+        return  np.array([dCHL_farm, dSHE, dSTE, dspawnday, dsd2, dPOP, dPOC_farm, dPHYC_farm]) 
 
     @staticmethod
     def get_output(y, data, self):

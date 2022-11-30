@@ -486,7 +486,7 @@ def run_simulation(out_file_name: str, model_json: dict, input_data: AllData, fa
     latRef[:, :] = latitudes[np.newaxis].T
     
 
-    # Iniitializing the mask to be used, based on the first time step.
+    # Initializing the mask to be used, based on the first time step.
     for par_name, par_data in input_data.parameterData.items():
         working_data[par_name] = np.ma.masked_outside(working_data[par_name], dataBounds[par_name][0],
                                                       dataBounds[par_name][1])
