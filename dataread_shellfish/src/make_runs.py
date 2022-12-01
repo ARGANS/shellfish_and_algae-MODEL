@@ -95,6 +95,19 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
     parms_run = list(model_json['parameters']['run'].values())[0]['parameters']
     parms_farm = list(model_json['parameters']['farm'].values())[0]['parameters']
 
+    *especes, = model_json.\
+        get('parameters', {}).\
+        get('species', {})
+
+    print(especes[0])
+
+    stocking_density = model_json.\
+        get('parameters', {}).\
+        get('species', {}).\
+        get(especes[0], {}).\
+        get('parameters', {}).\
+        get('stocking_density', 1000)
+
     #parms_harvest = list(model_json['parameters']['harvest'].values())[0]['parameters']
     #harvest_type = list(model_json['parameters']['harvest'].keys())[0]
 
@@ -158,7 +171,7 @@ def run_simulation(out_file_name: str, model_json:dict, input_data: AllData):
         'CHL': np.ma.masked_array(np.zeros(grid_shape), mask),
         'SHE': np.ma.masked_array(np.ones(grid_shape)*100, mask),
         'STE': np.ma.masked_array(np.ones(grid_shape)*1000, mask),
-        'POP': np.ma.masked_array(np.ones(grid_shape)*3000, mask),
+        'POP': np.ma.masked_array(np.ones(grid_shape)*stocking_density, mask),
         'spawnday': np.ma.masked_array(np.ones(grid_shape)*365, mask),
         'POC': np.ma.masked_array(np.ones(grid_shape)*100, mask),
         'PHYC': np.ma.masked_array(np.ones(grid_shape), mask),
