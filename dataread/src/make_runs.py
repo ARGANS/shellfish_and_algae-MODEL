@@ -388,7 +388,7 @@ def latLon_to_xy(lat, lon, longitudes, latitudes, nanLists):
         listPosition = []
         for i in [-1, 0, 1]:
             for j in [-1, 0, 1]:
-                if (mat_mask[latNear + i, lonNear + j] == 0):
+                if (mat_mask[min(max(0,latNear + i),len(latitudes)-1), min(max(0,lonNear + j),len(longitudes)-1)] == 0):
                     print(i, j)
                     dist = np.sqrt(lonListMeter[j] ** 2 + latListMeter[i] ** 2)
                     listPosition.append((latNear + i, lonNear + j, dist))

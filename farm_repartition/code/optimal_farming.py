@@ -59,7 +59,7 @@ def optimal_farming(espece: str, scenario: str, prod: float, depth: float, surf:
     dataset_prod, band_prod, array_prod = read(fictmp)
     run('rm -f ' + fictmp)
     # we put at 0 the masked pixels
-    array_prod[np.where(array_prod > 30)] = 0
+    array_prod[np.where(array_prod > 100)] = 0 #we put to 0 the unrealistic productions
     array_prod[np.where(~np.isfinite(array_prod))] = 0
     array_prod = array_prod * 1000  # convertion between kg/m2 and T/km2
 

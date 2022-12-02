@@ -176,7 +176,7 @@ function fusion_zones {
         $cmd
         rm $tmpfile
 
-        python ./add_metadata.py -i $ncfile_out -j $input_path/parameters.json -n ${param_name} 1>>$error_log 2>>$error_log
+        python ./add_metadata.py -i $ncfile_out -j $input_path/parameters.json -n ${param_name} -z '/media/global/zee_europe.tif' 1>>$error_log 2>>$error_log
     done
 }
 
